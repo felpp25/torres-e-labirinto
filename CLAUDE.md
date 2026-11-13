@@ -1,7 +1,8 @@
 # Torres dos Labirintos
 
 RPG cooperativo de runs com labirintos, feito no Roblox.
-Os detalhes de design (classes, progressão, geração de labirintos) ainda vão ser definidos.
+**Antes de qualquer decisão de gameplay, consulte [docs/GDD-resumo.md](docs/GDD-resumo.md)** (resumo do design).
+Se o design não cobrir algo, pergunte em vez de inventar.
 
 ## Stack
 
