@@ -1,8 +1,8 @@
 --!strict
 -- Ponto de entrada do cliente (LocalScript em StarterPlayerScripts).
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players: Players = game:GetService("Players")
+local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- No cliente, a replicação pode ainda não ter terminado: WaitForChild evita erro de "nil".
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
