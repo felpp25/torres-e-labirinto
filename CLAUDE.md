@@ -1,0 +1,79 @@
+# Torres dos Labirintos
+
+RPG cooperativo de runs com labirintos, feito no Roblox.
+Os detalhes de design (classes, progressão, geração de labirintos) ainda vão ser definidos.
+
+## Stack
+
+| Ferramenta | Versão | Papel |
+|---|---|---|
+| Luau (`--!strict`) | – | Linguagem. Sem roblox-ts. |
+| Rokit | 1.2.0 | Gerenciador de toolchain. Versões fixadas em `rokit.toml`. |
+| Rojo | 7.7.1 | Sincroniza `src/` (disco) → Roblox Studio. |
+| StyLua | 2.6.0 | Formatação (`stylua.toml`). |
+| Selene | 0.32.0 | Lint (`selene.toml`, `std = "roblox"`). |
+| luau-lsp (VS Code) | – | Tipos e autocomplete, via sourcemap do Rojo + plugin do Studio. |
+
+Ambiente: **Windows nativo** (PowerShell). O Roblox Studio e o Claude Code rodam no mesmo SO, sem WSL.
+
+## Comandos do dia a dia (na raiz do projeto)
+
+```powershell
+rokit install                     # instala as ferramentas do rokit.toml (clone novo / outra máquina)
+rojo serve                        # sync ao vivo; no Studio: plugin Rojo > Connect
+stylua src                        # formata
+stylua --check src                # só verifica (CI / antes do commit)
+selene src                        # lint
+rojo sourcemap default.project.json -o sourcemap.json   # sourcemap manual (o luau-lsp já gera sozinho)
+rojo build -o build/place.rbxl    # gera um place offline (build/ fica fora do git)
+```
+
+## Estrutura
+
+```
+src/
+  server/   -> ServerScriptService            (scripts do servidor)
+  client/   -> StarterPlayer/StarterPlayerScripts (scripts do cliente)
+  shared/   -> ReplicatedStorage/Shared        (módulos usados pelos dois lados)
+default.project.json  mapeamento acima (Rojo)
+```
+
+Convenção de nomes do Rojo (o sufixo define a classe da instância):
+
+| Arquivo | Instância no Studio |
+|---|---|
+| `Nome.server.luau` | `Script` (roda no servidor) |
+| `Nome.client.luau` | `LocalScript` (roda no cliente) |
+| `Nome.luau` | `ModuleScript` (só roda quando alguém dá `require`) |
+| `pasta/init.luau` | a própria pasta vira um `ModuleScript` |
+
+Requires: no servidor, `require(ReplicatedStorage.Shared.X)`. No cliente, use
+`ReplicatedStorage:WaitForChild("Shared"):WaitForChild("X")`, porque a replicação pode ainda não ter terminado.
+
+## REGRAS PERMANENTES
+
+a) **Os arquivos em `src/` são a fonte da verdade.** NUNCA editar scripts direto no Studio, nem pelo MCP:
+   o Rojo sobrescreve. Código se escreve nos arquivos.
+
+b) **O MCP do Roblox Studio (`Roblox_Studio`) serve para:** rodar playtests, ler o console, inspecionar a árvore
+   do jogo, executar Luau de diagnóstico e montar o mundo (peças, modelos, assets). **Nunca** para criar ou
+   alterar scripts.
+
+c) **O servidor tem autoridade.** Dano, XP, drops, Gold e inventário são decididos só no servidor. O cliente só
+   envia intenções e mostra resultados. Todo `RemoteEvent`/`RemoteFunction` é validado no servidor (tipo,
+   faixa de valores, distância, cooldown, se o jogador pode fazer aquilo).
+
+d) **Todo arquivo `.luau` começa com `--!strict`**, com tipos explícitos em funções públicas.
+
+e) **Depois de mudar código:** `stylua src` → `selene src` (zero erros) → playtest pelo MCP → checar o console.
+
+f) **Commits pequenos**, no padrão Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `test:`).
+
+## Notas de setup
+
+- O `rokit add` pede confirmação interativa de "confiança". Em terminal não interativo, rode antes
+  `rokit trust <owner/repo>`.
+- Line endings: LF em tudo (`.gitattributes` + `line_endings = "Unix"` no StyLua). Sem isso, o git no Windows
+  pode converter para CRLF e o `stylua --check` falha.
+- `sourcemap.json` é gerado (luau-lsp/Rojo) e fica fora do git.
+- Configuração do luau-lsp: a chave atual é `luau-lsp.studioPlugin.enabled` (`luau-lsp.plugin.enabled` está depreciada).

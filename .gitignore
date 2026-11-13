@@ -1,0 +1,21 @@
+# Gerado pelo Rojo / luau-lsp a partir do default.project.json
+sourcemap.json
+
+# Places locais do Studio (a fonte da verdade é src/)
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+
+# Builds do Rojo
+/build/
+
+# Definições geradas pelo selene (caso apareçam no projeto)
+roblox.yml
+
+# Sistema / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log
+.env

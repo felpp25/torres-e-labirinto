@@ -1,0 +1,4 @@
+# Força LF no repositório e no checkout (StyLua usa line_endings = "Unix").
+* text=auto eol=lf
+*.rbxl binary
+*.rbxm binary
