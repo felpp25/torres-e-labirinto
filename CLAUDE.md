@@ -69,6 +69,20 @@ e) **Depois de mudar código:** `stylua src` → `selene src` (zero erros) → p
 
 f) **Commits pequenos**, no padrão Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `test:`).
 
+g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Players")`. Sem a anotação, o
+   luau-lsp infere `any` e deixa passar erros como `Players.LocalPlayer.Nome` (validado no setup).
+
+## Fluxo com o MCP do Studio
+
+- Antes de usar o MCP: `rojo serve` rodando **e** plugin Rojo > Connect no Studio. Sem o Connect, o Studio não
+  tem os scripts (`ServerScriptService`/`ReplicatedStorage` vazios) mesmo com o servidor no ar.
+- Toda ferramenta pede `studio_id`: obtenha com `list_roblox_studios`.
+- Playtest: `start_stop_play(true)` → `get_console_output` → `start_stop_play(false)`.
+- Conferir a sincronização sem playtest: `script_read` no caminho da instância (ex.: `game.ReplicatedStorage.Shared.Config`).
+- `save_place` só funciona depois que o place foi salvo uma vez manualmente (Arquivo > Salvar no Roblox / em arquivo).
+- Ruído conhecido no console: `ContentId: rbxassetid://203785492 failed ... Asset type does not match` vem do
+  Studio/modelo Baseplate, não do nosso código.
+
 ## Notas de setup
 
 - O `rokit add` pede confirmação interativa de "confiança". Em terminal não interativo, rode antes
@@ -77,3 +91,12 @@ f) **Commits pequenos**, no padrão Conventional Commits (`feat:`, `fix:`, `chor
   pode converter para CRLF e o `stylua --check` falha.
 - `sourcemap.json` é gerado (luau-lsp/Rojo) e fica fora do git.
 - Configuração do luau-lsp: a chave atual é `luau-lsp.studioPlugin.enabled` (`luau-lsp.plugin.enabled` está depreciada).
+- O luau-lsp só mostra diagnósticos de arquivos **abertos** no editor.
+- PATH: o Rokit instala em `%USERPROFILE%\.rokit\bin`. Terminais/VS Code abertos antes da instalação não enxergam
+  `rojo`/`stylua`/`selene`: reinicie o VS Code.
+- MCP do Studio (Windows nativo): o `%LOCALAPPDATA%\Roblox\mcp.bat` só é criado depois de ativar
+  "Ativar o Studio como servidor MCP" (Assistente > Servidores MCP). Ele procura o `StudioMCP.exe` pelo registro,
+  então sobrevive a atualizações do Studio. Registro (escopo de usuário):
+  `claude mcp add --transport stdio --scope user Roblox_Studio -- "cmd.exe" "/c" "cd /d %LOCALAPPDATA%\Roblox && .\mcp.bat"`
+- O CLI `claude` não fica no PATH quando se usa só a extensão do VS Code; o binário fica em
+  `%USERPROFILE%\.vscode\extensions\anthropic.claude-code-<versão>-win32-x64\resources\native-binary\claude.exe`.
