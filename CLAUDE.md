@@ -80,6 +80,10 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - Playtest: `start_stop_play(true)` → `get_console_output` → `start_stop_play(false)`.
 - Conferir a sincronização sem playtest: `script_read` no caminho da instância (ex.: `game.ReplicatedStorage.Shared.Config`).
 - `save_place` só funciona depois que o place foi salvo uma vez manualmente (Arquivo > Salvar no Roblox / em arquivo).
+  Cada `save_place` cria uma versão no histórico do place: use só quando fizer sentido, não a cada edição.
+- O place está na nuvem: **"Torres e Labirinto"**, placeId `91794479071367`, universeId `10776412975`
+  (o `save_place` reporta `location: TeamCreate`).
+- O `studio_id` muda quando o place é salvo/reaberto: sempre chame `list_roblox_studios` de novo em vez de reutilizar um id antigo.
 - Ruído conhecido no console: `ContentId: rbxassetid://203785492 failed ... Asset type does not match` vem do
   Studio/modelo Baseplate, não do nosso código.
 
