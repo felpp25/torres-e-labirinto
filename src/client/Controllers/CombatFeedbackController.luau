@@ -20,6 +20,9 @@ local SWING_COLOR = Color3.fromRGB(255, 255, 255)
 local FINISHER_COLOR = Color3.fromRGB(255, 170, 60)
 local NUMBER_COLOR = Color3.fromRGB(255, 255, 255)
 local CRIT_COLOR = Color3.fromRGB(255, 220, 60)
+local PLAYER_HIT_COLOR = Color3.fromRGB(255, 70, 70)
+local REWARD_COLOR = Color3.fromRGB(120, 255, 140)
+local REWARD_TEXT_DURATION = 1.4
 local SWING_FADE_TIME = 0.15
 
 local CombatFeedbackController = {}
@@ -67,13 +70,10 @@ function CombatFeedbackController.playDodge(character: Model, duration: number)
 	end)
 end
 
-local function showDamageNumber(target: Model, damage: number, isCrit: boolean)
-	local adornee = target:FindFirstChild("Head") or target.PrimaryPart
-	if not adornee or not adornee:IsA("BasePart") then
-		return
-	end
+-- Texto que sobe e some acima de uma peça (números de dano, recompensas).
+local function floatingText(adornee: BasePart, text: string, color: Color3, size: Vector2, duration: number)
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(if isCrit then 120 else 90, if isCrit then 48 else 36)
+	gui.Size = UDim2.fromOffset(size.X, size.Y)
 	gui.AlwaysOnTop = true
 	gui.StudsOffset = Vector3.new(rng:NextNumber(-1, 1), 1.5, 0)
 	gui.Adornee = adornee
@@ -81,18 +81,50 @@ local function showDamageNumber(target: Model, damage: number, isCrit: boolean)
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = if isCrit then `{damage}!` else tostring(damage)
-	label.TextColor3 = if isCrit then CRIT_COLOR else NUMBER_COLOR
+	label.Text = text
+	label.TextColor3 = color
 	label.TextStrokeTransparency = 0
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBlack
 	label.Parent = gui
 	gui.Parent = localPlayer:WaitForChild("PlayerGui")
 
-	local info = TweenInfo.new(Combat.damageNumberDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	TweenService:Create(gui, info, { StudsOffset = gui.StudsOffset + Vector3.new(0, 2.5, 0) }):Play()
 	TweenService:Create(label, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-	Debris:AddItem(gui, Combat.damageNumberDuration + 0.05)
+	Debris:AddItem(gui, duration + 0.05)
+end
+
+local function showDamageNumber(target: Model, damage: number, isCrit: boolean, isPlayerTarget: boolean)
+	local adornee = target:FindFirstChild("Head") or target.PrimaryPart
+	if not adornee or not adornee:IsA("BasePart") then
+		return
+	end
+	local color = if isPlayerTarget then PLAYER_HIT_COLOR elseif isCrit then CRIT_COLOR else NUMBER_COLOR
+	local size = if isCrit then Vector2.new(120, 48) else Vector2.new(90, 36)
+	floatingText(adornee, if isCrit then `{damage}!` else tostring(damage), color, size, Combat.damageNumberDuration)
+end
+
+-- "+20 XP  +4 Gold" onde o mob morreu. Precisa de uma peça como âncora: criamos uma invisível só no cliente.
+local function showReward(payload: unknown)
+	if typeof(payload) ~= "table" then
+		return
+	end
+	local data = payload :: Remotes.RewardPayload
+	if typeof(data.position) ~= "Vector3" or typeof(data.xp) ~= "number" or typeof(data.gold) ~= "number" then
+		return
+	end
+	local anchor = Instance.new("Part")
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CanTouch = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.one
+	anchor.Position = data.position + Vector3.new(0, 3, 0)
+	anchor.Parent = workspace
+	Debris:AddItem(anchor, REWARD_TEXT_DURATION + 0.1)
+	floatingText(anchor, `+{data.xp} XP  +{data.gold} Gold`, REWARD_COLOR, Vector2.new(200, 40), REWARD_TEXT_DURATION)
 end
 
 local function flash(target: Model)
@@ -137,9 +169,11 @@ local function onCombatFeedback(payload: unknown)
 	if typeof(data.target) ~= "Instance" or not data.target:IsA("Model") or typeof(data.damage) ~= "number" then
 		return
 	end
-	showDamageNumber(data.target, data.damage, data.isCrit == true)
+	local isPlayerTarget = Players:GetPlayerFromCharacter(data.target) ~= nil
+	showDamageNumber(data.target, data.damage, data.isCrit == true, isPlayerTarget)
 	flash(data.target)
-	if data.isFinisher and data.attacker == localPlayer then
+	-- Treme no golpe final do próprio combo e quando o próprio personagem apanha.
+	if (data.isFinisher and data.attacker == localPlayer) or data.target == localPlayer.Character then
 		shakeCamera()
 	end
 end
@@ -148,6 +182,7 @@ function CombatFeedbackController.init() end
 
 function CombatFeedbackController.start()
 	Remotes.get("CombatFeedback").OnClientEvent:Connect(onCombatFeedback)
+	Remotes.get("RewardGranted").OnClientEvent:Connect(showReward)
 end
 
 return CombatFeedbackController

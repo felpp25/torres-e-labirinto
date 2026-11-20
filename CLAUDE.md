@@ -102,8 +102,13 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 
 ## Lições de física do Roblox (medidas em playtest)
 
-- NPC com Humanoid sem pernas: `HipHeight` precisa ser > 0 (usamos 0,5). Com 0, o Humanoid fica em Freefall e
-  desliza sem parar até cair do mapa.
+- NPC com Humanoid sem pernas: `HipHeight` precisa ser > 0. Com 0, o Humanoid fica em Freefall e desliza sem
+  parar até cair do mapa. E o NPC só sobe degraus com altura <= `HipHeight` (usamos 1,2 + "pernas" decorativas
+  sem colisão; com 0,5 ele travava na plataforma de spawn, de 1 stud).
+- `Humanoid.MoveDirection` de NPC fica (0,0,0) no servidor mesmo andando: para saber se um mob se move, compare
+  posições ao longo do tempo.
+- Testes de combate pelo MCP: um teste controlado (cliente dispara o Remote, servidor mede) é mais confiável que
+  mouse simulado, porque o jogador pode morrer/renascer ou estar de costas no meio do teste.
 - Empurrão/dash: mudar `AssemblyLinearVelocity` não funciona em Humanoid (ele freia na hora). Use `LinearVelocity`
   em modo Plano por um instante (distância ≈ velocidade × duração).
 

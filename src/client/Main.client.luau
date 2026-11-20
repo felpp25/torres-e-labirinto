@@ -20,8 +20,9 @@ local Controllers = script.Parent:WaitForChild("Controllers")
 local CONTROLLERS: { [string]: Controller } = {
 	CombatFeedbackController = require(Controllers:WaitForChild("CombatFeedbackController")),
 	InputController = require(Controllers:WaitForChild("InputController")),
+	SpectateController = require(Controllers:WaitForChild("SpectateController")),
 }
-local CONTROLLER_ORDER: { string } = { "CombatFeedbackController", "InputController" }
+local CONTROLLER_ORDER: { string } = { "CombatFeedbackController", "InputController", "SpectateController" }
 
 for _, name in CONTROLLER_ORDER do
 	CONTROLLERS[name].init()

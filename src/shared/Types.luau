@@ -63,7 +63,9 @@ export type MobDef = {
 	defense: number,
 	walkSpeed: number,
 	aggroRange: number, -- distância para começar a perseguir (studs)
-	attackRange: number, -- distância para iniciar o ataque (studs)
+	attackRange: number, -- distância (centro a centro) para iniciar o ataque (studs)
+	hitRange: number, -- profundidade da área do golpe à frente do mob (studs)
+	hitWidth: number, -- largura da área do golpe (studs)
 	telegraphTime: number, -- aviso visual antes do golpe (s)
 	attackCooldown: number, -- s
 	xp: number,

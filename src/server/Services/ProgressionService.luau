@@ -1,6 +1,7 @@
 --!strict
--- Progressão do jogador: classe e atributos (XP, nível e Gold entram no M4).
+-- Progressão do jogador: classe, atributos, XP e Gold (nível e pontos de atributo entram no M4).
 -- Também aplica no personagem o que vem da classe e dos atributos (vida máxima, velocidade).
+-- XP e Gold só mudam aqui, chamados por serviços do servidor; são replicados por Attributes para o HUD.
 
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,12 +9,15 @@ local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage"
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Formulas = require(Shared.Formulas)
+local Keys = require(Shared.Keys)
 local Classes = require(Shared.Balance.Classes)
 local Combat = require(Shared.Balance.Combat)
 
 type PlayerData = {
 	classId: string,
 	attributes: Types.Attributes,
+	xp: number,
+	gold: number,
 }
 
 local ProgressionService = {}
@@ -26,10 +30,35 @@ local function getData(player: Player): PlayerData
 		data = {
 			classId = Classes.defaultClassId,
 			attributes = Formulas.emptyAttributes(),
+			xp = 0,
+			gold = 0,
 		}
 		playerData[player] = data
 	end
 	return data
+end
+
+local function replicate(player: Player, data: PlayerData)
+	player:SetAttribute(Keys.PlayerAttr.XP, data.xp)
+	player:SetAttribute(Keys.PlayerAttr.Gold, data.gold)
+end
+
+function ProgressionService.addXp(player: Player, amount: number)
+	if amount <= 0 then
+		return
+	end
+	local data = getData(player)
+	data.xp += amount
+	replicate(player, data)
+end
+
+function ProgressionService.addGold(player: Player, amount: number)
+	if amount <= 0 then
+		return
+	end
+	local data = getData(player)
+	data.gold += math.floor(amount)
+	replicate(player, data)
 end
 
 function ProgressionService.getClass(player: Player): Types.ClassDef
@@ -64,7 +93,7 @@ local function onCharacterAdded(player: Player, character: Model)
 end
 
 local function onPlayerAdded(player: Player)
-	getData(player)
+	replicate(player, getData(player))
 	player.CharacterAdded:Connect(function(character: Model)
 		onCharacterAdded(player, character)
 	end)

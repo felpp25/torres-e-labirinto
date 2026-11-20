@@ -8,21 +8,29 @@
 --   DodgeRequest    cliente -> servidor  ()                       quero esquivar (servidor cobra stamina/recarga)
 --   AbilityRequest  cliente -> servidor  (abilityId: string)      quero usar uma habilidade
 --   CombatFeedback  servidor -> clientes (CombatFeedbackPayload)  algo foi atingido: mostrar número/flash/tremor
+--   RewardGranted   servidor -> 1 cliente (RewardPayload)         você ganhou XP/Gold: mostrar texto flutuante
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService: RunService = game:GetService("RunService")
 
-export type RemoteName = "AttackRequest" | "DodgeRequest" | "AbilityRequest" | "CombatFeedback"
+export type RemoteName = "AttackRequest" | "DodgeRequest" | "AbilityRequest" | "CombatFeedback" | "RewardGranted"
 
 export type CombatFeedbackPayload = {
-	target: Model, -- quem foi atingido
+	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
 	attacker: Player?, -- quem bateu (nil = mob)
 	damage: number,
 	isCrit: boolean,
 	isFinisher: boolean, -- golpe final do combo: o atacante treme a câmera
 }
 
-local REMOTE_NAMES: { RemoteName } = { "AttackRequest", "DodgeRequest", "AbilityRequest", "CombatFeedback" }
+export type RewardPayload = {
+	xp: number,
+	gold: number,
+	position: Vector3, -- onde o mob morreu
+}
+
+local REMOTE_NAMES: { RemoteName } =
+	{ "AttackRequest", "DodgeRequest", "AbilityRequest", "CombatFeedback", "RewardGranted" }
 local FOLDER_NAME = "Remotes"
 local CLIENT_WAIT_TIMEOUT = 30
 

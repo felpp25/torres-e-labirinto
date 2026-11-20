@@ -17,6 +17,8 @@ Keys.PlayerAttr = table.freeze({
 	Mana = "Mana",
 	MaxMana = "MaxMana",
 	DodgeReadyAt = "DodgeReadyAt",
+	XP = "XP",
+	Gold = "Gold",
 })
 
 function Keys.abilityReadyAttr(abilityId: string): string

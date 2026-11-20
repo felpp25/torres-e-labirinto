@@ -16,13 +16,17 @@ type Service = {
 
 local Services = script.Parent.Services
 
--- Ordem importa: quem é usado por outros vem antes.
+-- Ordem importa: quem é usado por outros vem antes. LifeService por último: ele faz os jogadores nascerem,
+-- e os outros serviços já precisam estar ouvindo CharacterAdded.
 local SERVICES: { [string]: Service } = {
 	ProgressionService = require(Services.ProgressionService),
 	CombatService = require(Services.CombatService),
-	TrainingDummyService = require(Services.TrainingDummyService),
+	EnemyService = require(Services.EnemyService),
+	TrainingAreaService = require(Services.TrainingAreaService),
+	LifeService = require(Services.LifeService),
 }
-local SERVICE_ORDER: { string } = { "ProgressionService", "CombatService", "TrainingDummyService" }
+local SERVICE_ORDER: { string } =
+	{ "ProgressionService", "CombatService", "EnemyService", "TrainingAreaService", "LifeService" }
 
 Remotes.setupServer()
 

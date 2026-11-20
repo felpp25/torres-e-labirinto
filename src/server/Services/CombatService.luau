@@ -321,6 +321,32 @@ function CombatService.isInvulnerable(player: Player): boolean
 	return state ~= nil and now() < state.invulnerableUntil
 end
 
+-- Dano em um jogador (vindo de mobs). Respeita a invencibilidade da esquiva e a Defesa do jogador.
+-- Devolve true se o dano foi aplicado.
+function CombatService.damagePlayer(player: Player, rawDamage: number): boolean
+	if CombatService.isInvulnerable(player) then
+		return false
+	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not character or not humanoid or humanoid.Health <= 0 then
+		return false
+	end
+	local attributes = ProgressionService.getAttributes(player)
+	local damage = math.max(1, math.round(Formulas.applyDefense(rawDamage, attributes.Defense)))
+	humanoid.Health = math.max(humanoid.Health - damage, 0)
+
+	local payload: Remotes.CombatFeedbackPayload = {
+		target = character,
+		attacker = nil,
+		damage = damage,
+		isCrit = false,
+		isFinisher = false,
+	}
+	Remotes.get("CombatFeedback"):FireAllClients(payload)
+	return true
+end
+
 function CombatService.init()
 	Remotes.get("AttackRequest").OnServerEvent:Connect(onAttackRequest)
 	Remotes.get("DodgeRequest").OnServerEvent:Connect(onDodgeRequest)

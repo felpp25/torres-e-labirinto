@@ -38,11 +38,17 @@ local Combat = table.freeze({
 	-- Tolerância de rede: studs extras de alcance e segundos de folga nas recargas
 	rangeTolerance = 2,
 	serverTimingTolerance = 0.08,
-	-- Assistência de mira: o golpe vira para o inimigo mais próximo dentro deste ângulo (graus) da frente
-	aimAssistAngle = 70,
+	-- Assistência de mira: o golpe vira para o inimigo mais próximo DENTRO DO ALCANCE do golpe e até este ângulo
+	-- (graus) da frente. 180 = qualquer direção (celular: inimigo atrás de você é comum; com 70 o golpe saía no vazio).
+	aimAssistAngle = 180,
 	-- Empurrão: o alvo é levado a `knockback` studs/s (valor de cada golpe/habilidade) durante este tempo.
 	-- Distância aproximada = knockback × knockbackDuration (ex.: Palma 60 × 0,18 ≈ 11 studs).
 	knockbackDuration = 0.18,
+
+	-- IA dos inimigos
+	enemyThinkInterval = 0.1, -- s entre decisões (perseguir/atacar)
+	enemyRepathInterval = 0.5, -- s entre recálculos de caminho (PathfindingService) sem linha de visão
+	corpseLifetime = 1.5, -- s até o corpo do mob sumir
 
 	-- Sem regeneração natural de vida: no protótipo, vida só volta no checkpoint (GDD > Morte e checkpoint)
 	disableNaturalHealthRegen = true,

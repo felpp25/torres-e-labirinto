@@ -9,7 +9,7 @@ local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Keys = require(Shared.Keys)
 
-local HOVER_HEIGHT = 0.5 -- studs entre a base do corpo e o chão
+local HOVER_HEIGHT = 1.2 -- studs entre a base do corpo e o chão (= maior degrau que o mob consegue subir)
 
 local EnemyFactory = {}
 
@@ -56,10 +56,20 @@ function EnemyFactory.create(def: Types.MobDef, cframe: CFrame, statMultiplier: 
 	nose.Parent = model
 	weld(root, nose)
 
+	-- "Pernas" só visuais preenchendo o vão entre o corpo e o chão (sem colisão: não travam em degraus).
+	local legsSize = Vector3.new(def.size.X * 0.6, HOVER_HEIGHT, def.size.Z * 0.6)
+	local legsCFrame = cframe * CFrame.new(0, -(def.size.Y / 2 + HOVER_HEIGHT / 2), 0)
+	local legs = makePart("Legs", legsSize, legsCFrame, def.color:Lerp(Color3.new(0, 0, 0), 0.35))
+	legs.Massless = true
+	legs.CanCollide = false
+	legs.Parent = model
+	weld(root, legs)
+
 	local humanoid = Instance.new("Humanoid")
-	-- R15 sem pernas: o Humanoid sustenta o HumanoidRootPart HOVER_HEIGHT acima do chão.
-	-- NÃO usar 0: com o corpo encostado no chão o Humanoid fica preso em Freefall e desliza sem parar
-	-- (medido no playtest: ~21 studs/s até cair do mapa).
+	-- R15 sem pernas de verdade: o Humanoid sustenta o HumanoidRootPart HOVER_HEIGHT acima do chão.
+	-- Medido em playtest:
+	-- - 0: o Humanoid fica preso em Freefall e desliza sem parar (~21 studs/s até cair do mapa);
+	-- - o mob só sobe degraus com altura <= HOVER_HEIGHT (0,5 travava na plataforma de spawn, de 1 stud).
 	humanoid.RigType = Enum.HumanoidRigType.R15
 	humanoid.HipHeight = HOVER_HEIGHT
 	humanoid.RequiresNeck = false
