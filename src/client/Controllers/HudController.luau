@@ -1,6 +1,7 @@
 --!strict
 -- HUD (só exibe; os valores vêm do servidor por Attributes do Player e do Humanoid).
--- Topo central: nível, barras de vida/stamina/mana/XP, Gold e atributos.
+-- Canto superior esquerdo (padrão de RPG): nível, barras de vida/stamina/mana/XP, Gold e atributos.
+-- A janela de chat do Roblox, que fica nesse canto por padrão, é movida para o canto inferior esquerdo.
 -- Embaixo, no centro: ícones de recarga da esquiva e da Palma de Ferro.
 -- Centro da tela: aviso de "subiu de nível".
 
@@ -8,6 +9,7 @@ local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService: RunService = game:GetService("RunService")
 local StarterGui: StarterGui = game:GetService("StarterGui")
+local TextChatService: TextChatService = game:GetService("TextChatService")
 local TweenService: TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -162,9 +164,7 @@ local function build()
 	local panel = Instance.new("Frame")
 	panel.BackgroundColor3 = COLORS.panel
 	panel.BackgroundTransparency = 0.25
-	-- Topo central: o canto superior esquerdo é ocupado pela janela de chat do Roblox.
-	panel.AnchorPoint = Vector2.new(0.5, 0)
-	panel.Position = UDim2.new(0.5, 0, 0, 8)
+	panel.Position = UDim2.fromOffset(12, 8)
 	panel.Size = UDim2.fromOffset(PANEL_WIDTH, 112)
 	panel.Parent = gui
 	corner(panel, 10)
@@ -294,8 +294,20 @@ function HudController.init()
 	build()
 end
 
+-- Leva a janela de chat para o canto inferior esquerdo, liberando o superior esquerdo para o HUD.
+-- (O superior direito fica livre para a lista de jogadores do Roblox no coop.)
+local function moveChatWindow()
+	local config = TextChatService:FindFirstChildOfClass("ChatWindowConfiguration")
+		or TextChatService:WaitForChild("ChatWindowConfiguration", 10)
+	if config and config:IsA("ChatWindowConfiguration") then
+		config.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		config.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	end
+end
+
 function HudController.start()
 	task.spawn(hideDefaultHealthBar)
+	task.spawn(moveChatWindow)
 	Remotes.get("LevelUp").OnClientEvent:Connect(showLevelUp)
 	RunService.Heartbeat:Connect(update)
 end

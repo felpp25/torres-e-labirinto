@@ -49,7 +49,10 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
   - `Atributo` = Força para dano físico, Inteligência para dano mágico;
   - `M = 1` para atributos comuns; `M = 1,5` para os atributos de scaling da classe.
 - **3 pontos de atributo por nível.**
-- Botão **"distribuir recomendado"**: coloca os pontos nos atributos de scaling da classe.
+- **O jogador escolhe em qual atributo colocar cada ponto.** Botão **"distribuir recomendado"**: coloca os pontos
+  nos atributos de scaling da classe.
+  - *Protótipo:* os pontos vão automaticamente para o "recomendado". A escolha manual (painel com +1 por atributo,
+    validado no servidor) fica para depois do protótipo. Ainda a decidir: se dá para resetar pontos (ex.: item ou Gold).
 
 ## Classes e builds
 
