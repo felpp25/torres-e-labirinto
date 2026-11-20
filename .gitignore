@@ -7,6 +7,9 @@ sourcemap.json
 *.rbxl.lock
 *.rbxlx.lock
 
+# Definições da API do Roblox baixadas pelo scripts/analyze.ps1
+/.luau-lsp/
+
 # Builds do Rojo
 /build/
 

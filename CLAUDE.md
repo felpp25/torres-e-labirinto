@@ -13,7 +13,7 @@ Se o design não cobrir algo, pergunte em vez de inventar.
 | Rojo | 7.7.1 | Sincroniza `src/` (disco) → Roblox Studio. |
 | StyLua | 2.6.0 | Formatação (`stylua.toml`). |
 | Selene | 0.32.0 | Lint (`selene.toml`, `std = "roblox"`). |
-| luau-lsp (VS Code) | – | Tipos e autocomplete, via sourcemap do Rojo + plugin do Studio. |
+| luau-lsp | 1.70.1 | Tipos: extensão do VS Code (editor) + CLI no Rokit (`scripts/analyze.ps1`, projeto inteiro). |
 
 Ambiente: **Windows nativo** (PowerShell). O Roblox Studio e o Claude Code rodam no mesmo SO, sem WSL.
 
@@ -25,6 +25,7 @@ rojo serve                        # sync ao vivo; no Studio: plugin Rojo > Conne
 stylua src                        # formata
 stylua --check src                # só verifica (CI / antes do commit)
 selene src                        # lint
+./scripts/analyze.ps1             # checagem de tipos do projeto inteiro (luau-lsp analyze); exit 0 = sem erros
 rojo sourcemap default.project.json -o sourcemap.json   # sourcemap manual (o luau-lsp já gera sozinho)
 rojo build -o build/place.rbxl    # gera um place offline (build/ fica fora do git)
 ```
@@ -36,8 +37,16 @@ src/
   server/   -> ServerScriptService            (scripts do servidor)
   client/   -> StarterPlayer/StarterPlayerScripts (scripts do cliente)
   shared/   -> ReplicatedStorage/Shared        (módulos usados pelos dois lados)
+    Types.luau      tipos compartilhados
+    Balance/        TODOS os números de balanceamento (combate, classes, habilidades, mobs, progressão, andares)
+    Formulas.luau   fórmulas puras (dano, defesa, crítico, XP...): servidor decide, cliente só mostra
+    Remotes.luau    RemoteEvents com nome tipado (servidor cria; cliente espera)
+  server/Main.server.luau   bootstrap: init() de todos os serviços, depois start()
+  client/Main.client.luau   bootstrap dos controllers (mesmo padrão)
 default.project.json  mapeamento acima (Rojo)
 ```
+
+Números de balanceamento ficam só em `src/shared/Balance/`, nunca espalhados pelo código.
 
 Convenção de nomes do Rojo (o sufixo define a classe da instância):
 
@@ -66,7 +75,8 @@ c) **O servidor tem autoridade.** Dano, XP, drops, Gold e inventário são decid
 
 d) **Todo arquivo `.luau` começa com `--!strict`**, com tipos explícitos em funções públicas.
 
-e) **Depois de mudar código:** `stylua src` → `selene src` (zero erros) → playtest pelo MCP → checar o console.
+e) **Depois de mudar código:** `stylua src` → `selene src` → `./scripts/analyze.ps1` (zero erros nos três) →
+   playtest pelo MCP → checar o console.
 
 f) **Commits pequenos**, no padrão Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `test:`).
 
