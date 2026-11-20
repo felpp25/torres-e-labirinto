@@ -97,6 +97,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - O `studio_id` muda quando o place é salvo/reaberto: sempre chame `list_roblox_studios` de novo em vez de reutilizar um id antigo.
 - Ruído conhecido no console (não é do nosso código): `ContentId: rbxassetid://203785492 failed ... Asset type does
   not match` (modelo Baseplate) e mensagens `[Assistant] ...` (plugin do Assistente do Studio).
+- Antes de dar Play depois de mudar arquivos (inclusive depois do `stylua src`, que reescreve arquivos), confira
+  que o Rojo já sincronizou: `execute_luau` no datamodel `Edit` procurando um trecho novo no `.Source` do script.
+  Um Play iniciado antes da sincronização roda a versão antiga (aconteceu no M4: HUD "sumido").
 - Testes pelo MCP: `character_navigation` leva o personagem; `user_mouse_input`/`user_keyboard_input` simulam o
   jogador; `execute_luau` no datamodel `Server` confere o resultado (vida, posição, Attributes).
 
