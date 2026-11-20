@@ -8,6 +8,7 @@ local Dungeon = table.freeze({
 	roomSize = 48, -- lado de cada sala (studs)
 	wallHeight = 14,
 	wallThickness = 2,
+	floorThickness = 1,
 	doorWidth = 10,
 
 	-- Regras do GDD: 8 a 12 salas, caminho garantido até o puzzle, 1 ou 2 becos sem saída
@@ -15,18 +16,21 @@ local Dungeon = table.freeze({
 	maxRooms = 12,
 	minDeadEnds = 1,
 	maxDeadEnds = 2,
+	maxBranchLength = 2, -- salas em cada corredor lateral que termina num beco
 
-	-- Mobs
+	-- Mobs (salas de combate e becos)
+	mobPool = table.freeze({ "Brute" }),
 	mobsPerCombatRoom = 2,
 	extraMobsPerFloor = 1, -- +1 mob por sala de combate a cada andar
 	mobStatGrowthPerFloor = 0.15, -- +15% de vida e dano por andar
+	mobSpawnSpread = 0.3, -- mobs nascem até esta fração do lado da sala a partir do centro
 
 	-- Puzzle de placas de pressão (ficam ativadas depois de pisadas; funciona solo e em grupo)
 	minPlates = 2,
 	maxPlates = 3,
 
-	-- Altura onde os andares são construídos
-	floorOrigin = Vector3.new(0, 100, 0),
+	-- Onde os andares são construídos: longe do lobby (os mobs do andar não enxergam o lobby e vice-versa)
+	floorOrigin = Vector3.new(1000, 50, 0),
 })
 
 return Dungeon

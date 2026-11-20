@@ -48,6 +48,7 @@ local Combat = table.freeze({
 	-- IA dos inimigos
 	enemyThinkInterval = 0.1, -- s entre decisões (perseguir/atacar)
 	enemyRepathInterval = 0.5, -- s entre recálculos de caminho (PathfindingService) sem linha de visão
+	enemyLeashMultiplier = 1.5, -- mob acordado persegue até aggroRange × isto (depois desiste)
 	corpseLifetime = 1.5, -- s até o corpo do mob sumir
 
 	-- Sem regeneração natural de vida: no protótipo, vida só volta no checkpoint (GDD > Morte e checkpoint)

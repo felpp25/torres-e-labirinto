@@ -34,6 +34,7 @@ type Enemy = {
 	waypointIndex: number,
 	nextRepathAt: number,
 	originalColors: { [BasePart]: Color3 },
+	aggroed: boolean, -- já viu um jogador (a partir daí persegue mesmo sem linha de visão)
 }
 
 local TELEGRAPH_COLOR = Color3.fromRGB(255, 40, 40)
@@ -61,21 +62,31 @@ local function flatDistance(a: Vector3, b: Vector3): number
 	return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
 end
 
+-- Linha de visão: nada além de inimigos e personagens entre o mob e o alvo.
+local hasLineOfSight: (from: Vector3, to: Vector3) -> boolean
+
+-- Mob "dormindo" só acorda ao VER um jogador dentro do aggroRange (paredes bloqueiam).
+-- Acordado, persegue o jogador vivo mais próximo dentro do aggroRange × leash, mesmo atrás de paredes.
 local function nearestTarget(enemy: Enemy): BasePart?
 	local best: BasePart? = nil
-	local bestDistance = enemy.def.aggroRange
+	local maxDistance = if enemy.aggroed
+		then enemy.def.aggroRange * Combat.enemyLeashMultiplier
+		else enemy.def.aggroRange
+	local bestDistance = maxDistance
 	for _, root in aliveCharacterRoots() do
-		local distance = flatDistance(root.Position, enemy.root.Position)
-		if distance <= bestDistance then
+		local distance = (root.Position - enemy.root.Position).Magnitude
+		if distance <= bestDistance and (enemy.aggroed or hasLineOfSight(enemy.root.Position, root.Position)) then
 			best = root
 			bestDistance = distance
 		end
 	end
+	if best then
+		enemy.aggroed = true
+	end
 	return best
 end
 
--- Linha de visão: nada além de inimigos e personagens entre o mob e o alvo.
-local function hasLineOfSight(from: Vector3, to: Vector3): boolean
+function hasLineOfSight(from: Vector3, to: Vector3): boolean
 	local ignore: { Instance } = CollectionService:GetTagged(Keys.Tags.Enemy)
 	for _, player in Players:GetPlayers() do
 		if player.Character then
@@ -274,6 +285,7 @@ function EnemyService.spawn(def: Types.MobDef, cframe: CFrame, statMultiplier: n
 		waypointIndex = 1,
 		nextRepathAt = 0,
 		originalColors = originalColors,
+		aggroed = false,
 	}
 	humanoid.Died:Connect(function()
 		onDied(enemy)

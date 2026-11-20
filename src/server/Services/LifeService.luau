@@ -3,7 +3,8 @@
 -- - o Roblox NÃO renasce ninguém automaticamente (CharacterAutoLoads = false);
 -- - quem morre fica morto (o cliente passa a espectar um aliado vivo);
 -- - se todos morrem, chama o handler de "todos mortos" depois de um tempo
---   (padrão: renasce todo mundo; no M6 o DungeonService troca por "reiniciar a run no andar 1");
+--   (padrão: renasce todo mundo; o DungeonService troca por "reiniciar a run no andar 1");
+-- - onde nascer vem do "spawn provider" (o DungeonService aponta para a entrada do andar atual);
 -- - reviveDeadAt(cframe): usado pelo checkpoint para trazer os mortos de volta.
 
 local Players: Players = game:GetService("Players")
@@ -14,6 +15,9 @@ local Run = require(ReplicatedStorage.Shared.Balance.Run)
 local LifeService = {}
 
 local restartScheduled = false
+local spawnProvider: (Player) -> CFrame? = function(_: Player): CFrame?
+	return nil -- nil = SpawnLocation padrão do lobby
+end
 
 function LifeService.isAlive(player: Player): boolean
 	local character = player.Character
@@ -30,9 +34,23 @@ local function anyAlive(): boolean
 	return false
 end
 
+-- Cria um personagem novo e, se houver, leva para o ponto indicado (`at` ou o spawn provider).
+local function spawnPlayer(player: Player, at: CFrame?)
+	player:LoadCharacterAsync()
+	local target = at or spawnProvider(player)
+	local character = player.Character
+	if target and character then
+		character:PivotTo(target)
+	end
+end
+
+function LifeService.setSpawnProvider(provider: (Player) -> CFrame?)
+	spawnProvider = provider
+end
+
 function LifeService.respawnAll()
 	for _, player in Players:GetPlayers() do
-		task.spawn(player.LoadCharacterAsync, player)
+		task.spawn(spawnPlayer, player, nil)
 	end
 end
 
@@ -46,13 +64,7 @@ end
 function LifeService.reviveDeadAt(cframe: CFrame)
 	for _, player in Players:GetPlayers() do
 		if not LifeService.isAlive(player) then
-			task.spawn(function()
-				player:LoadCharacterAsync()
-				local character = player.Character
-				if character then
-					character:PivotTo(cframe)
-				end
-			end)
+			task.spawn(spawnPlayer, player, cframe)
 		end
 	end
 end
@@ -80,17 +92,19 @@ local function onPlayerAdded(player: Player)
 		end
 	end)
 	-- Entrou agora: nasce (mesmo com a run em andamento).
-	player:LoadCharacterAsync()
+	spawnPlayer(player, nil)
 end
 
 function LifeService.init()
 	Players.CharacterAutoLoads = false
+end
+
+-- No start (não no init): o DungeonService já gerou o andar e definiu o spawn provider.
+function LifeService.start()
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	for _, player in Players:GetPlayers() do
 		task.spawn(onPlayerAdded, player)
 	end
 end
-
-function LifeService.start() end
 
 return LifeService

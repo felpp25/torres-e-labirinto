@@ -8,6 +8,7 @@ local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage"
 local Shared = ReplicatedStorage.Shared
 local Mobs = require(Shared.Balance.Mobs)
 local Training = require(Shared.Balance.Training)
+local Run = require(Shared.Balance.Run)
 
 local EnemyFactory = require(script.Parent.Parent.Enemies.EnemyFactory)
 local EnemyService = require(script.Parent.EnemyService)
@@ -86,6 +87,10 @@ function TrainingAreaService.start()
 		spawnDummy(position, dummies)
 	end
 
+	-- Com a run ativa, a onda de treino fica desligada (quem cuida de "todos morreram" é o DungeonService).
+	if Run.startInDungeon then
+		return
+	end
 	local wave = Instance.new("Folder")
 	wave.Name = "TrainingWave"
 	wave.Parent = workspace
