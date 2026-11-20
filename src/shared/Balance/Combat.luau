@@ -41,6 +41,12 @@ local Combat = table.freeze({
 	-- Assistência de mira: o golpe vira para o inimigo mais próximo DENTRO DO ALCANCE do golpe e até este ângulo
 	-- (graus) da frente. 180 = qualquer direção (celular: inimigo atrás de você é comum; com 70 o golpe saía no vazio).
 	aimAssistAngle = 180,
+	-- Movimento forçado seguro (Motion.luau: esquiva e empurrão)
+	motionProbeRadius = 1.5, -- raio da "sonda" que mede o espaço livre à frente (≈ largura do corpo)
+	motionWallMargin = 1, -- para esta distância antes da parede
+	motionMinDuration = 0.03, -- menos que isso de espaço livre: nem começa a mover
+	motionMaxAcceleration = 3000, -- força máxima = massa × isto (evita arremessos em colisões)
+
 	-- Empurrão: o alvo é levado a `knockback` studs/s (valor de cada golpe/habilidade) durante este tempo.
 	-- Distância aproximada = knockback × knockbackDuration (ex.: Palma 60 × 0,18 ≈ 11 studs).
 	knockbackDuration = 0.18,

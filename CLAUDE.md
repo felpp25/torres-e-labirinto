@@ -115,8 +115,10 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   posições ao longo do tempo.
 - Testes de combate pelo MCP: um teste controlado (cliente dispara o Remote, servidor mede) é mais confiável que
   mouse simulado, porque o jogador pode morrer/renascer ou estar de costas no meio do teste.
-- Empurrão/dash: mudar `AssemblyLinearVelocity` não funciona em Humanoid (ele freia na hora). Use `LinearVelocity`
-  em modo Plano por um instante (distância ≈ velocidade × duração).
+- Empurrão/dash: mudar `AssemblyLinearVelocity` não funciona em Humanoid (ele freia na hora). Use sempre
+  `src/shared/Motion.luau` (`Motion.push`): `LinearVelocity` em modo Plano por um instante, com Spherecast para
+  parar antes de paredes e força LIMITADA. Com `MaxForce = math.huge`, esquivar contra a parede arremessava o
+  jogador (medido: 112 studs/s, 38 studs para trás).
 
 ## Notas de setup
 

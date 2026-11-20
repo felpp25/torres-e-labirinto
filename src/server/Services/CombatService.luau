@@ -12,6 +12,7 @@ local Types = require(Shared.Types)
 local Formulas = require(Shared.Formulas)
 local Remotes = require(Shared.Remotes)
 local Keys = require(Shared.Keys)
+local Motion = require(Shared.Motion)
 local Combat = require(Shared.Balance.Combat)
 local Abilities = require(Shared.Balance.Abilities)
 
@@ -142,32 +143,20 @@ local function queryEnemies(root: BasePart, direction: Vector3, range: number, w
 	return found
 end
 
--- Empurrão com LinearVelocity por um instante. Só mudar a velocidade não funciona: o Humanoid freia na hora
--- (medido no playtest: a Palma movia o alvo ~1 stud).
+-- Empurrão via Motion.push (LinearVelocity por um instante, parando antes de paredes, força limitada).
+-- Só mudar a velocidade não funciona: o Humanoid freia na hora (a Palma movia o alvo ~1 stud).
 local function applyKnockback(enemy: Model, direction: Vector3, strength: number)
 	local root = enemy.PrimaryPart
 	if strength <= 0 or not root then
 		return
 	end
-	local attachment = Instance.new("Attachment")
-	attachment.Name = "KnockbackAttachment"
-	attachment.Parent = root
-
-	-- Modo Plano: empurra só na horizontal; a gravidade continua agindo.
-	local velocity = Instance.new("LinearVelocity")
-	velocity.Attachment0 = attachment
-	velocity.RelativeTo = Enum.ActuatorRelativeTo.World
-	velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
-	velocity.PrimaryTangentAxis = Vector3.xAxis
-	velocity.SecondaryTangentAxis = Vector3.zAxis
-	velocity.PlaneVelocity = Vector2.new(direction.X, direction.Z) * strength
-	velocity.ForceLimitMode = Enum.ForceLimitMode.Magnitude
-	velocity.MaxForce = math.huge
-	velocity.Parent = root
-	task.delay(Combat.knockbackDuration, function()
-		velocity:Destroy()
-		attachment:Destroy()
-	end)
+	local ignore: { Instance } = { enemy }
+	for _, player in Players:GetPlayers() do
+		if player.Character then
+			table.insert(ignore, player.Character)
+		end
+	end
+	Motion.push(root, direction, strength, Combat.knockbackDuration, ignore)
 end
 
 local function damageEnemy(

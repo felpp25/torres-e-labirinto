@@ -17,6 +17,7 @@ local Balance = Shared:WaitForChild("Balance")
 local Formulas = require(Shared:WaitForChild("Formulas"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local Keys = require(Shared:WaitForChild("Keys"))
+local Motion = require(Shared:WaitForChild("Motion"))
 local Combat = require(Balance:WaitForChild("Combat"))
 local Classes = require(Balance:WaitForChild("Classes"))
 local Abilities = require(Balance:WaitForChild("Abilities"))
@@ -26,7 +27,6 @@ local CombatFeedbackController = require(script.Parent.CombatFeedbackController)
 local localPlayer = Players.LocalPlayer
 
 local ABILITY_ID = "IronPalm" -- única habilidade do protótipo
-local DODGE_ATTACHMENT_NAME = "RootAttachment"
 
 -- Posições dos botões no celular (perto do botão de pular, canto inferior direito).
 local TOUCH_LAYOUT: { [string]: UDim2 } = {
@@ -107,30 +107,16 @@ local function onAttack(_: string, state: Enum.UserInputState, _: InputObject): 
 	return Enum.ContextActionResult.Sink
 end
 
+-- Esquiva: Motion.push para antes de paredes e mobs (sem isso, esquivar contra a parede arremessava o jogador).
+-- Personagens de jogadores não contam como obstáculo para a medição.
 local function startDash(root: BasePart, direction: Vector3)
-	local attachment = root:FindFirstChild(DODGE_ATTACHMENT_NAME)
-	if not attachment or not attachment:IsA("Attachment") then
-		local newAttachment = Instance.new("Attachment")
-		newAttachment.Name = DODGE_ATTACHMENT_NAME
-		newAttachment.Parent = root
-		attachment = newAttachment
+	local ignore: { Instance } = {}
+	for _, player in Players:GetPlayers() do
+		if player.Character then
+			table.insert(ignore, player.Character)
+		end
 	end
-	assert(attachment and attachment:IsA("Attachment"), "sem Attachment para a esquiva")
-
-	-- LinearVelocity em modo Plano: controla só o movimento horizontal; a gravidade continua agindo.
-	local velocity = Instance.new("LinearVelocity")
-	velocity.Attachment0 = attachment
-	velocity.RelativeTo = Enum.ActuatorRelativeTo.World
-	velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
-	velocity.PrimaryTangentAxis = Vector3.xAxis
-	velocity.SecondaryTangentAxis = Vector3.zAxis
-	velocity.PlaneVelocity = Vector2.new(direction.X, direction.Z) * Combat.dodge.speed
-	velocity.ForceLimitMode = Enum.ForceLimitMode.Magnitude
-	velocity.MaxForce = math.huge
-	velocity.Parent = root
-	task.delay(Combat.dodge.duration, function()
-		velocity:Destroy()
-	end)
+	Motion.push(root, direction, Combat.dodge.speed, Combat.dodge.duration, ignore)
 end
 
 local function onDodge(_: string, state: Enum.UserInputState, _: InputObject): Enum.ContextActionResult
