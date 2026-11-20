@@ -39,7 +39,24 @@
 
 ## Classes
 
-### Monge (classe do protótipo)
+Cada classe primária evolui para uma classe avançada (detalhes de habilidades em `Ideias.md`):
+
+| Primária | Avançada |
+|---|---|
+| Mago | Arcanista |
+| Bruxo | Necromante |
+| Soldado | Pistoleiro |
+| Engenheiro | Ciborgue |
+| Arqueiro | Caçador |
+| Assassino | Ninja |
+| Lutador | Monge |
+| Curandeiro | Sacerdote |
+| Guerreiro | Paladino |
+| Berserker | (classe única, sem evolução) |
+
+**Classe do protótipo: Lutador** (o jogador começa como Lutador e depois evolui para Monge).
+
+### Monge (avançada do Lutador)
 
 - **Tema:** artes marciais e chi.
 - **Papel:** linha de frente.
