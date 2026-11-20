@@ -120,6 +120,38 @@ function Formulas.distributeRecommended(
 	return result
 end
 
+-- Assistência de mira: direção (horizontal, unitária) para o alvo mais próximo que esteja dentro do alcance
+-- e a no máximo `maxAngleDeg` graus da frente. Sem alvo válido, devolve a própria frente.
+function Formulas.chooseAimDirection(
+	origin: Vector3,
+	facing: Vector3,
+	targets: { Vector3 },
+	range: number,
+	maxAngleDeg: number
+): Vector3
+	local flatFacing = Vector3.new(facing.X, 0, facing.Z)
+	if flatFacing.Magnitude < 1e-3 then
+		flatFacing = Vector3.new(0, 0, -1)
+	end
+	flatFacing = flatFacing.Unit
+
+	local cosLimit = math.cos(math.rad(maxAngleDeg))
+	local best: Vector3? = nil
+	local bestDistance = math.huge
+	for _, position in targets do
+		local offset = Vector3.new(position.X - origin.X, 0, position.Z - origin.Z)
+		local distance = offset.Magnitude
+		if distance > 1e-3 and distance <= range and distance < bestDistance then
+			local direction = offset.Unit
+			if direction:Dot(flatFacing) >= cosLimit then
+				best = direction
+				bestDistance = distance
+			end
+		end
+	end
+	return best or flatFacing
+end
+
 -- Multiplicador de vida e dano dos mobs no andar N (andar 1 = 1,0).
 function Formulas.floorStatMultiplier(floorNumber: number, growthPerFloor: number): number
 	return 1 + growthPerFloor * (math.max(floorNumber, 1) - 1)

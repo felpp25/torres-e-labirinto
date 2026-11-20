@@ -95,8 +95,17 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - O place está na nuvem: **"Torres e Labirinto"**, placeId `91794479071367`, universeId `10776412975`
   (o `save_place` reporta `location: TeamCreate`).
 - O `studio_id` muda quando o place é salvo/reaberto: sempre chame `list_roblox_studios` de novo em vez de reutilizar um id antigo.
-- Ruído conhecido no console: `ContentId: rbxassetid://203785492 failed ... Asset type does not match` vem do
-  Studio/modelo Baseplate, não do nosso código.
+- Ruído conhecido no console (não é do nosso código): `ContentId: rbxassetid://203785492 failed ... Asset type does
+  not match` (modelo Baseplate) e mensagens `[Assistant] ...` (plugin do Assistente do Studio).
+- Testes pelo MCP: `character_navigation` leva o personagem; `user_mouse_input`/`user_keyboard_input` simulam o
+  jogador; `execute_luau` no datamodel `Server` confere o resultado (vida, posição, Attributes).
+
+## Lições de física do Roblox (medidas em playtest)
+
+- NPC com Humanoid sem pernas: `HipHeight` precisa ser > 0 (usamos 0,5). Com 0, o Humanoid fica em Freefall e
+  desliza sem parar até cair do mapa.
+- Empurrão/dash: mudar `AssemblyLinearVelocity` não funciona em Humanoid (ele freia na hora). Use `LinearVelocity`
+  em modo Plano por um instante (distância ≈ velocidade × duração).
 
 ## Notas de setup
 

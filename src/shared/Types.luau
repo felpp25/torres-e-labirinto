@@ -37,6 +37,7 @@ export type AbilityDef = {
 	resource: ResourceType,
 	cost: number,
 	cooldown: number, -- s
+	recovery: number, -- s em que o ataque básico fica bloqueado depois de usar a habilidade
 	range: number,
 	width: number,
 	knockback: number,
@@ -69,6 +70,7 @@ export type MobDef = {
 	goldMin: number,
 	goldMax: number,
 	size: Vector3,
+	color: Color3,
 }
 
 -- Uma sala na grade do labirinto (gerada pelo MazeGenerator).

@@ -9,27 +9,26 @@ local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage"
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 
+-- Todo controller exporta init() e start() (mesmo que vazios).
 type Controller = {
-	init: (() -> ())?,
-	start: (() -> ())?,
+	init: () -> (),
+	start: () -> (),
 }
 
--- Os controllers entram aqui a partir do M2.
-local CONTROLLERS: { [string]: Controller } = {}
-local CONTROLLER_ORDER: { string } = {}
+local Controllers = script.Parent:WaitForChild("Controllers")
+
+local CONTROLLERS: { [string]: Controller } = {
+	CombatFeedbackController = require(Controllers:WaitForChild("CombatFeedbackController")),
+	InputController = require(Controllers:WaitForChild("InputController")),
+}
+local CONTROLLER_ORDER: { string } = { "CombatFeedbackController", "InputController" }
 
 for _, name in CONTROLLER_ORDER do
-	local controller = CONTROLLERS[name]
-	if controller.init then
-		controller.init()
-	end
+	CONTROLLERS[name].init()
 end
 
 for _, name in CONTROLLER_ORDER do
-	local controller = CONTROLLERS[name]
-	if controller.start then
-		task.spawn(controller.start)
-	end
+	task.spawn(CONTROLLERS[name].start)
 end
 
 print(`[Cliente] {Players.LocalPlayer.Name} conectado ({Config.GAME_NAME} v{Config.VERSION})`)

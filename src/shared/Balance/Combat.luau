@@ -33,8 +33,19 @@ local Combat = table.freeze({
 	scalingMultiplier = 1.5, -- M dos atributos de scaling da classe
 	commonMultiplier = 1, -- M dos demais atributos
 
-	-- Tolerância de rede para validar alcance no servidor (studs extras além do alcance do golpe)
+	-- Hitbox (servidor): caixa à frente do personagem com esta altura
+	hitboxHeight = 7,
+	-- Tolerância de rede: studs extras de alcance e segundos de folga nas recargas
 	rangeTolerance = 2,
+	serverTimingTolerance = 0.08,
+	-- Assistência de mira: o golpe vira para o inimigo mais próximo dentro deste ângulo (graus) da frente
+	aimAssistAngle = 70,
+	-- Empurrão: o alvo é levado a `knockback` studs/s (valor de cada golpe/habilidade) durante este tempo.
+	-- Distância aproximada = knockback × knockbackDuration (ex.: Palma 60 × 0,18 ≈ 11 studs).
+	knockbackDuration = 0.18,
+
+	-- Sem regeneração natural de vida: no protótipo, vida só volta no checkpoint (GDD > Morte e checkpoint)
+	disableNaturalHealthRegen = true,
 
 	-- Feedback (cliente)
 	cameraShakeIntensity = 0.35,

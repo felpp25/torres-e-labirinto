@@ -12,6 +12,7 @@ local Abilities: { [string]: Types.AbilityDef } = table.freeze({
 		resource = "Stamina",
 		cost = 30,
 		cooldown = 6,
+		recovery = 0.45,
 		range = 8,
 		width = 6,
 		knockback = 60,
