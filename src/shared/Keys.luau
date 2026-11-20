@@ -17,12 +17,19 @@ Keys.PlayerAttr = table.freeze({
 	Mana = "Mana",
 	MaxMana = "MaxMana",
 	DodgeReadyAt = "DodgeReadyAt",
-	XP = "XP",
+	Level = "Level",
+	XP = "XP", -- XP dentro do nível atual
+	XPToNext = "XPToNext", -- XP necessário para o próximo nível (0 no nível máximo)
 	Gold = "Gold",
 })
 
 function Keys.abilityReadyAttr(abilityId: string): string
 	return `AbilityReadyAt_{abilityId}`
+end
+
+-- Valor de cada atributo (Força, Vitalidade...) replicado para o HUD.
+function Keys.statAttr(attributeName: string): string
+	return `Stat_{attributeName}`
 end
 
 return table.freeze(Keys)
