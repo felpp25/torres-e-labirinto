@@ -105,6 +105,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - Antes de dar Play depois de mudar arquivos (inclusive depois do `stylua src`, que reescreve arquivos), confira
   que o Rojo já sincronizou: `execute_luau` no datamodel `Edit` procurando um trecho novo no `.Source` do script.
   Um Play iniciado antes da sincronização roda a versão antiga (aconteceu no M4: HUD "sumido").
+- `execute_luau` NÃO compartilha os módulos do jogo: `require` de um serviço ali devolve uma cópia nova (estado
+  vazio). Para testar, provoque o efeito pelo próprio jogo (ex.: `Humanoid.Health = 0` num mob dispara a
+  recompensa real) e leia o resultado por Attributes/instâncias.
 - Testes pelo MCP: `character_navigation` leva o personagem; `user_mouse_input`/`user_keyboard_input` simulam o
   jogador; `execute_luau` no datamodel `Server` confere o resultado (vida, posição, Attributes).
 

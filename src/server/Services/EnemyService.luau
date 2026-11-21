@@ -47,6 +47,13 @@ local rng = Random.new()
 local isWakeSafe: (position: Vector3) -> boolean = function(_: Vector3): boolean
 	return false
 end
+-- Chamado quando um mob morre (drops da run, ex.: Coração). `parent` = pasta onde o mob estava.
+local deathHandler: (def: Types.MobDef, position: Vector3, parent: Instance) -> () = function(
+	_: Types.MobDef,
+	_: Vector3,
+	_: Instance
+)
+end
 
 local function aliveCharacterRoots(): { [Player]: BasePart }
 	local result: { [Player]: BasePart } = {}
@@ -249,6 +256,10 @@ local function onDied(enemy: Enemy)
 	CollectionService:RemoveTag(enemy.model, Keys.Tags.Enemy)
 	setTelegraphColor(enemy, false)
 	grantRewards(enemy)
+	local parent = enemy.model.Parent
+	if parent then
+		deathHandler(enemy.def, enemy.root.Position, parent)
+	end
 	for part in enemy.originalColors do
 		part.Transparency = 0.6
 		part.CanCollide = false
@@ -302,6 +313,10 @@ end
 -- mas mobs já acordados continuam perseguindo. Evita emboscada no instante em que o jogador nasce.
 function EnemyService.setWakeSafeZone(predicate: (position: Vector3) -> boolean)
 	isWakeSafe = predicate
+end
+
+function EnemyService.setDeathHandler(handler: (def: Types.MobDef, position: Vector3, parent: Instance) -> ())
+	deathHandler = handler
 end
 
 function EnemyService.init() end

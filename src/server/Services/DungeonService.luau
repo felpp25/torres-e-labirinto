@@ -1,7 +1,7 @@
 --!strict
 -- Andares da run: gera o layout (MazeGenerator), constrói (RoomBuilder), coloca os mobs e o puzzle e leva os
 -- jogadores para a entrada. TUDO do andar (layout, mobs, placas) sai da seed: a mesma seed refaz o mesmo andar.
--- Todos morreram: recomeça o ANDAR ATUAL com a mesma seed (GDD > Morte e checkpoint).
+-- O que fazer quando todos morrem (vidas, game over) é decidido pelo RunSessionService.
 -- Ligado por Balance/Run.startInDungeon.
 
 local Players: Players = game:GetService("Players")
@@ -172,11 +172,11 @@ function DungeonService.start()
 	LifeService.setSpawnProvider(function(player: Player): CFrame?
 		return if current then entranceCFrame(playerIndex(player)) else nil
 	end)
-	LifeService.setAllDeadHandler(function()
-		print(`[Run] todos morreram: recomeçando o andar {currentFloor} (mesmo labirinto)`)
-		DungeonService.startFloor(currentFloor, currentSeed)
-		LifeService.respawnAll()
-	end)
+end
+
+-- Recomeça o andar atual com a mesma seed (mesmo labirinto, mobs e placas no estado inicial).
+function DungeonService.restartCurrentFloor()
+	DungeonService.startFloor(currentFloor, currentSeed)
 end
 
 return DungeonService

@@ -29,6 +29,8 @@ Keys.WorldAttr = table.freeze({
 	PlatesActive = "PlatesActive",
 	PlatesTotal = "PlatesTotal",
 	ExitOpen = "ExitOpen",
+	Lives = "Lives", -- vidas do grupo na run atual
+	RunNumber = "RunNumber", -- aumenta a cada game over (o HUD mostra o aviso)
 })
 
 function Keys.abilityReadyAttr(abilityId: string): string

@@ -3,6 +3,23 @@
 > Resumo do documento de design do projeto. Consulte antes de qualquer decisão de gameplay.
 > Se algo não estiver aqui (ou estiver ambíguo), pergunte em vez de inventar.
 
+## Progressão global e torres
+
+- **Nível, atributos, XP e Gold são GLOBAIS** (da conta, acumulam entre runs; salvos em DataStore no jogo final).
+- **Cada torre (run) exige um nível mínimo** para entrar (ex.: Torre 1 livre, Torre 2 a partir do nível 10).
+- **Torre concluída:** tudo o que foi ganho na run fica. **Game over:** perde só o que foi ganho NESTA run
+  (XP, níveis, pontos, Gold) e volta a como estava antes de entrar.
+- *Protótipo:* uma torre só, andares infinitos, progresso global só na memória do servidor (sem DataStore) e sem
+  exigência de nível. Teto de nível 10 (vai subir quando houver mais torres).
+
+## Vidas
+
+- **3 vidas do GRUPO por run.** Morrer com aliado vivo não gasta vida (espera o checkpoint).
+  **Wipe** (todos mortos) gasta 1 vida e recomeça o andar atual.
+- **Sem vidas: game over** (ver acima) e a torre recomeça do andar 1 com labirinto novo.
+- **Coração:** item raro dropado por mobs, devolve 1 vida (máximo 3). Chance base **0,1% por mob**; no futuro a
+  Sorte aumenta essa chance.
+
 ## Visão geral
 
 - **Jogo:** "Torres dos Labirintos" (título provisório).
@@ -96,11 +113,10 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
   - o **checkpoint**: quando um sobrevivente passa pelo checkpoint do andar, todos os mortos do grupo renascem ali.
 - O andar pode ser concluído com **apenas um jogador vivo**.
 - Enquanto está morto, o jogador fica em **modo espectador**: a câmera segue um aliado vivo (com botão para trocar).
-- **Todos morreram antes de concluir o andar:** todos voltam ao **início do andar atual**. O labirinto **não muda**
-  (mesmo layout); mobs e placas voltam ao estado inicial do andar. Nível, XP e Gold ganhos ficam.
-  (Decisão do designer, substitui o "perde a run / volta ao andar 1" da versão anterior deste resumo.)
+- **Todos morreram antes de concluir o andar (wipe):** gasta 1 vida do grupo e todos voltam ao **início do andar
+  atual**. O labirinto **não muda** (mesmo layout); mobs e placas voltam ao estado inicial do andar.
+  Sem vidas: game over (ver "Vidas").
 - **No checkpoint**, vida e mana voltam ao máximo antes do próximo andar.
-- Ainda a definir: se morrer custa algo (itens da run, Gold) agora que não se perde mais a run.
 
 ## Regra técnica
 

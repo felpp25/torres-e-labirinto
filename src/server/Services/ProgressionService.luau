@@ -126,6 +126,30 @@ function ProgressionService.restoreHealth(player: Player)
 	applyHealth(player, true)
 end
 
+-- "Retrato" da progressão global, tirado ao entrar na run. No game over, restore() volta exatamente a ele:
+-- o jogador perde só o que ganhou na run (XP, níveis, pontos, Gold).
+export type Snapshot = {
+	level: number,
+	xp: number,
+	gold: number,
+	attributes: Types.Attributes,
+}
+
+function ProgressionService.snapshot(player: Player): Snapshot
+	local data = getData(player)
+	return { level = data.level, xp = data.xp, gold = data.gold, attributes = table.clone(data.attributes) }
+end
+
+function ProgressionService.restore(player: Player, snapshot: Snapshot)
+	local data = getData(player)
+	data.level = snapshot.level
+	data.xp = snapshot.xp
+	data.gold = snapshot.gold
+	data.attributes = table.clone(snapshot.attributes)
+	replicate(player, data)
+	applyHealth(player, true)
+end
+
 local function onCharacterAdded(player: Player, character: Model)
 	local humanoid = character:WaitForChild("Humanoid", 10)
 	if not humanoid or not humanoid:IsA("Humanoid") then

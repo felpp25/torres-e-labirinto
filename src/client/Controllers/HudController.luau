@@ -57,6 +57,9 @@ local HudController = {}
 local bars: { [string]: Bar } = {}
 local levelLabel: TextLabel? = nil
 local goldLabel: TextLabel? = nil
+local livesLabel: TextLabel? = nil
+local lastLives: number? = nil
+local lastRunNumber: number? = nil
 local statsLabel: TextLabel? = nil
 local floorLabel: TextLabel? = nil
 local dodgeIcon: CooldownIcon? = nil
@@ -190,6 +193,9 @@ local function build()
 	local gold = makeText(panel, "Gold: 0", UDim2.fromOffset(120, 16), UDim2.fromOffset(62, 76), 14)
 	gold.TextColor3 = COLORS.gold
 	goldLabel = gold
+	local livesText = makeText(panel, "", UDim2.fromOffset(90, 16), UDim2.fromOffset(170, 76), 14)
+	livesText.TextColor3 = COLORS.health
+	livesLabel = livesText
 	statsLabel = makeText(panel, "", UDim2.new(1, -16, 0, 14), UDim2.fromOffset(8, 94), 11)
 	floorLabel = makeText(panel, "", UDim2.new(1, -16, 0, 16), UDim2.fromOffset(8, 112), 13)
 
@@ -218,6 +224,10 @@ local function update()
 	end
 	if goldLabel then
 		goldLabel.Text = `Gold: {numberAttr(Keys.PlayerAttr.Gold)}`
+	end
+	if livesLabel then
+		local lives = workspace:GetAttribute(Keys.WorldAttr.Lives)
+		livesLabel.Text = if typeof(lives) == "number" then `Vidas: {lives}` else ""
 	end
 	if floorLabel then
 		local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)
@@ -293,6 +303,44 @@ local function showLevelUp(payload: unknown)
 	showToast(`NÍVEL {data.level}!`, table.concat(gainParts, "   "), COLORS.gold, 0.22)
 end
 
+-- Vidas mudaram: perdeu (wipe) ou ganhou (Coração). O game over é avisado por onRunChanged.
+-- No game over as vidas voltam ao máximo junto com a troca de run: essa subida não é "+1 VIDA".
+-- Espera um instante para os dois Attributes chegarem e compara o nº da run de agora com o da última vez.
+local livesRunNumber: unknown = nil
+local function onLivesChanged()
+	task.wait(0.2)
+	local lives = workspace:GetAttribute(Keys.WorldAttr.Lives)
+	if typeof(lives) ~= "number" then
+		return
+	end
+	local runNumber = workspace:GetAttribute(Keys.WorldAttr.RunNumber)
+	local sameRun = livesRunNumber == nil or runNumber == livesRunNumber
+	livesRunNumber = runNumber
+	local previous = lastLives
+	lastLives = lives
+	if previous == nil or not sameRun then
+		return
+	end
+	if lives < previous then
+		local suffix = if lives == 1 then "ÚLTIMA VIDA!" else `restam {lives} vidas`
+		showToast("VIDA PERDIDA", `O andar recomeçou: {suffix}`, COLORS.health, 0.32)
+	elseif lives > previous then
+		showToast("+1 VIDA!", `Vidas: {lives}`, COLORS.health, 0.32)
+	end
+end
+
+local function onRunChanged()
+	local runNumber = workspace:GetAttribute(Keys.WorldAttr.RunNumber)
+	if typeof(runNumber) ~= "number" then
+		return
+	end
+	local previous = lastRunNumber
+	lastRunNumber = runNumber
+	if previous ~= nil and runNumber > previous then
+		showToast("GAME OVER", "Você perdeu o que ganhou nesta run. A torre recomeçou.", COLORS.health, 0.32)
+	end
+end
+
 local function onFloorChanged()
 	local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)
 	if typeof(floorNumber) == "number" then
@@ -335,6 +383,10 @@ function HudController.start()
 	Remotes.get("LevelUp").OnClientEvent:Connect(showLevelUp)
 	workspace:GetAttributeChangedSignal(Keys.WorldAttr.FloorNumber):Connect(onFloorChanged)
 	onFloorChanged()
+	workspace:GetAttributeChangedSignal(Keys.WorldAttr.RunNumber):Connect(onRunChanged)
+	workspace:GetAttributeChangedSignal(Keys.WorldAttr.Lives):Connect(onLivesChanged)
+	onRunChanged()
+	task.spawn(onLivesChanged)
 	RunService.Heartbeat:Connect(update)
 end
 
