@@ -5,6 +5,11 @@
 --   AllocateAttribute (1 ponto num atributo) ou AllocateRecommended (todos nos atributos de scaling da classe);
 --   o ponto colocado é definitivo (sem reset, por enquanto);
 -- - aplica no personagem o que vem da classe e dos atributos (vida máxima, velocidade).
+-- Atributos de dois tipos:
+-- - DISTRIBUÍDOS (data.attributes): os pontos que o jogador colocou. Usados para distribuir, "Recomendado" e o
+--   reset. O equipamento NUNCA entra aqui (senão o reset devolveria pontos de equipamento como pontos livres).
+-- - EFETIVOS (distribuídos + equipamento): usados pelo combate, vida/stamina/mana máximas, crítico e Sorte.
+-- O bônus do equipamento fica em cache; quem muda o equipamento chama refreshEquipment (GearService).
 -- Tudo só muda aqui; o cliente só PEDE (validado abaixo) e recebe por Attributes (HUD) e pelo Remote LevelUp.
 -- Persistência: os dados de cada jogador SÃO o personagem ativo carregado pelo DataService (mesma tabela);
 -- o que muda aqui é o que o DataService grava. O jogador só nasce depois do carregamento (LifeService espera).
@@ -21,11 +26,19 @@ local Classes = require(Shared.Balance.Classes)
 local Combat = require(Shared.Balance.Combat)
 local Progression = require(Shared.Balance.Progression)
 local Shop = require(Shared.Balance.Shop)
+local Gear = require(Shared.Balance.Gear)
 
 local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local DataService = require(script.Parent.DataService)
 
 type PlayerData = PlayerSchema.Character
+
+-- O que o equipamento do personagem ativo soma: pontos por atributo e o Poder da arma (só no tipo de dano dela).
+type GearBonus = {
+	attributes: Types.Attributes,
+	power: number,
+	damageType: Types.DamageType?,
+}
 
 local LOAD_WAIT_TIMEOUT = 60 -- s: o DataService pode esperar uma trava de outro servidor (~30 s) antes de desistir
 
@@ -34,6 +47,8 @@ local ProgressionService = {}
 local profiles: { [Player]: PlayerSchema.Profile } = {} -- conta inteira (Gold global + personagens)
 local playerData: { [Player]: PlayerData } = {} -- personagem ativo (dentro do perfil)
 local loaded: { [Player]: boolean } = {}
+local gearBonus: { [Player]: GearBonus } = {} -- cache; nil = recalcular
+local loadedHandlers: { (player: Player) -> () } = {}
 
 -- Ainda não carregou (não deveria acontecer: o jogador só nasce depois): valores temporários, nunca salvos;
 -- quando o carregamento terminar, são substituídos pelo perfil salvo.
@@ -65,7 +80,35 @@ function ProgressionService.waitUntilLoaded(player: Player): boolean
 	return loaded[player] == true
 end
 
+-- Soma o equipamento do personagem ativo. Peça inerte (fora do catálogo) ou id que sumiu não conta.
+local function computeGearBonus(profile: PlayerSchema.Profile, data: PlayerData): GearBonus
+	local bonus: GearBonus = { attributes = Formulas.emptyAttributes(), power = 0, damageType = nil }
+	for _, slot: Types.EquipSlot in Gear.slots do
+		local id = data.equipped[slot]
+		local piece = if id ~= nil then PlayerSchema.findGear(profile, id) else nil
+		local def = if piece then PlayerSchema.defOf(piece) else nil
+		if piece and def then
+			bonus.attributes = Formulas.addAttributes(bonus.attributes, Formulas.gearAttributes(def, piece.rarity))
+			if slot == "Weapon" then
+				bonus.power = Formulas.gearPower(def, piece.rarity)
+				bonus.damageType = def.damageType
+			end
+		end
+	end
+	return bonus
+end
+
+local function getGearBonus(player: Player): GearBonus
+	local bonus = gearBonus[player]
+	if not bonus then
+		bonus = computeGearBonus(getProfile(player), getData(player))
+		gearBonus[player] = bonus
+	end
+	return bonus
+end
+
 local function replicate(player: Player, data: PlayerData)
+	local bonus = getGearBonus(player)
 	player:SetAttribute(Keys.PlayerAttr.Level, data.level)
 	player:SetAttribute(Keys.PlayerAttr.XP, data.xp)
 	local toNext = Formulas.xpToNextLevel(data.level)
@@ -76,8 +119,10 @@ local function replicate(player: Player, data: PlayerData)
 	end
 	player:SetAttribute(Keys.PlayerAttr.UnspentPoints, data.unspentPoints)
 	for _, name in Formulas.attributeNames() do
-		player:SetAttribute(Keys.statAttr(name), data.attributes[name])
+		player:SetAttribute(Keys.statAttr(name), data.attributes[name]) -- distribuídos
+		player:SetAttribute(Keys.gearStatAttr(name), bonus.attributes[name]) -- do equipamento
 	end
+	player:SetAttribute(Keys.PlayerAttr.WeaponPower, bonus.power)
 end
 
 function ProgressionService.getClass(player: Player): Types.ClassDef
@@ -86,9 +131,39 @@ function ProgressionService.getClass(player: Player): Types.ClassDef
 	return classDef
 end
 
--- Devolve uma cópia: quem chama não pode alterar os atributos por fora.
-function ProgressionService.getAttributes(player: Player): Types.Attributes
+-- Pontos que o jogador DISTRIBUIU (sem equipamento). Para distribuir, reset e "Recomendado". Cópia.
+function ProgressionService.getDistributedAttributes(player: Player): Types.Attributes
 	return table.clone(getData(player).attributes)
+end
+
+-- Atributos EFETIVOS (distribuídos + equipamento): o que vale no jogo (dano, vida, recursos, crítico, Sorte).
+function ProgressionService.getEffectiveAttributes(player: Player): Types.Attributes
+	return Formulas.addAttributes(getData(player).attributes, getGearBonus(player).attributes)
+end
+
+-- Só os pontos do equipamento (cópia). Para testes e para mostrar.
+function ProgressionService.getGearAttributes(player: Player): Types.Attributes
+	return table.clone(getGearBonus(player).attributes)
+end
+
+-- Poder da arma equipada para um golpe deste tipo de dano (0 se a arma for de outro tipo ou não houver arma).
+function ProgressionService.getWeaponPower(player: Player, damageType: Types.DamageType): number
+	local bonus = getGearBonus(player)
+	return if bonus.damageType == damageType then bonus.power else 0
+end
+
+-- Perfil e personagem ativo JÁ CARREGADOS (nil antes do carregamento ou depois que o jogador saiu). Toda alteração
+-- de equipamento passa por aqui: nunca mexe no perfil temporário de antes do carregamento.
+function ProgressionService.getLoadedProfile(player: Player): (PlayerSchema.Profile?, PlayerData?)
+	if not loaded[player] or not player.Parent then
+		return nil, nil
+	end
+	return profiles[player], playerData[player]
+end
+
+-- Chamado quando o perfil do jogador termina de carregar (ex.: GearService publica o equipamento).
+function ProgressionService.setLoadedHandler(handler: (player: Player) -> ())
+	table.insert(loadedHandlers, handler)
 end
 
 function ProgressionService.getLevel(player: Player): number
@@ -103,8 +178,8 @@ local function applyHealth(player: Player, fillToMax: boolean)
 	if not humanoid or humanoid.Health <= 0 then
 		return
 	end
-	local data = getData(player)
-	local newMax = Formulas.maxHealth(ProgressionService.getClass(player), data.attributes)
+	local newMax =
+		Formulas.maxHealth(ProgressionService.getClass(player), ProgressionService.getEffectiveAttributes(player))
 	local gained = math.max(newMax - humanoid.MaxHealth, 0)
 	humanoid.MaxHealth = newMax
 	humanoid.Health = if fillToMax then newMax else math.min(humanoid.Health + gained, newMax)
@@ -133,6 +208,13 @@ end
 local function afterAttributesChanged(player: Player, data: PlayerData)
 	applyHealth(player, false)
 	replicate(player, data)
+end
+
+-- O equipamento do personagem ativo mudou (GearService): recalcula o bônus, a vida máxima e replica.
+-- Stamina e mana máximas seguem sozinhas no próximo ciclo de recursos do CombatService.
+function ProgressionService.refreshEquipment(player: Player)
+	gearBonus[player] = nil
+	afterAttributesChanged(player, getData(player))
 end
 
 -- SÓ PARA TESTES no Studio (chamado pelo DevService, que não existe fora do Studio): define atributos direto.
@@ -269,9 +351,13 @@ local function onPlayerAdded(player: Player)
 	profiles[player] = profile
 	playerData[player] = data
 	loaded[player] = true
+	gearBonus[player] = nil -- o bônus calculado no perfil temporário (antes de carregar) não vale mais
 	replicate(player, data)
 	if player.Character then
 		task.spawn(onCharacterAdded, player, player.Character)
+	end
+	for _, handler in loadedHandlers do
+		task.spawn(handler, player)
 	end
 end
 
@@ -284,6 +370,7 @@ function ProgressionService.init()
 		profiles[player] = nil
 		playerData[player] = nil
 		loaded[player] = nil
+		gearBonus[player] = nil
 	end)
 	for _, player in Players:GetPlayers() do
 		task.spawn(onPlayerAdded, player)

@@ -12,12 +12,17 @@
 --   dev:Invoke("SaveNow", player)               -- salva agora (espera terminar)
 --   dev:Invoke("ReadStored", "User_123")        -- valor cru no DataStore (JSON) para conferir o que foi salvo
 --   Testes de trava (só chaves "Test_..."): "WriteStored"(key, valor), "LoadKey"(key), "SaveKey"(key), "SessionId"
+--   dev:Invoke("GetStats", player)              -- JSON: atributos distribuídos, do equipamento, efetivos, Poder, máximos
+--   dev:Invoke("DamagePreview", player, 100)    -- dano de um golpe base 100 (sem crítico e sem a Defesa do alvo)
+--   dev:Invoke("SnapshotProfile", player)       -- guarda o perfil (conta inteira) antes de um teste
+--   dev:Invoke("RestoreProfile", player)        -- devolve o perfil guardado (no lugar: Gold, itens, equipamento...)
 
 local DataStoreService: DataStoreService = game:GetService("DataStoreService")
 local HttpService: HttpService = game:GetService("HttpService")
 local RunService: RunService = game:GetService("RunService")
 local ServerStorage: ServerStorage = game:GetService("ServerStorage")
 
+local Types = require(game:GetService("ReplicatedStorage").Shared.Types)
 local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local CombatService = require(script.Parent.CombatService)
 local DataService = require(script.Parent.DataService)
@@ -34,6 +39,34 @@ end
 local DevService = {}
 
 type Command = (...any) -> any
+
+-- Perfis guardados por SnapshotProfile (só nesta sessão do Studio).
+local snapshots: { [Player]: PlayerSchema.Profile } = {}
+
+-- Devolve o perfil guardado NO LUGAR: DataService e ProgressionService seguram a mesma tabela (e o personagem ativo).
+local function restoreInPlace(player: Player, saved: PlayerSchema.Profile): boolean
+	local profile, _ = ProgressionService.getLoadedProfile(player)
+	if not profile then
+		return false
+	end
+	local copy = PlayerSchema.deepCopy(saved)
+	profile.gold = copy.gold
+	profile.inventory = copy.inventory
+	profile.gear = copy.gear
+	profile.nextGearId = copy.nextGearId
+	for index, savedCharacter in copy.characters do
+		local character = profile.characters[index]
+		if character then
+			character.level = savedCharacter.level
+			character.xp = savedCharacter.xp
+			character.unspentPoints = savedCharacter.unspentPoints
+			character.attributes = savedCharacter.attributes
+			character.equipped = savedCharacter.equipped
+		end
+	end
+	ProgressionService.refreshEquipment(player)
+	return true
+end
 
 local COMMANDS: { [string]: Command } = {
 	SetAttributes = function(player: Player, values: { [string]: number }): boolean
@@ -102,6 +135,39 @@ local COMMANDS: { [string]: Command } = {
 
 	SessionId = function(): string
 		return DataService.getSessionId()
+	end,
+
+	GetStats = function(player: Player): string
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		return HttpService:JSONEncode({
+			distributed = ProgressionService.getDistributedAttributes(player),
+			gear = ProgressionService.getGearAttributes(player),
+			effective = ProgressionService.getEffectiveAttributes(player),
+			weaponPowerPhysical = ProgressionService.getWeaponPower(player, "Physical"),
+			weaponPowerMagical = ProgressionService.getWeaponPower(player, "Magical"),
+			maxHealth = if humanoid then humanoid.MaxHealth else -1,
+			maxStamina = player:GetAttribute("MaxStamina"),
+			maxMana = player:GetAttribute("MaxMana"),
+		})
+	end,
+
+	-- damageType = "Physical" (padrão) ou "Magical".
+	DamagePreview = function(player: Player, baseDamage: number, damageType: string?): number
+		local kind: Types.DamageType = if damageType == "Magical" then "Magical" else "Physical"
+		return CombatService.debugRawDamage(player, baseDamage, kind)
+	end,
+
+	SnapshotProfile = function(player: Player): string
+		local profile, _ = ProgressionService.getLoadedProfile(player)
+		assert(profile, "DevTools: perfil ainda não carregado")
+		snapshots[player] = PlayerSchema.deepCopy(profile)
+		return HttpService:JSONEncode(snapshots[player])
+	end,
+
+	RestoreProfile = function(player: Player): boolean
+		local saved = snapshots[player]
+		assert(saved, "DevTools: nenhum SnapshotProfile deste jogador")
+		return restoreInPlace(player, saved)
 	end,
 }
 

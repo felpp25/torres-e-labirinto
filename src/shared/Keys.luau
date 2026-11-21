@@ -20,6 +20,7 @@ Keys.PlayerAttr = table.freeze({
 	DamageBonus = "DamageBonus", -- bônus de dano ativo (0,12 = +12%), ex.: Foco Interior
 	DamageBonusUntil = "DamageBonusUntil", -- até quando (relógio do servidor) o bônus vale
 	UltimateCharge = "UltimateCharge", -- barra de ultimate, 0 a 100
+	WeaponPower = "WeaponPower", -- Poder da arma equipada (0,05 = +5% de dano do tipo dela); 0 = sem arma
 	Level = "Level",
 	XP = "XP", -- XP dentro do nível atual
 	XPToNext = "XPToNext", -- XP necessário para o próximo nível (0 no nível máximo)
@@ -72,9 +73,18 @@ function Keys.resourceAttr(resource: "Stamina" | "Mana" | "Ultimate"): string
 	return Keys.PlayerAttr.UltimateCharge
 end
 
--- Valor de cada atributo (Força, Vitalidade...) replicado para o HUD.
+-- Pontos DISTRIBUÍDOS de cada atributo (Força, Vitalidade...) replicados para o HUD.
 function Keys.statAttr(attributeName: string): string
 	return `Stat_{attributeName}`
+end
+
+-- Pontos que o EQUIPAMENTO dá em cada atributo (efetivo = Stat_ + GearStat_).
+function Keys.gearStatAttr(attributeName: string): string
+	return `GearStat_{attributeName}`
+end
+
+function Keys.isGearStatAttr(name: string): boolean
+	return string.sub(name, 1, 9) == "GearStat_"
 end
 
 return table.freeze(Keys)

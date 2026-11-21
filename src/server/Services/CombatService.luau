@@ -55,7 +55,7 @@ end
 
 local function newState(player: Player): CombatState
 	local classDef = ProgressionService.getClass(player)
-	local attributes = ProgressionService.getAttributes(player)
+	local attributes = ProgressionService.getEffectiveAttributes(player)
 	return {
 		comboIndex = 0,
 		nextAttackAt = 0,
@@ -203,6 +203,25 @@ local function applyKnockback(enemy: Model, direction: Vector3, strength: number
 	Motion.push(root, direction, strength, Combat.knockbackDuration, ignore)
 end
 
+-- Dano antes do crítico e da Defesa do alvo: fórmula do GDD com os atributos EFETIVOS (distribuídos +
+-- equipamento), o Poder da arma (só se for do mesmo tipo de dano) e o bônus ativo (Foco Interior).
+-- Devolve também os atributos efetivos (o crítico usa a Sorte deles).
+local function computeRawDamage(
+	attacker: Player,
+	baseDamage: number,
+	damageType: Types.DamageType
+): (number, Types.Attributes)
+	local classDef = ProgressionService.getClass(attacker)
+	local attributes = ProgressionService.getEffectiveAttributes(attacker)
+	local power = ProgressionService.getWeaponPower(attacker, damageType)
+	local raw = Formulas.damage(baseDamage, damageType, attributes, classDef, power)
+	local state = states[attacker]
+	if state and now() < state.damageBonusUntil then
+		raw *= 1 + state.damageBonus
+	end
+	return raw, attributes
+end
+
 local function damageEnemy(
 	attacker: Player,
 	enemy: Model,
@@ -218,13 +237,7 @@ local function damageEnemy(
 		return
 	end
 
-	local classDef = ProgressionService.getClass(attacker)
-	local attributes = ProgressionService.getAttributes(attacker)
-	local raw = Formulas.damage(baseDamage, damageType, attributes, classDef)
-	local state = states[attacker]
-	if state and now() < state.damageBonusUntil then
-		raw *= 1 + state.damageBonus
-	end
+	local raw, attributes = computeRawDamage(attacker, baseDamage, damageType)
 	local isCrit = Formulas.rollCrit(attributes.Luck, rng:NextNumber())
 	if isCrit then
 		raw *= Combat.critMultiplier
@@ -465,7 +478,7 @@ local function resetState(player: Player)
 	player:SetAttribute(Keys.PlayerAttr.DamageBonus, 0)
 	player:SetAttribute(Keys.PlayerAttr.DamageBonusUntil, 0)
 	local classDef = ProgressionService.getClass(player)
-	local attributes = ProgressionService.getAttributes(player)
+	local attributes = ProgressionService.getEffectiveAttributes(player)
 	replicateResources(player, state, Formulas.maxStamina(classDef, attributes), Formulas.maxMana(classDef, attributes))
 end
 
@@ -479,7 +492,7 @@ end
 -- Poção de stamina: soma `fraction` da stamina máxima.
 local function maxResources(player: Player): (number, number)
 	local classDef = ProgressionService.getClass(player)
-	local attributes = ProgressionService.getAttributes(player)
+	local attributes = ProgressionService.getEffectiveAttributes(player)
 	return Formulas.maxStamina(classDef, attributes), Formulas.maxMana(classDef, attributes)
 end
 
@@ -550,7 +563,7 @@ function CombatService.restoreResources(player: Player)
 		return
 	end
 	local classDef = ProgressionService.getClass(player)
-	local attributes = ProgressionService.getAttributes(player)
+	local attributes = ProgressionService.getEffectiveAttributes(player)
 	state.stamina = Formulas.maxStamina(classDef, attributes)
 	state.mana = Formulas.maxMana(classDef, attributes)
 	replicateResources(player, state, state.stamina, state.mana)
@@ -573,7 +586,7 @@ function CombatService.damagePlayer(player: Player, rawDamage: number): boolean
 	if not character or not humanoid or humanoid.Health <= 0 then
 		return false
 	end
-	local attributes = ProgressionService.getAttributes(player)
+	local attributes = ProgressionService.getEffectiveAttributes(player)
 	local damage = math.max(1, math.round(Formulas.applyDefense(rawDamage, attributes.Defense)))
 	local lost = math.min(damage, humanoid.Health)
 	humanoid.Health = math.max(humanoid.Health - damage, 0)
@@ -604,6 +617,11 @@ function CombatService.init()
 	end
 end
 
+-- SÓ PARA TESTES no Studio (DevService): dano de um golpe antes do crítico e da Defesa do alvo (determinístico).
+function CombatService.debugRawDamage(player: Player, baseDamage: number, damageType: Types.DamageType): number
+	return (computeRawDamage(player, baseDamage, damageType))
+end
+
 -- Regeneração de stamina (depois de um tempo sem gastar) e de mana (contínua).
 function CombatService.start()
 	while true do
@@ -611,9 +629,12 @@ function CombatService.start()
 		local t = now()
 		for player, state in states do
 			local classDef = ProgressionService.getClass(player)
-			local attributes = ProgressionService.getAttributes(player)
+			local attributes = ProgressionService.getEffectiveAttributes(player)
 			local maxStamina = Formulas.maxStamina(classDef, attributes)
 			local maxMana = Formulas.maxMana(classDef, attributes)
+			-- O máximo pode cair (ex.: trocou a arma que dava Destreza): nunca mostrar 110/100.
+			state.stamina = math.min(state.stamina, maxStamina)
+			state.mana = math.min(state.mana, maxMana)
 			if t - state.lastStaminaUseAt >= Combat.staminaRegenDelay then
 				state.stamina = math.min(maxStamina, state.stamina + Combat.staminaRegenPerSecond * dt)
 			end

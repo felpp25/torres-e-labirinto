@@ -191,7 +191,7 @@ local function bestLuckNear(position: Vector3): number
 			and LifeService.isAlive(player)
 			and (root.Position - position).Magnitude <= Progression.xpShareRadius
 		then
-			best = math.max(best, ProgressionService.getAttributes(player).Luck)
+			best = math.max(best, ProgressionService.getEffectiveAttributes(player).Luck)
 		end
 	end
 	return best

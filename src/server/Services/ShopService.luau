@@ -55,7 +55,7 @@ local function onResetAttributes(player: Player)
 		return
 	end
 	local spent = 0
-	for _, value in ProgressionService.getAttributes(player) :: { [string]: number } do
+	for _, value in ProgressionService.getDistributedAttributes(player) :: { [string]: number } do
 		spent += value
 	end
 	if spent == 0 then
