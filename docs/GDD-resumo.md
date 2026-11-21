@@ -14,7 +14,9 @@
   *Protótipo:* mobs 8 XP e 1-3 Gold; boss 1500 XP e 300 Gold por jogador. Uma torre completa leva do nível 1 a
   perto do 10 (teto atual).
 - **Salvamento (DataStore):** uma chave por jogador com **vários personagens** por conta (slots); cada personagem
-  tem classe, nível, XP, **Gold próprio**, atributos e pontos livres. A **run em andamento não é salva** (sair no
+  tem classe, nível, XP, atributos e pontos livres. O **Gold é da CONTA**, compartilhado por todos os personagens:
+  o jogador troca de personagem no lobby para atender o grupo (ex.: o time precisa de um curandeiro) sem recomeçar
+  a economia. A **run em andamento não é salva** (sair no
   meio da torre = run nova ao voltar; o que foi ganho fica). Salva ao sair, ao fechar o servidor, a cada 2 min e
   ao concluir uma torre. Trava de sessão evita perder dados ao trocar de servidor.
   *Protótipo:* 1 personagem (Lutador) criado automaticamente; a escolha de personagem vem com o lobby.

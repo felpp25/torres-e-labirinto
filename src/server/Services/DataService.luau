@@ -174,9 +174,10 @@ local function savePlayer(player: Player, release: boolean)
 	entry.saving = false
 end
 
--- Carrega o personagem ativo do jogador (espera; chame antes de ele nascer). Nunca falha: em último caso
--- devolve um personagem novo e marca o jogador como "jogando sem salvar".
-function DataService.loadAsync(player: Player): PlayerSchema.Character
+-- Carrega o perfil do jogador (conta + personagens; espera, chame antes de ele nascer). Nunca falha: em último
+-- caso devolve um perfil novo e marca o jogador como "jogando sem salvar".
+-- Quem altera o perfil devolvido (ProgressionService) altera o que será salvo: é a mesma tabela.
+function DataService.loadAsync(player: Player): PlayerSchema.Profile
 	local key = keyFor(player.UserId)
 	local reason = "?"
 	for attempt = 1, LOCKED_RETRIES do
@@ -194,11 +195,11 @@ function DataService.loadAsync(player: Player): PlayerSchema.Character
 			}
 			player:SetAttribute(Keys.PlayerAttr.SaveStatus, "ok")
 			local character = profile.characters[profile.activeSlot]
-			print(`[Save] {player.Name} carregado: nível {character.level}, {character.gold} Gold`)
+			print(`[Save] {player.Name} carregado: nível {character.level}, {profile.gold} Gold na conta`)
 			if not player.Parent then
 				task.spawn(savePlayer, player, true) -- saiu durante o carregamento: libera a trava
 			end
-			return character
+			return profile
 		elseif status == "locked" then
 			reason = "dados em uso por outro servidor"
 			print(`[Save] {player.Name}: {reason}; tentativa {attempt}/{LOCKED_RETRIES}`)
@@ -222,7 +223,7 @@ function DataService.loadAsync(player: Player): PlayerSchema.Character
 		nextAutosaveAt = math.huge,
 	}
 	player:SetAttribute(Keys.PlayerAttr.SaveStatus, "offline")
-	return profile.characters[profile.activeSlot]
+	return profile
 end
 
 -- Pede um save agora (sem esperar). Ex.: torre concluída.

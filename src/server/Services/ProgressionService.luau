@@ -30,15 +30,26 @@ local LOAD_WAIT_TIMEOUT = 60 -- s: o DataService pode esperar uma trava de outro
 
 local ProgressionService = {}
 
-local playerData: { [Player]: PlayerData } = {}
+local profiles: { [Player]: PlayerSchema.Profile } = {} -- conta inteira (Gold global + personagens)
+local playerData: { [Player]: PlayerData } = {} -- personagem ativo (dentro do perfil)
 local loaded: { [Player]: boolean } = {}
+
+-- Ainda não carregou (não deveria acontecer: o jogador só nasce depois): valores temporários, nunca salvos;
+-- quando o carregamento terminar, são substituídos pelo perfil salvo.
+local function getProfile(player: Player): PlayerSchema.Profile
+	local profile = profiles[player]
+	if not profile then
+		profile = PlayerSchema.newProfile()
+		profiles[player] = profile
+	end
+	return profile
+end
 
 local function getData(player: Player): PlayerData
 	local data = playerData[player]
 	if not data then
-		-- Ainda não carregou (não deveria acontecer: o jogador só nasce depois). Valor temporário, nunca salvo:
-		-- quando o carregamento terminar, ele é substituído pelo personagem salvo.
-		data = PlayerSchema.newCharacter(Classes.defaultClassId)
+		local profile = getProfile(player)
+		data = profile.characters[profile.activeSlot]
 		playerData[player] = data
 	end
 	return data
@@ -58,7 +69,7 @@ local function replicate(player: Player, data: PlayerData)
 	player:SetAttribute(Keys.PlayerAttr.XP, data.xp)
 	local toNext = Formulas.xpToNextLevel(data.level)
 	player:SetAttribute(Keys.PlayerAttr.XPToNext, if toNext == math.huge then 0 else toNext)
-	player:SetAttribute(Keys.PlayerAttr.Gold, data.gold)
+	player:SetAttribute(Keys.PlayerAttr.Gold, getProfile(player).gold) -- Gold da CONTA
 	player:SetAttribute(Keys.PlayerAttr.UnspentPoints, data.unspentPoints)
 	for _, name in Formulas.attributeNames() do
 		player:SetAttribute(Keys.statAttr(name), data.attributes[name])
@@ -160,13 +171,17 @@ local function onAllocateRecommended(player: Player)
 	afterAttributesChanged(player, data)
 end
 
+-- Gold é da CONTA (compartilhado por todos os personagens).
 function ProgressionService.addGold(player: Player, amount: number)
 	if amount <= 0 then
 		return
 	end
-	local data = getData(player)
-	data.gold += math.floor(amount)
-	replicate(player, data)
+	getProfile(player).gold += math.floor(amount)
+	replicate(player, getData(player))
+end
+
+function ProgressionService.getGold(player: Player): number
+	return getProfile(player).gold
 end
 
 -- Vida cheia (checkpoint, M6).
@@ -195,11 +210,13 @@ local function onPlayerAdded(player: Player)
 	player.CharacterAdded:Connect(function(character: Model)
 		onCharacterAdded(player, character)
 	end)
-	-- Carrega o personagem salvo (espera o DataStore e a trava de sessão).
-	local data = DataService.loadAsync(player)
+	-- Carrega o perfil salvo (espera o DataStore e a trava de sessão).
+	local profile = DataService.loadAsync(player)
 	if not player.Parent then
 		return -- saiu durante o carregamento
 	end
+	local data = profile.characters[profile.activeSlot]
+	profiles[player] = profile
 	playerData[player] = data
 	loaded[player] = true
 	replicate(player, data)
@@ -214,6 +231,7 @@ function ProgressionService.init()
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		-- (O DataService guarda a sua própria referência e salva na saída; aqui só limpa o mapa.)
+		profiles[player] = nil
 		playerData[player] = nil
 		loaded[player] = nil
 	end)
