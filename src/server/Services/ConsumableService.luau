@@ -45,7 +45,10 @@ local function onUsePotion(player: Player, itemId: unknown)
 	if def.effect == "Heal" and humanoid.Health >= humanoid.MaxHealth then
 		return
 	end
-	if def.effect == "Stamina" and CombatService.isStaminaFull(player) then
+	if def.effect == "Stamina" and CombatService.isResourceFull(player, "Stamina") then
+		return
+	end
+	if def.effect == "Mana" and CombatService.isResourceFull(player, "Mana") then
 		return
 	end
 	if not ProgressionService.tryConsumeItem(player, itemId) then
@@ -56,8 +59,10 @@ local function onUsePotion(player: Player, itemId: unknown)
 	player:SetAttribute(Keys.itemReadyAttr(itemId), times[itemId])
 	if def.effect == "Heal" then
 		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + humanoid.MaxHealth * def.amount)
+	elseif def.effect == "Stamina" then
+		CombatService.addResource(player, "Stamina", def.amount)
 	else
-		CombatService.addStamina(player, def.amount)
+		CombatService.addResource(player, "Mana", def.amount)
 	end
 end
 

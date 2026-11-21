@@ -53,6 +53,15 @@ local COMMANDS: { [string]: Command } = {
 		return before - humanoid.Health
 	end,
 
+	-- resource = "Stamina" ou "Mana"
+	SetResource = function(player: Player, resource: string, value: number): boolean
+		if resource ~= "Stamina" and resource ~= "Mana" then
+			return false
+		end
+		CombatService.debugSetResource(player, resource, value)
+		return true
+	end,
+
 	GiveGold = function(player: Player, amount: number): number
 		ProgressionService.addGold(player, amount)
 		return ProgressionService.getGold(player)

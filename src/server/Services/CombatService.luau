@@ -306,29 +306,50 @@ local function onPlayerAdded(player: Player)
 end
 
 -- Poção de stamina: soma `fraction` da stamina máxima.
-function CombatService.addStamina(player: Player, fraction: number)
+local function maxResources(player: Player): (number, number)
+	local classDef = ProgressionService.getClass(player)
+	local attributes = ProgressionService.getAttributes(player)
+	return Formulas.maxStamina(classDef, attributes), Formulas.maxMana(classDef, attributes)
+end
+
+-- Poções: soma `fraction` do máximo do recurso (stamina ou mana).
+function CombatService.addResource(player: Player, resource: Types.ResourceType, fraction: number)
 	local state = states[player]
 	if not state then
 		return
 	end
-	local maxStamina =
-		Formulas.maxStamina(ProgressionService.getClass(player), ProgressionService.getAttributes(player))
-	state.stamina = math.min(maxStamina, state.stamina + maxStamina * fraction)
-	replicateResources(
-		player,
-		state,
-		maxStamina,
-		Formulas.maxMana(ProgressionService.getClass(player), ProgressionService.getAttributes(player))
-	)
+	local maxStamina, maxMana = maxResources(player)
+	if resource == "Stamina" then
+		state.stamina = math.min(maxStamina, state.stamina + maxStamina * fraction)
+	else
+		state.mana = math.min(maxMana, state.mana + maxMana * fraction)
+	end
+	replicateResources(player, state, maxStamina, maxMana)
 end
 
-function CombatService.isStaminaFull(player: Player): boolean
+function CombatService.isResourceFull(player: Player, resource: Types.ResourceType): boolean
 	local state = states[player]
 	if not state then
 		return true
 	end
-	return state.stamina
-		>= Formulas.maxStamina(ProgressionService.getClass(player), ProgressionService.getAttributes(player))
+	local maxStamina, maxMana = maxResources(player)
+	return if resource == "Stamina" then state.stamina >= maxStamina else state.mana >= maxMana
+end
+
+-- SÓ PARA TESTES (DevService, só no Studio): define o valor atual de um recurso.
+function CombatService.debugSetResource(player: Player, resource: Types.ResourceType, value: number)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local maxStamina, maxMana = maxResources(player)
+	if resource == "Stamina" then
+		state.stamina = math.clamp(value, 0, maxStamina)
+		state.lastStaminaUseAt = now()
+	else
+		state.mana = math.clamp(value, 0, maxMana)
+	end
+	replicateResources(player, state, maxStamina, maxMana)
 end
 
 -- Stamina e mana cheias (checkpoint).

@@ -1,5 +1,6 @@
 --!strict
--- Atalhos das poções (GDD > Lobby e loja): tecla 1 = Vida, 2 = Stamina; no controle, direcional esquerda/direita;
+-- Atalhos das poções (GDD > Lobby e loja): tecla 1 = Vida, 2 = Stamina, 3 = Mana; no controle, direcional
+-- esquerda/direita/baixo;
 -- no celular, botões na tela. Ícones embaixo, ao lado dos de esquiva/Palma, com quantidade e recarga.
 -- O cliente só PEDE (UsePotion); o servidor valida (tem o item, recarga, vivo) e aplica.
 
@@ -15,20 +16,23 @@ local Shop = require(Shared:WaitForChild("Balance"):WaitForChild("Shop"))
 
 local localPlayer = Players.LocalPlayer
 
-local KEYS: { [number]: Enum.KeyCode } = { [1] = Enum.KeyCode.One, [2] = Enum.KeyCode.Two }
-local GAMEPAD: { [number]: Enum.KeyCode } = { [1] = Enum.KeyCode.DPadLeft, [2] = Enum.KeyCode.DPadRight }
-local SHORT_NAMES: { [string]: string } = { HealthPotion = "Vida", StaminaPotion = "Stamina" }
+local KEYS: { [number]: Enum.KeyCode } = { [1] = Enum.KeyCode.One, [2] = Enum.KeyCode.Two, [3] = Enum.KeyCode.Three }
+local GAMEPAD: { [number]: Enum.KeyCode } =
+	{ [1] = Enum.KeyCode.DPadLeft, [2] = Enum.KeyCode.DPadRight, [3] = Enum.KeyCode.DPadDown }
+local SHORT_NAMES: { [string]: string } = { HealthPotion = "Vida", StaminaPotion = "Stamina", ManaPotion = "Mana" }
 local ICON_COLORS: { [string]: Color3 } = {
 	HealthPotion = Color3.fromRGB(150, 40, 50),
 	StaminaPotion = Color3.fromRGB(150, 120, 30),
+	ManaPotion = Color3.fromRGB(40, 80, 160),
 }
 -- Botões de toque à esquerda dos de combate.
 local TOUCH_POSITIONS: { [number]: UDim2 } = {
 	[1] = UDim2.new(1, -300, 1, -200),
 	[2] = UDim2.new(1, -370, 1, -150),
+	[3] = UDim2.new(1, -370, 1, -80),
 }
 
-type Icon = { frame: Frame, count: TextLabel, overlay: Frame, timer: TextLabel }
+type Icon = { frame: Frame, name: TextLabel, count: TextLabel, overlay: Frame, timer: TextLabel }
 
 local PotionController = {}
 
@@ -74,7 +78,7 @@ local function build()
 		corner.Parent = frame
 
 		makeText(frame, tostring(def.hotkey), 4, 16, 14)
-		makeText(frame, SHORT_NAMES[itemId] or def.displayName, 22, 14, 12)
+		local name = makeText(frame, SHORT_NAMES[itemId] or def.displayName, 22, 14, 12)
 		local count = makeText(frame, "x0", 40, 18, 15)
 
 		local overlay = Instance.new("Frame")
@@ -91,7 +95,7 @@ local function build()
 		overlayCorner.Parent = overlay
 
 		local timer = makeText(frame, "", 22, 18, 18)
-		icons[itemId] = { frame = frame, count = count, overlay = overlay, timer = timer }
+		icons[itemId] = { frame = frame, name = name, count = count, overlay = overlay, timer = timer }
 	end
 end
 
@@ -104,7 +108,9 @@ local function update()
 		icon.frame.BackgroundTransparency = if owned > 0 then 0.2 else 0.7
 		local remaining = math.max(numberAttr(Keys.itemReadyAttr(itemId)) - now, 0)
 		icon.overlay.Size = UDim2.fromScale(1, math.clamp(remaining / def.cooldown, 0, 1))
-		icon.timer.Text = if remaining > 0.05 then string.format("%.0f", math.ceil(remaining)) else ""
+		local cooling = remaining > 0.05
+		icon.timer.Text = if cooling then string.format("%.0f", math.ceil(remaining)) else ""
+		icon.name.Visible = not cooling -- os segundos da recarga ocupam o lugar do nome
 	end
 end
 

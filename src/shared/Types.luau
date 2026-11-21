@@ -102,7 +102,7 @@ export type BossDef = {
 }
 
 -- Item consumível da loja (poções). Guardado na conta; usado por atalho na run.
-export type ConsumableEffect = "Heal" | "Stamina"
+export type ConsumableEffect = "Heal" | "Stamina" | "Mana"
 
 export type ConsumableDef = {
 	id: string,
@@ -111,7 +111,7 @@ export type ConsumableDef = {
 	price: number, -- Gold
 	maxOwned: number, -- quantos a conta pode guardar
 	effect: ConsumableEffect,
-	amount: number, -- Heal: fração da vida máxima; Stamina: fração da stamina máxima
+	amount: number, -- Heal: fração da vida máxima; Stamina/Mana: fração do máximo do recurso
 	cooldown: number, -- s entre usos deste item
 	hotkey: number, -- tecla numérica (1, 2...)
 }

@@ -28,13 +28,26 @@ local STAMINA_POTION: Types.ConsumableDef = {
 	hotkey = 2,
 }
 
+local MANA_POTION: Types.ConsumableDef = {
+	id = "ManaPotion",
+	displayName = "Poção de Mana",
+	description = "Enche a mana",
+	price = 20,
+	maxOwned = 5,
+	effect = "Mana",
+	amount = 1, -- fração da mana máxima
+	cooldown = 8,
+	hotkey = 3,
+}
+
 local ITEMS: { [string]: Types.ConsumableDef } = {
 	HealthPotion = HEALTH_POTION,
 	StaminaPotion = STAMINA_POTION,
+	ManaPotion = MANA_POTION,
 }
 
 -- Ordem de exibição na loja e nos atalhos.
-local ORDER: { string } = { "HealthPotion", "StaminaPotion" }
+local ORDER: { string } = { "HealthPotion", "StaminaPotion", "ManaPotion" }
 
 return table.freeze({
 	items = table.freeze(ITEMS),

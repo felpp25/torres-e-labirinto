@@ -82,6 +82,8 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
 | **Sorte** | Aumenta a chance de crítico, a taxa de drop dos mobs e a chance de achar baús secretos no mapa. |
 
 - **Recursos:** ações **físicas** (golpes especiais, esquiva) gastam **stamina**; ações **mágicas** gastam **mana**.
+  **Mana e stamina começam em 100** para todas as classes (Sabedoria e Destreza somam a partir daí).
+  - *Em discussão:* como classes físicas (Lutador/Monge) usam mana, e qual recurso cada habilidade gasta.
 - **Defesa:** `redução de dano = Defesa / (Defesa + 40)` (10 → 20%, 27 → 40%, 100 → 71%; **nunca chega a
   100%**: tank invencível é antijogo). A constante era 100, mas a bateria de atributos mostrou que a Defesa rendia
   pouco nos valores reais (27 pts = 21%) e perdia sempre para a Vitalidade.
@@ -157,9 +159,9 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
 - O jogador **nasce no lobby**. A torre começa ao entrar no **portal**; quem entrar depois vai para o andar atual
   da run. Torre concluída ou game over: todos **voltam ao lobby**.
 - **Loja** (balcão no lobby): o Gold é gasto aqui. Primeira versão:
-  - **Poções** (consumíveis da conta, levadas para a run): **Vida** (recupera parte da vida máxima) e **Stamina**
-    (enche a stamina). Usadas por **atalhos fixos** (teclas 1 e 2; botões na tela no celular), com recarga e limite
-    de quantas guardar.
+  - **Poções** (consumíveis da conta, levadas para a run): **Vida** (recupera parte da vida máxima), **Stamina**
+    (enche a stamina) e **Mana** (enche a mana). Usadas por **atalhos fixos** (teclas 1, 2 e 3; botões na tela no
+    celular), com recarga e limite de quantas guardar.
   - **Reset de atributos:** devolve todos os pontos para redistribuir; preço cresce com o nível.
 - *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
 
