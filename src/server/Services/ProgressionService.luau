@@ -20,6 +20,7 @@ local Remotes = require(Shared.Remotes)
 local Classes = require(Shared.Balance.Classes)
 local Combat = require(Shared.Balance.Combat)
 local Progression = require(Shared.Balance.Progression)
+local Shop = require(Shared.Balance.Shop)
 
 local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local DataService = require(script.Parent.DataService)
@@ -70,6 +71,9 @@ local function replicate(player: Player, data: PlayerData)
 	local toNext = Formulas.xpToNextLevel(data.level)
 	player:SetAttribute(Keys.PlayerAttr.XPToNext, if toNext == math.huge then 0 else toNext)
 	player:SetAttribute(Keys.PlayerAttr.Gold, getProfile(player).gold) -- Gold da CONTA
+	for itemId in Shop.items do
+		player:SetAttribute(Keys.itemAttr(itemId), getProfile(player).inventory[itemId] or 0)
+	end
 	player:SetAttribute(Keys.PlayerAttr.UnspentPoints, data.unspentPoints)
 	for _, name in Formulas.attributeNames() do
 		player:SetAttribute(Keys.statAttr(name), data.attributes[name])
@@ -182,6 +186,52 @@ end
 
 function ProgressionService.getGold(player: Player): number
 	return getProfile(player).gold
+end
+
+-- Gasta Gold da conta se houver o suficiente. Devolve se gastou. (Quem chama já validou o motivo da compra.)
+function ProgressionService.trySpendGold(player: Player, amount: number): boolean
+	local profile = getProfile(player)
+	if amount < 0 or profile.gold < amount then
+		return false
+	end
+	profile.gold -= math.floor(amount)
+	replicate(player, getData(player))
+	return true
+end
+
+-- Inventário da CONTA (poções etc.): { [itemId] = quantidade }.
+function ProgressionService.getItemCount(player: Player, itemId: string): number
+	return getProfile(player).inventory[itemId] or 0
+end
+
+function ProgressionService.addItem(player: Player, itemId: string, amount: number)
+	local inventory = getProfile(player).inventory
+	inventory[itemId] = (inventory[itemId] or 0) + amount
+	replicate(player, getData(player))
+end
+
+-- Consome 1 unidade se houver. Devolve se consumiu.
+function ProgressionService.tryConsumeItem(player: Player, itemId: string): boolean
+	local inventory = getProfile(player).inventory
+	local count = inventory[itemId] or 0
+	if count <= 0 then
+		return false
+	end
+	inventory[itemId] = count - 1 -- (zeros são descartados ao carregar: PlayerSchema.reconcile)
+	replicate(player, getData(player))
+	return true
+end
+
+-- Reset de atributos: todos os pontos colocados voltam a ser pontos livres. (A cobrança é da loja.)
+function ProgressionService.resetAttributes(player: Player)
+	local data = getData(player)
+	local refunded = 0
+	for _, name in Formulas.attributeNames() do
+		refunded += data.attributes[name]
+	end
+	data.attributes = Formulas.emptyAttributes()
+	data.unspentPoints += refunded
+	afterAttributesChanged(player, data)
 end
 
 -- Vida cheia (checkpoint, M6).

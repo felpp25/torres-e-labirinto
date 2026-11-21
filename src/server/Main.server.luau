@@ -16,8 +16,8 @@ type Service = {
 
 local Services = script.Parent.Services
 
--- Ordem importa: quem é usado por outros vem antes. No start(), DungeonService gera o andar 1 antes de o
--- LifeService (último) fazer os jogadores nascerem; os outros já estão ouvindo CharacterAdded.
+-- Ordem importa: quem é usado por outros vem antes. No start(), o RunSessionService define onde cada jogador
+-- nasce (lobby ou torre) antes de o LifeService (último) fazê-los nascer; os outros já ouvem CharacterAdded.
 local SERVICES: { [string]: Service } = {
 	DataService = require(Services.DataService),
 	ProgressionService = require(Services.ProgressionService),
@@ -27,6 +27,9 @@ local SERVICES: { [string]: Service } = {
 	PuzzleService = require(Services.PuzzleService),
 	BossService = require(Services.BossService),
 	DungeonService = require(Services.DungeonService),
+	LobbyService = require(Services.LobbyService),
+	ShopService = require(Services.ShopService),
+	ConsumableService = require(Services.ConsumableService),
 	RunSessionService = require(Services.RunSessionService),
 	DevService = require(Services.DevService),
 	LifeService = require(Services.LifeService),
@@ -40,6 +43,9 @@ local SERVICE_ORDER: { string } = {
 	"PuzzleService",
 	"BossService",
 	"DungeonService",
+	"LobbyService",
+	"ShopService",
+	"ConsumableService",
 	"RunSessionService",
 	"DevService",
 	"LifeService",

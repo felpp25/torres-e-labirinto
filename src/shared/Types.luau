@@ -101,6 +101,21 @@ export type BossDef = {
 	gold: number,
 }
 
+-- Item consumível da loja (poções). Guardado na conta; usado por atalho na run.
+export type ConsumableEffect = "Heal" | "Stamina"
+
+export type ConsumableDef = {
+	id: string,
+	displayName: string,
+	description: string,
+	price: number, -- Gold
+	maxOwned: number, -- quantos a conta pode guardar
+	effect: ConsumableEffect,
+	amount: number, -- Heal: fração da vida máxima; Stamina: fração da stamina máxima
+	cooldown: number, -- s entre usos deste item
+	hotkey: number, -- tecla numérica (1, 2...)
+}
+
 -- Uma sala na grade do labirinto (gerada pelo MazeGenerator).
 -- "Puzzle" = sala final dos andares normais; "Boss" = sala final do último andar da torre (vira a arena).
 export type RoomKind = "Entrance" | "Combat" | "Puzzle" | "DeadEnd" | "Boss"

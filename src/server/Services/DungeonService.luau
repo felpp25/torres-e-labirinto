@@ -2,7 +2,7 @@
 -- Andares da run: gera o layout (MazeGenerator), constrói (RoomBuilder), coloca os mobs e o puzzle e leva os
 -- jogadores para a entrada. TUDO do andar (layout, mobs, placas) sai da seed: a mesma seed refaz o mesmo andar.
 -- O que fazer quando todos morrem (vidas, game over) é decidido pelo RunSessionService.
--- Ligado por Balance/Run.startInDungeon.
+-- A run começa pelo portal do lobby (RunSessionService chama startFloor(1)).
 
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,7 +14,6 @@ local Keys = require(Shared.Keys)
 local Dungeon = require(Shared.Balance.Dungeon)
 local Mobs = require(Shared.Balance.Mobs)
 local Bosses = require(Shared.Balance.Bosses)
-local Run = require(Shared.Balance.Run)
 
 local MazeGenerator = require(script.Parent.Parent.Dungeon.MazeGenerator)
 local RoomBuilder = require(script.Parent.Parent.Dungeon.RoomBuilder)
@@ -30,6 +29,9 @@ local PLAYER_SPAWN_SPACING = 4
 
 local DungeonService = {}
 
+local isParticipant: (Player) -> boolean = function(_: Player): boolean
+	return true
+end
 local seedRng = Random.new() -- só sorteia a seed de cada andar novo
 local currentFloor = 0
 local currentSeed = 0
@@ -143,11 +145,35 @@ function DungeonService.startFloor(floorNumber: number, seed: number?)
 	local action = if seed then "recomeçado" else "gerado"
 	print(`[Andar] {floorNumber} {action}: seed {floorSeed}, {#layout.rooms} salas, {deadEnds} becos, {mobCount} mobs`)
 
+	-- Só quem está dentro da torre vai para a entrada (quem está no lobby fica no lobby).
 	for _, player in Players:GetPlayers() do
-		if LifeService.isAlive(player) and player.Character then
+		if isParticipant(player) and LifeService.isAlive(player) and player.Character then
 			player.Character:PivotTo(entranceCFrame(playerIndex(player)))
 		end
 	end
+end
+
+-- Ponto de nascimento na entrada do andar atual para este jogador (usado pelo RunSessionService).
+function DungeonService.entranceCFrameFor(player: Player): CFrame
+	return entranceCFrame(playerIndex(player))
+end
+
+-- Fim da run: destrói o andar (mobs, boss e puzzle junto) e limpa o estado que o HUD lê.
+function DungeonService.clear()
+	if current then
+		current.folder:Destroy()
+		current = nil
+	end
+	currentFloor = 0
+	BossService.clear()
+	PuzzleService.clear()
+	workspace:SetAttribute(Keys.WorldAttr.IsBossFloor, false)
+	workspace:SetAttribute(Keys.WorldAttr.FloorNumber, nil)
+end
+
+-- Quem está dentro da torre (o RunSessionService define; padrão: todos).
+function DungeonService.setParticipantFilter(filter: (Player) -> boolean)
+	isParticipant = filter
 end
 
 function DungeonService.getCurrentFloor(): number
@@ -160,7 +186,7 @@ function DungeonService.advanceTo(floorNumber: number)
 	DungeonService.startFloor(floorNumber)
 	LifeService.reviveDead(nil) -- nasce pelo spawn provider: entrada do andar novo
 	for _, member in Players:GetPlayers() do
-		if LifeService.isAlive(member) then
+		if isParticipant(member) and LifeService.isAlive(member) then
 			ProgressionService.restoreHealth(member)
 			CombatService.restoreResources(member)
 		end
@@ -189,15 +215,9 @@ function DungeonService.init()
 	EnemyService.setWakeSafeZone(isInEntrance)
 end
 
-function DungeonService.start()
-	if not Run.startInDungeon then
-		return
-	end
-	DungeonService.startFloor(1)
-	LifeService.setSpawnProvider(function(player: Player): CFrame?
-		return if current then entranceCFrame(playerIndex(player)) else nil
-	end)
-end
+-- O andar 1 é criado quando alguém entra pelo portal do lobby (RunSessionService); onde cada jogador nasce
+-- também é decidido lá.
+function DungeonService.start() end
 
 -- Recomeça o andar atual com a mesma seed (mesmo labirinto, mobs e placas no estado inicial).
 function DungeonService.restartCurrentFloor()

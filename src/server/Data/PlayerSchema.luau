@@ -4,6 +4,7 @@
 -- Uma chave por jogador (User_<UserId>) com o PERFIL da conta:
 --   schemaVersion  versão do formato (para migrações)
 --   gold           Gold da CONTA, compartilhado por todos os personagens
+--   inventory      itens da CONTA (ex.: poções): { [itemId] = quantidade }
 --   activeSlot     personagem em uso
 --   characters     lista de personagens; cada um com classe, nível, XP, atributos e pontos livres
 --   session        trava de sessão (qual servidor está com os dados e desde quando); nil = livre
@@ -13,6 +14,7 @@
 -- Versões:
 --   1  Gold dentro de cada personagem.
 --   2  Gold na conta. Migração: soma o Gold de todos os personagens da v1.
+--   3  Inventário da conta (poções). Migração: inventário vazio.
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,6 +23,7 @@ local Types = require(Shared.Types)
 local Formulas = require(Shared.Formulas)
 local Classes = require(Shared.Balance.Classes)
 local Progression = require(Shared.Balance.Progression)
+local Shop = require(Shared.Balance.Shop)
 
 export type Character = {
 	classId: string,
@@ -38,6 +41,7 @@ export type Session = {
 export type Profile = {
 	schemaVersion: number,
 	gold: number,
+	inventory: { [string]: number },
 	activeSlot: number,
 	characters: { Character },
 	session: Session?,
@@ -45,7 +49,7 @@ export type Profile = {
 
 local PlayerSchema = {}
 
-PlayerSchema.VERSION = 2
+PlayerSchema.VERSION = 3
 
 function PlayerSchema.newCharacter(classId: string): Character
 	return {
@@ -61,6 +65,7 @@ function PlayerSchema.newProfile(): Profile
 	return {
 		schemaVersion = PlayerSchema.VERSION,
 		gold = 0,
+		inventory = {},
 		activeSlot = 1,
 		characters = { PlayerSchema.newCharacter(Classes.defaultClassId) },
 		session = nil,
@@ -131,6 +136,17 @@ function PlayerSchema.reconcile(raw: unknown): Profile
 		profile.gold = total
 	else
 		profile.gold = wholeNumber(data.gold, 0, math.huge, 0)
+	end
+
+	-- Inventário (v3+). Só itens que existem na loja, com a quantidade limitada ao máximo permitido.
+	if typeof(data.inventory) == "table" then
+		local rawInventory = data.inventory :: { [string]: unknown }
+		for itemId, def in Shop.items do
+			local count = wholeNumber(rawInventory[itemId], 0, def.maxOwned, 0)
+			if count > 0 then
+				profile.inventory[itemId] = count
+			end
+		end
 	end
 
 	local session = data.session

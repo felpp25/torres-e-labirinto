@@ -53,6 +53,11 @@ local COMMANDS: { [string]: Command } = {
 		return before - humanoid.Health
 	end,
 
+	GiveGold = function(player: Player, amount: number): number
+		ProgressionService.addGold(player, amount)
+		return ProgressionService.getGold(player)
+	end,
+
 	SaveNow = function(player: Player): boolean
 		return DataService.saveNow(player)
 	end,

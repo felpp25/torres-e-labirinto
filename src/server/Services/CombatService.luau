@@ -305,6 +305,32 @@ local function onPlayerAdded(player: Player)
 	end)
 end
 
+-- Poção de stamina: soma `fraction` da stamina máxima.
+function CombatService.addStamina(player: Player, fraction: number)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local maxStamina =
+		Formulas.maxStamina(ProgressionService.getClass(player), ProgressionService.getAttributes(player))
+	state.stamina = math.min(maxStamina, state.stamina + maxStamina * fraction)
+	replicateResources(
+		player,
+		state,
+		maxStamina,
+		Formulas.maxMana(ProgressionService.getClass(player), ProgressionService.getAttributes(player))
+	)
+end
+
+function CombatService.isStaminaFull(player: Player): boolean
+	local state = states[player]
+	if not state then
+		return true
+	end
+	return state.stamina
+		>= Formulas.maxStamina(ProgressionService.getClass(player), ProgressionService.getAttributes(player))
+end
+
 -- Stamina e mana cheias (checkpoint).
 function CombatService.restoreResources(player: Player)
 	local state = states[player]

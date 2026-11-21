@@ -38,7 +38,22 @@ Keys.WorldAttr = table.freeze({
 	BossHealth = "BossHealth",
 	BossMaxHealth = "BossMaxHealth", -- 0 = nenhum boss ativo (o HUD esconde a barra)
 	TowersCompleted = "TowersCompleted", -- aumenta ao derrotar o boss (o HUD mostra "TORRE CONCLUÍDA")
+	RunActive = "RunActive", -- há uma torre em andamento (false = todos no lobby)
+	GameOvers = "GameOvers", -- aumenta a cada game over (o HUD mostra o aviso)
 })
+
+-- Quantidade de um item da conta (ex.: "Item_HealthPotion"), replicada no Player para a loja e os atalhos.
+function Keys.itemAttr(itemId: string): string
+	return `Item_{itemId}`
+end
+
+-- Horário (relógio do servidor) em que o item pode ser usado de novo (recarga da poção).
+function Keys.itemReadyAttr(itemId: string): string
+	return `ItemReadyAt_{itemId}`
+end
+
+-- O jogador está dentro da torre (participando da run), e não no lobby.
+Keys.InRunAttr = "InRun"
 
 function Keys.abilityReadyAttr(abilityId: string): string
 	return `AbilityReadyAt_{abilityId}`

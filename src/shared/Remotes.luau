@@ -12,6 +12,10 @@
 --   LevelUp         servidor -> 1 cliente (LevelUpPayload)        você subiu de nível: mostrar aviso
 --   AllocateAttribute   cliente -> servidor (attributeName: string)  quero pôr 1 ponto livre neste atributo
 --   AllocateRecommended cliente -> servidor ()                       quero distribuir os pontos livres no recomendado
+--   BuyItem         cliente -> servidor  (itemId: string)          quero comprar 1 unidade (perto da loja)
+--   ResetAttributes cliente -> servidor  ()                        quero resetar meus atributos (perto da loja)
+--   UsePotion       cliente -> servidor  (itemId: string)          quero usar 1 poção
+--   ShopResult      servidor -> 1 cliente (ShopResultPayload)      resultado de compra/reset (mensagem na loja)
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService: RunService = game:GetService("RunService")
@@ -25,6 +29,10 @@ export type RemoteName =
 	| "LevelUp"
 	| "AllocateAttribute"
 	| "AllocateRecommended"
+	| "BuyItem"
+	| "ResetAttributes"
+	| "UsePotion"
+	| "ShopResult"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -54,6 +62,15 @@ local REMOTE_NAMES: { RemoteName } = {
 	"LevelUp",
 	"AllocateAttribute",
 	"AllocateRecommended",
+	"BuyItem",
+	"ResetAttributes",
+	"UsePotion",
+	"ShopResult",
+}
+
+export type ShopResultPayload = {
+	ok: boolean,
+	message: string, -- ex.: "Comprou Poção de Vida" / "Gold insuficiente"
 }
 local FOLDER_NAME = "Remotes"
 local CLIENT_WAIT_TIMEOUT = 30

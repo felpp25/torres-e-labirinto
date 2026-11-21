@@ -1,10 +1,12 @@
 --!strict
--- A run atual (GDD > Vidas e > Progressão global e torres):
--- - 3 vidas do GRUPO. Wipe (todos mortos) gasta 1 vida e recomeça o andar atual (mesmo labirinto).
--- - Sem vidas: GAME OVER. A torre recomeça do andar 1 com labirinto novo. XP, níveis e Gold ganhos FICAM
---   (o que se perde é a tentativa e o prêmio do boss; GDD > Vidas).
--- - Coração: drop raro dos mobs que devolve 1 vida (até o máximo). Pego por qualquer jogador vivo encostando.
--- Vidas e nº da run vão para Attributes do workspace (o HUD mostra e avisa).
+-- A run (torre) e quem está nela (GDD > Lobby e loja, > Vidas, > Progressão global e torres):
+-- - O jogador nasce no LOBBY. Pisar no portal entra na torre: sem run ativa, começa uma (andar 1, 3 vidas);
+--   com run ativa, o jogador entra no andar atual.
+-- - 3 vidas do GRUPO. Wipe (todos os PARTICIPANTES mortos) gasta 1 vida e recomeça o andar atual.
+-- - Sem vidas: GAME OVER -> todos voltam ao lobby. XP, níveis e Gold ganhos FICAM.
+-- - Boss derrotado: TORRE CONCLUÍDA -> depois de um tempo, todos voltam ao lobby.
+-- - Coração: drop raro dos mobs que devolve 1 vida (até o máximo).
+-- Vidas, nº da run e "run ativa" vão para Attributes do workspace; "está na torre" vai no Player (InRun).
 
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,10 +19,12 @@ local Run = require(Shared.Balance.Run)
 local Progression = require(Shared.Balance.Progression)
 
 local BossService = require(script.Parent.BossService)
+local CombatService = require(script.Parent.CombatService)
 local DataService = require(script.Parent.DataService)
 local DungeonService = require(script.Parent.DungeonService)
 local EnemyService = require(script.Parent.EnemyService)
 local LifeService = require(script.Parent.LifeService)
+local LobbyService = require(script.Parent.LobbyService)
 local ProgressionService = require(script.Parent.ProgressionService)
 
 local HEART_COLOR = Color3.fromRGB(255, 60, 90)
@@ -29,19 +33,85 @@ local HEART_SIZE = 2
 local RunSessionService = {}
 
 local rng = Random.new()
+local runActive = false
 local lives = Run.startingLives
-local runNumber = 1
+local runNumber = 0
 local towersCompleted = 0
+local gameOvers = 0
+local participants: { [Player]: boolean? } = {}
 local hearts: { Part } = {}
 
 local function publish()
+	workspace:SetAttribute(Keys.WorldAttr.RunActive, runActive)
 	workspace:SetAttribute(Keys.WorldAttr.Lives, lives)
 	workspace:SetAttribute(Keys.WorldAttr.RunNumber, runNumber)
 end
 
--- Quem renasce já começa com vida, stamina e mana cheias (personagem novo).
--- Boss derrotado: torre concluída. O HUD mostra "TORRE CONCLUÍDA" e, depois de um tempo, uma run nova começa
--- no andar 1 (labirintos novos, vidas cheias; mortos renascem). Futuro: voltar ao lobby para escolher a torre.
+local function isParticipant(player: Player): boolean
+	return participants[player] == true
+end
+
+local function setInRun(player: Player, inRun: boolean)
+	participants[player] = if inRun then true else nil
+	player:SetAttribute(Keys.InRunAttr, inRun)
+end
+
+local function startRun()
+	runActive = true
+	runNumber += 1
+	lives = Run.startingLives
+	publish()
+	DungeonService.startFloor(1)
+	print(`[Run] run {runNumber} começou`)
+end
+
+-- Portal do lobby: entra na torre (começa a run se não houver uma).
+local function enterRun(player: Player)
+	if participants[player] then
+		return
+	end
+	-- Marca como participante ANTES de criar o andar: o HUD só avisa "ANDAR N" para quem está na torre.
+	setInRun(player, true)
+	if not runActive then
+		startRun() -- já leva os participantes para a entrada
+	else
+		local character = player.Character
+		if character then
+			character:PivotTo(DungeonService.entranceCFrameFor(player))
+		end
+	end
+	ProgressionService.restoreHealth(player)
+	CombatService.restoreResources(player)
+	print(`[Run] {player.Name} entrou na torre (andar {DungeonService.getCurrentFloor()})`)
+end
+
+-- Fim da run (torre concluída, game over ou todos saíram): todos voltam ao lobby; mortos renascem lá.
+local function endRun(reason: string)
+	if not runActive then
+		return
+	end
+	print(`[Run] run {runNumber} terminou ({reason}): todos de volta ao lobby`)
+	local wasInRun: { Player } = {}
+	for player in participants do
+		table.insert(wasInRun, player)
+	end
+	for _, player in wasInRun do
+		setInRun(player, false)
+	end
+	runActive = false
+	publish()
+	DungeonService.clear()
+	for _, player in wasInRun do
+		if player.Parent and LifeService.isAlive(player) and player.Character then
+			player.Character:PivotTo(LobbyService.spawnCFrame(player))
+			ProgressionService.restoreHealth(player)
+			CombatService.restoreResources(player)
+		end
+	end
+	LifeService.reviveDead(nil) -- o spawn provider agora aponta o lobby
+end
+
+-- Boss derrotado: torre concluída. O HUD mostra "TORRE CONCLUÍDA" e, depois de um tempo, todos voltam ao lobby.
 local function onTowerCompleted()
 	towersCompleted += 1
 	workspace:SetAttribute(Keys.WorldAttr.TowersCompleted, towersCompleted)
@@ -49,25 +119,21 @@ local function onTowerCompleted()
 	for _, player in Players:GetPlayers() do
 		DataService.requestSave(player)
 	end
-	print(`[Run] TORRE CONCLUÍDA (run {runNumber}); nova run em {Run.towerCompleteDelay}s`)
-	task.delay(Run.towerCompleteDelay, function()
-		runNumber += 1
-		lives = Run.startingLives
-		publish()
-		DungeonService.advanceTo(1)
-	end)
+	print(`[Run] TORRE CONCLUÍDA (run {runNumber}); volta ao lobby em {Run.towerCompleteDelay}s`)
+	task.delay(Run.towerCompleteDelay, endRun, "torre concluída")
 end
 
 local function gameOver()
-	print(`[Run] GAME OVER na run {runNumber}: a torre recomeça do andar 1 (XP e Gold ficam)`)
-	runNumber += 1
-	lives = Run.startingLives
-	publish()
-	DungeonService.startFloor(1) -- andar 1 com labirinto novo
-	LifeService.respawnAll()
+	print(`[Run] GAME OVER na run {runNumber} (XP e Gold ficam)`)
+	gameOvers += 1
+	workspace:SetAttribute(Keys.WorldAttr.GameOvers, gameOvers) -- o HUD mostra "GAME OVER" quando aumenta
+	endRun("game over")
 end
 
 local function onWipe()
+	if not runActive then
+		return
+	end
 	lives -= 1
 	if lives <= 0 then
 		gameOver()
@@ -76,7 +142,7 @@ local function onWipe()
 	print(`[Run] wipe: {lives} vida(s) restante(s), recomeçando o andar {DungeonService.getCurrentFloor()}`)
 	publish()
 	DungeonService.restartCurrentFloor()
-	LifeService.respawnAll()
+	LifeService.reviveDead(nil) -- renascem na entrada do andar (spawn provider)
 end
 
 local function spawnHeart(position: Vector3, parent: Instance)
@@ -165,6 +231,23 @@ local function checkHearts()
 	end
 end
 
+-- Alguém saiu do jogo no meio da run: se ninguém sobrou, a run acaba; se os que sobraram estão todos mortos,
+-- conta como wipe (senão eles ficariam espectando para sempre).
+local function onPlayerRemoving(player: Player)
+	if not participants[player] then
+		return
+	end
+	participants[player] = nil
+	if not runActive then
+		return
+	end
+	if next(participants) == nil then
+		endRun("todos saíram")
+	elseif LifeService.allParticipantsDead() then
+		task.delay(Run.allDeadRestartDelay, onWipe)
+	end
+end
+
 function RunSessionService.getLives(): number
 	return lives
 end
@@ -173,14 +256,25 @@ function RunSessionService.init()
 	EnemyService.setDeathHandler(onMobDied)
 	BossService.setDefeatedHandler(onTowerCompleted)
 	workspace:SetAttribute(Keys.WorldAttr.TowersCompleted, towersCompleted)
+	workspace:SetAttribute(Keys.WorldAttr.GameOvers, gameOvers)
+	Players.PlayerRemoving:Connect(onPlayerRemoving)
 end
 
 function RunSessionService.start()
 	if not Run.startInDungeon then
-		return
+		return -- modo de treino no lobby (sem torre)
 	end
 	publish()
+	LifeService.setParticipantFilter(isParticipant)
+	DungeonService.setParticipantFilter(isParticipant)
+	LifeService.setSpawnProvider(function(player: Player): CFrame?
+		if runActive and participants[player] then
+			return DungeonService.entranceCFrameFor(player)
+		end
+		return LobbyService.spawnCFrame(player)
+	end)
 	LifeService.setAllDeadHandler(onWipe)
+	LobbyService.setPortalHandler(enterRun)
 	while true do
 		task.wait(Run.heartCheckInterval)
 		checkHearts()

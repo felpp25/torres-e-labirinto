@@ -27,13 +27,28 @@ function LifeService.isAlive(player: Player): boolean
 	return humanoid ~= nil and humanoid.Health > 0
 end
 
+-- Quem conta para o "todos morreram": por padrão todos; com lobby, só quem está dentro da torre
+-- (o RunSessionService define). Um jogador parado no lobby não pode impedir o wipe do grupo.
+local isParticipant: (Player) -> boolean = function(_: Player): boolean
+	return true
+end
+
+function LifeService.setParticipantFilter(filter: (Player) -> boolean)
+	isParticipant = filter
+end
+
 local function anyAlive(): boolean
 	for _, player in Players:GetPlayers() do
-		if LifeService.isAlive(player) then
+		if isParticipant(player) and LifeService.isAlive(player) then
 			return true
 		end
 	end
 	return false
+end
+
+-- Os participantes estão todos mortos? (também usado quando alguém sai do jogo no meio da run)
+function LifeService.allParticipantsDead(): boolean
+	return not anyAlive()
 end
 
 -- Cria um personagem novo e, se houver, leva para o ponto indicado (`at` ou o spawn provider).
@@ -73,7 +88,7 @@ end
 
 local function onPlayerDied(player: Player)
 	print(`[Vida] {player.Name} morreu`)
-	if restartScheduled or anyAlive() then
+	if restartScheduled or not isParticipant(player) or anyAlive() then
 		return
 	end
 	restartScheduled = true

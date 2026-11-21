@@ -113,6 +113,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - No datamodel `Edit`, `require` fica em CACHE: depois de mudar um módulo já carregado num teste anterior, o
   `require` devolve a versão VELHA. Para testar a nova: `local c = mod:Clone(); c.Parent = mod.Parent;
   local M = require(c); c:Destroy()`.
+- **Fluxo do jogo:** o jogador nasce no LOBBY (perto da origem; loja à esquerda, portal da torre à direita). Para
+  testar a torre pelo MCP: levar o personagem até `workspace.Lobby.TowerPortal` (a run começa) ou usar
+  `Players:GetPlayers()[1]:GetAttribute("InRun")` para saber onde ele está. Game over / torre concluída = lobby.
 - **Salvamento (DataService):** no Studio usa o DataStore `PlayerData_Studio` (separado do jogo publicado,
   `PlayerData`). Precisa de "Enable Studio Access to API Services" ligado (Configurações da Experiência >
   Segurança; já ligado). Sem acesso, o jogo roda "sem salvar" (aviso no HUD) e nunca grava. O personagem de teste
@@ -120,6 +123,7 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - **Ferramentas de teste (DevService, só no Studio):** no datamodel `Server`,
   `game.ServerStorage.DevTools.Invoke:Invoke("SetAttributes", player, { Defense = 100 })` e
   `...:Invoke("DamagePlayer", player, 13.8)` (devolve o dano aplicado) usam os sistemas REAIS do jogo.
+  `"GiveGold"(player, n)` para testar a loja.
   Salvamento: `"SaveNow"(player)`, `"ReadStored"("User_<id>")` (JSON cru); testes de trava só em chaves
   `Test_...`: `"WriteStored"`, `"LoadKey"`, `"SaveKey"`, `"SessionId"`.
   Fora do Studio o serviço não faz nada. Novos comandos de teste entram em `COMMANDS` no DevService.

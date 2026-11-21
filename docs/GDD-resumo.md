@@ -152,6 +152,28 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     concentrar mais"). Sem isso, a segunda tentativa ficaria fácil e tediosa. **Manter.**
 - **No checkpoint**, vida e mana voltam ao máximo antes do próximo andar.
 
+## Lobby e loja
+
+- O jogador **nasce no lobby**. A torre começa ao entrar no **portal**; quem entrar depois vai para o andar atual
+  da run. Torre concluída ou game over: todos **voltam ao lobby**.
+- **Loja** (balcão no lobby): o Gold é gasto aqui. Primeira versão:
+  - **Poções** (consumíveis da conta, levadas para a run): **Vida** (recupera parte da vida máxima) e **Stamina**
+    (enche a stamina). Usadas por **atalhos fixos** (teclas 1 e 2; botões na tela no celular), com recarga e limite
+    de quantas guardar.
+  - **Reset de atributos:** devolve todos os pontos para redistribuir; preço cresce com o nível.
+- *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
+
+## Equipamentos, fortalecimento e gemas (futuro, definido pelo designer)
+
+- **Fortalecimento:** gastar **Gold para "upar" equipamentos**.
+- **Gemas:** complementam atributos (ataque, defesa, vitalidade etc.). **Cada equipamento comporta 1 gema.**
+  - Níveis **1 a 5**; cada nível acrescenta uma **porcentagem** no atributo da gema.
+  - **Nível 1 a 3:** compradas na loja com Gold. **Nível 4:** só nas runs **Avançadas**. **Nível 5:** só na run
+    **Pesadelo**.
+- **A definir antes de construir:** quais slots de equipamento existem (arma, armadura, acessório...); como os
+  equipamentos são obtidos; níveis e custo do fortalecimento (e se pode falhar); porcentagem de cada nível de gema;
+  se a gema pode ser trocada/removida; se equipamento é do personagem ou da conta.
+
 ## Dificuldades (futuro)
 
 - Modos **Normal**, **Avançado** e **Pesadelo** para cada torre.

@@ -52,7 +52,6 @@ local levelLabel: TextLabel? = nil
 local goldLabel: TextLabel? = nil
 local livesLabel: TextLabel? = nil
 local lastLives: number? = nil
-local lastRunNumber: number? = nil
 local statsLabel: TextLabel? = nil
 local floorLabel: TextLabel? = nil
 local saveWarningLabel: TextLabel? = nil
@@ -254,14 +253,16 @@ local function update()
 	end
 	if livesLabel then
 		local lives = workspace:GetAttribute(Keys.WorldAttr.Lives)
-		livesLabel.Text = if typeof(lives) == "number" then `Vidas: {lives}` else ""
+		local inRun = localPlayer:GetAttribute(Keys.InRunAttr) == true
+		livesLabel.Text = if inRun and typeof(lives) == "number" then `Vidas: {lives}` else ""
 	end
 	if saveWarningLabel then
 		saveWarningLabel.Visible = localPlayer:GetAttribute(Keys.PlayerAttr.SaveStatus) == "offline"
 	end
 	if floorLabel then
 		local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)
-		if typeof(floorNumber) == "number" then
+		local inRun = localPlayer:GetAttribute(Keys.InRunAttr) == true
+		if inRun and typeof(floorNumber) == "number" then
 			local active = workspace:GetAttribute(Keys.WorldAttr.PlatesActive)
 			local total = workspace:GetAttribute(Keys.WorldAttr.PlatesTotal)
 			local exitOpen = workspace:GetAttribute(Keys.WorldAttr.ExitOpen) == true
@@ -334,9 +335,10 @@ local function showLevelUp(payload: unknown)
 	)
 end
 
--- Vidas mudaram: perdeu (wipe) ou ganhou (Coração). O game over é avisado por onRunChanged.
--- No game over as vidas voltam ao máximo junto com a troca de run: essa subida não é "+1 VIDA".
--- Espera um instante para os dois Attributes chegarem e compara o nº da run de agora com o da última vez.
+-- Vidas mudaram: perdeu (wipe) ou ganhou (Coração). O game over é avisado por onGameOver.
+-- Ao começar uma run nova as vidas voltam ao máximo junto com a troca do nº da run: essa subida não é
+-- "+1 VIDA". Espera um instante para os Attributes chegarem e compara o nº da run de agora com o da última vez.
+-- Fora da torre (no lobby) nada é avisado.
 local livesRunNumber: unknown = nil
 local function onLivesChanged()
 	task.wait(0.2)
@@ -349,7 +351,8 @@ local function onLivesChanged()
 	livesRunNumber = runNumber
 	local previous = lastLives
 	lastLives = lives
-	if previous == nil or not sameRun then
+	local inRun = localPlayer:GetAttribute(Keys.InRunAttr) == true
+	if previous == nil or not sameRun or not inRun or workspace:GetAttribute(Keys.WorldAttr.RunActive) ~= true then
 		return
 	end
 	if lives < previous then
@@ -360,21 +363,23 @@ local function onLivesChanged()
 	end
 end
 
-local function onRunChanged()
-	local runNumber = workspace:GetAttribute(Keys.WorldAttr.RunNumber)
-	if typeof(runNumber) ~= "number" then
+local lastGameOvers: number? = nil
+local function onGameOver()
+	local count = workspace:GetAttribute(Keys.WorldAttr.GameOvers)
+	if typeof(count) ~= "number" then
 		return
 	end
-	local previous = lastRunNumber
-	lastRunNumber = runNumber
-	if previous ~= nil and runNumber > previous then
-		showToast("GAME OVER", "A torre recomeçou do andar 1. Seu XP e Gold foram mantidos.", COLORS.health, 0.32)
+	local previous = lastGameOvers
+	lastGameOvers = count
+	if previous ~= nil and count > previous then
+		showToast("GAME OVER", "De volta ao lobby. Seu XP e Gold foram mantidos.", COLORS.health, 0.32)
 	end
 end
 
 local function onFloorChanged()
+	task.wait(0.2) -- o Attribute "InRun" pode chegar logo depois do andar
 	local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)
-	if typeof(floorNumber) == "number" then
+	if typeof(floorNumber) == "number" and localPlayer:GetAttribute(Keys.InRunAttr) == true then
 		local isBossFloor = workspace:GetAttribute(Keys.WorldAttr.IsBossFloor) == true
 		local hint = if isBossFloor
 			then "Último andar: o chefe espera na arena vermelha"
@@ -452,10 +457,10 @@ function HudController.start()
 	task.spawn(moveChatWindow)
 	Remotes.get("LevelUp").OnClientEvent:Connect(showLevelUp)
 	workspace:GetAttributeChangedSignal(Keys.WorldAttr.FloorNumber):Connect(onFloorChanged)
-	onFloorChanged()
-	workspace:GetAttributeChangedSignal(Keys.WorldAttr.RunNumber):Connect(onRunChanged)
+	task.spawn(onFloorChanged)
+	workspace:GetAttributeChangedSignal(Keys.WorldAttr.GameOvers):Connect(onGameOver)
 	workspace:GetAttributeChangedSignal(Keys.WorldAttr.Lives):Connect(onLivesChanged)
-	onRunChanged()
+	onGameOver()
 	task.spawn(onLivesChanged)
 	workspace:GetAttributeChangedSignal(Keys.WorldAttr.TowersCompleted):Connect(onTowersCompletedChanged)
 	onTowersCompletedChanged()
