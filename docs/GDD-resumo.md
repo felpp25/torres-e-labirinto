@@ -129,7 +129,26 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
 - **Todos morreram antes de concluir o andar (wipe):** gasta 1 vida do grupo e todos voltam ao **início do andar
   atual**. O labirinto **não muda** (mesmo layout); mobs e placas voltam ao estado inicial do andar.
   Sem vidas: game over (ver "Vidas").
+  - *Validado no protótipo:* os mobs voltarem depois do wipe dá a sensação certa de desafio ("vou ter que me
+    concentrar mais"). Sem isso, a segunda tentativa ficaria fácil e tediosa. **Manter.**
 - **No checkpoint**, vida e mana voltam ao máximo antes do próximo andar.
+
+## Dificuldades (futuro)
+
+- Modos **Normal**, **Avançado** e **Pesadelo** para cada torre.
+- Quanto mais difícil: **muito mais Gold e drops melhores**; o **XP aumenta só um pouco** (nada discrepante, para a
+  progressão continuar lenta e constante). O objetivo é ser difícil de verdade, não um atalho de XP.
+- A definir: o que muda em cada modo (vida/dano dos mobs, nº de mobs, vidas do grupo, ataques extras do boss...),
+  multiplicadores de recompensa e se os modos exigem nível mínimo ou concluir o modo anterior.
+
+## Status do protótipo
+
+- **Protótipo concluído e validado pelo designer** (M1 a M7, boss e vidas): o loop de subir andares, enfrentar mobs
+  e o chefe no final, com vidas, Gold, XP, atributos e evolução linear lenta, é constante e **não frustrante**.
+  Jogar solo é desafiador (bom). Nenhum bug de programação encontrado na run completa.
+- Próximos passos (registrados ao longo deste resumo): lobby e escolha de torres, escolha manual de pontos de
+  atributo, salvar o progresso (DataStore), dificuldades, mais classes/armas/árvore de skills, drops e itens,
+  puzzle mais longo (30 a 90 s), vida comprada com limite.
 
 ## Regra técnica
 
