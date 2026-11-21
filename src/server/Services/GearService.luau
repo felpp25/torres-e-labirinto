@@ -1,5 +1,6 @@
 --!strict
--- Equipamento (GDD > Equipamentos): baú da conta, equipar e trocar peças (SÓ no lobby) e dar peças novas.
+-- Equipamento (GDD > Equipamentos): baú da conta, equipar e trocar peças (SÓ no lobby), dar peças novas e os
+-- sorteios de drop (quem recebe e com que Sorte é decisão do RunSessionService).
 -- As regras (slot certo, classe da arma, baú de 50, arma nunca vazia...) são funções puras do PlayerSchema; aqui
 -- ficam o que depende do jogo: lobby, anti-spam, mensagens, recalcular atributos e avisar o cliente.
 -- O cliente só PEDE (EquipGear / UnequipGear); tudo é validado. Ele recebe o estado pelo Attribute GearData
@@ -31,8 +32,10 @@ export type GrantResult = {
 
 local GearService = {}
 
+local rng = Random.new()
 local lastRequestAt: { [Player]: number } = {}
 local lastPublished: { [Player]: string } = {}
+local forceMobDrop: { [Player]: boolean } = {} -- só testes no Studio (DevService)
 
 local function reply(player: Player, ok: boolean, message: string)
 	local payload: Remotes.GearResultPayload = { ok = ok, message = message }
@@ -105,6 +108,61 @@ function GearService.grant(
 		Remotes.get("GearNotice"):FireClient(player, payload)
 	end
 	return result
+end
+
+-- ===== Drops (GDD > Equipamentos > Obtenção) =====
+
+-- Sorteia a peça: slot ao acaso, depois uma peça do drop desse slot (armas só da classe do personagem).
+-- Com 2 linhas por slot e 2 armas do Lutador, cada uma das 14 peças sai com a mesma chance.
+function GearService.rollDefId(classId: string): string
+	local slot = Gear.slots[rng:NextInteger(1, #Gear.slots)]
+	local options: { string } = {}
+	for _, defId in Gear.dropPool do
+		local def = Gear.byId[defId]
+		if def.slot == slot and (def.classId == nil or def.classId == classId) then
+			table.insert(options, defId)
+		end
+	end
+	if #options == 0 then
+		-- Classe sem arma neste drop: sorteia entre as peças que não são arma.
+		for _, defId in Gear.dropPool do
+			if Gear.byId[defId].classId == nil then
+				table.insert(options, defId)
+			end
+		end
+	end
+	return options[rng:NextInteger(1, #options)]
+end
+
+-- Item garantido do chefe: Raro com a chance de Balance/Gear, aumentada pela Sorte (regra dos achados raros).
+function GearService.rollBossRarity(luck: number): Types.Rarity
+	return if rng:NextNumber() < Formulas.luckChance(Gear.bossRareChance, luck) then "Rare" else "Common"
+end
+
+function GearService.rollsMobDrop(luck: number): boolean
+	return rng:NextNumber() < Formulas.luckChance(Gear.mobDropChance, luck)
+end
+
+-- 1 peça garantida do chefe para este jogador (loot individual). `luck` = Sorte do grupo (quem chama calcula).
+function GearService.rollBossLoot(player: Player, luck: number): GrantResult?
+	local classId = ProgressionService.getClass(player).id
+	return GearService.grant(player, GearService.rollDefId(classId), GearService.rollBossRarity(luck), "Boss")
+end
+
+-- Chance de uma peça Comum por mob, para cada jogador perto (loot individual).
+function GearService.rollMobLoot(player: Player, luck: number): GrantResult?
+	local forced = forceMobDrop[player] == true
+	if not forced and not GearService.rollsMobDrop(luck) then
+		return nil
+	end
+	forceMobDrop[player] = nil
+	local classId = ProgressionService.getClass(player).id
+	return GearService.grant(player, GearService.rollDefId(classId), "Common", "Mob")
+end
+
+-- SÓ TESTES no Studio (DevService): o próximo mob que morrer perto do jogador dá uma peça.
+function GearService.debugForceNextMobDrop(player: Player)
+	forceMobDrop[player] = true
 end
 
 local function inRun(player: Player): boolean
@@ -212,6 +270,7 @@ function GearService.init()
 	Players.PlayerRemoving:Connect(function(player: Player)
 		lastRequestAt[player] = nil
 		lastPublished[player] = nil
+		forceMobDrop[player] = nil
 	end)
 end
 

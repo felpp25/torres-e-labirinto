@@ -7,7 +7,8 @@
 -- - escolhe um ataque cujo `triggerRange` alcança o alvo, mostra o aviso no chão por `telegraphTime`,
 --   acerta exatamente a área mostrada e fica parado `recovery` segundos (janela para revidar);
 -- - não é empurrado; vida escala com o nº de jogadores (coop);
--- - morto: cada jogador da run recebe o XP e o Gold do boss, e o handler de "boss derrotado" é chamado.
+-- - morto: quem tem direito (filtro do RunSessionService: na run desde antes do andar do boss) recebe o XP e o
+--   Gold do boss, e o handler de "boss derrotado" é chamado com a posição dele (o item garantido sai de lá).
 -- Vida do boss vai para Attributes do workspace (barra no HUD).
 
 local Debris: Debris = game:GetService("Debris")
@@ -50,7 +51,10 @@ local BossService = {}
 
 local rng = Random.new()
 local current: Boss? = nil
-local onDefeated: () -> () = function() end
+local onDefeated: (position: Vector3) -> () = function(_: Vector3) end
+local rewardFilter: (player: Player) -> boolean = function(_: Player): boolean
+	return true
+end
 
 local function publishHealth(boss: Boss?)
 	if boss then
@@ -178,12 +182,15 @@ end
 local function onDied(boss: Boss)
 	print(`[Boss] {boss.def.displayName} derrotado!`)
 	publishHealth(nil)
-	-- O boss dá o grosso da recompensa da torre: para CADA jogador da run (vivo ou espectando).
+	local position = boss.root.Position
+	-- O boss dá o grosso da recompensa da torre: para cada jogador com direito (vivo ou espectando).
 	for _, player in Players:GetPlayers() do
-		ProgressionService.addXp(player, boss.def.xp)
-		ProgressionService.addGold(player, boss.def.gold)
-		local payload: Remotes.RewardPayload = { xp = boss.def.xp, gold = boss.def.gold, position = boss.root.Position }
-		Remotes.get("RewardGranted"):FireClient(player, payload)
+		if rewardFilter(player) then
+			ProgressionService.addXp(player, boss.def.xp)
+			ProgressionService.addGold(player, boss.def.gold)
+			local payload: Remotes.RewardPayload = { xp = boss.def.xp, gold = boss.def.gold, position = position }
+			Remotes.get("RewardGranted"):FireClient(player, payload)
+		end
 	end
 	for part in boss.originalColors do
 		part.Transparency = 0.6
@@ -193,7 +200,7 @@ local function onDied(boss: Boss)
 	if current == boss then
 		current = nil
 	end
-	onDefeated()
+	onDefeated(position)
 end
 
 -- Cria o boss na arena. A vida escala com o nº de jogadores no servidor (coop).
@@ -248,8 +255,13 @@ function BossService.clear()
 	publishHealth(nil)
 end
 
-function BossService.setDefeatedHandler(handler: () -> ())
+function BossService.setDefeatedHandler(handler: (position: Vector3) -> ())
 	onDefeated = handler
+end
+
+-- Quem recebe o XP e o Gold do boss (padrão: todos). O RunSessionService restringe aos participantes com direito.
+function BossService.setRewardFilter(filter: (player: Player) -> boolean)
+	rewardFilter = filter
 end
 
 function BossService.init()

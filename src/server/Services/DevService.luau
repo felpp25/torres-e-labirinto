@@ -21,6 +21,10 @@
 --   dev:Invoke("GiveGear", player, "GuardianHelm", "Rare")  -- dá uma peça (aviso na tela; baú cheio = Gold)
 --   dev:Invoke("FillChest", player, n, defId?, raridade?)   -- dá n peças sem aviso (testar o baú cheio)
 --   dev:Invoke("Equip", player, id) / ("Unequip", player, "Helmet") -- mensagem do resultado (ignora o anti-spam)
+--   Drops: "SampleDrops"(classId, n) (contagem por peça, sem dar nada), "SampleLoot"("BossRare"|"Mob", sorte, n)
+--   (fração sorteada), "RollBossLoot"(player, sorte) (dá de verdade), "ForceMobDrop"(player) (o próximo mob perto
+--   dá peça), "GoToFloor"(n) (pula para o andar n numa run ativa), "RejoinRun"(player) (sai e volta à run: devolve
+--   se ficou com direito ao boss), "BossEligible"(player)
 
 local DataStoreService: DataStoreService = game:GetService("DataStoreService")
 local HttpService: HttpService = game:GetService("HttpService")
@@ -32,8 +36,10 @@ local Formulas = require(game:GetService("ReplicatedStorage").Shared.Formulas)
 local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local CombatService = require(script.Parent.CombatService)
 local DataService = require(script.Parent.DataService)
+local DungeonService = require(script.Parent.DungeonService)
 local GearService = require(script.Parent.GearService)
 local ProgressionService = require(script.Parent.ProgressionService)
+local RunSessionService = require(script.Parent.RunSessionService)
 
 local function store(): DataStore
 	return DataStoreService:GetDataStore(DataService.getStoreName())
@@ -228,6 +234,55 @@ local COMMANDS: { [string]: Command } = {
 	Equip = function(player: Player, id: number): string
 		local ok, message = GearService.tryEquip(player, id)
 		return `{if ok then "ok" else "recusado"}: {message or "(sem mensagem)"}`
+	end,
+
+	SampleDrops = function(classId: string, count: number): string
+		local counts: { [string]: number } = {}
+		for _ = 1, count do
+			local defId = GearService.rollDefId(classId)
+			counts[defId] = (counts[defId] or 0) + 1
+		end
+		return HttpService:JSONEncode(counts)
+	end,
+
+	SampleLoot = function(kind: string, luck: number, count: number): number
+		local hits = 0
+		for _ = 1, count do
+			local hit = if kind == "BossRare"
+				then GearService.rollBossRarity(luck) == "Rare"
+				else GearService.rollsMobDrop(luck)
+			if hit then
+				hits += 1
+			end
+		end
+		return hits / count
+	end,
+
+	RollBossLoot = function(player: Player, luck: number?): string
+		return HttpService:JSONEncode(
+			GearService.rollBossLoot(player, luck or 0) or { error = "perfil não carregado" }
+		)
+	end,
+
+	ForceMobDrop = function(player: Player): boolean
+		GearService.debugForceNextMobDrop(player)
+		return true
+	end,
+
+	GoToFloor = function(floorNumber: number): boolean
+		if workspace:GetAttribute("RunActive") ~= true then
+			return false
+		end
+		DungeonService.advanceTo(floorNumber)
+		return true
+	end,
+
+	RejoinRun = function(player: Player): boolean
+		return RunSessionService.debugRejoin(player)
+	end,
+
+	BossEligible = function(player: Player): boolean
+		return RunSessionService.isBossEligible(player)
 	end,
 
 	Unequip = function(player: Player, slot: string): string

@@ -6,6 +6,12 @@
 -- - Sem vidas: GAME OVER -> todos voltam ao lobby. XP, níveis e Gold ganhos FICAM.
 -- - Boss derrotado: TORRE CONCLUÍDA -> depois de um tempo, todos voltam ao lobby.
 -- - Coração: drop raro dos mobs que devolve 1 vida (até o máximo).
+-- - Equipamento (GDD > Equipamentos > Obtenção), loot individual:
+--   - boss: 1 peça garantida para cada participante COM DIREITO (entrou na run antes do andar do boss;
+--     decisão do designer: quem entra ou volta só no andar do boss não ganha a peça, nem o XP e o Gold do boss,
+--     e a Sorte dele não conta no sorteio do Raro);
+--   - mobs: cada participante perto do mob tem a sua chance de uma peça Comum.
+--   Um erro no drop nunca impede o save e a volta ao lobby (cada peça é dada dentro de pcall).
 -- Vidas, nº da run e "run ativa" vão para Attributes do workspace; "está na torre" vai no Player (InRun).
 
 local Players: Players = game:GetService("Players")
@@ -17,12 +23,14 @@ local Keys = require(Shared.Keys)
 local Formulas = require(Shared.Formulas)
 local Run = require(Shared.Balance.Run)
 local Progression = require(Shared.Balance.Progression)
+local Dungeon = require(Shared.Balance.Dungeon)
 
 local BossService = require(script.Parent.BossService)
 local CombatService = require(script.Parent.CombatService)
 local DataService = require(script.Parent.DataService)
 local DungeonService = require(script.Parent.DungeonService)
 local EnemyService = require(script.Parent.EnemyService)
+local GearService = require(script.Parent.GearService)
 local LifeService = require(script.Parent.LifeService)
 local LobbyService = require(script.Parent.LobbyService)
 local ProgressionService = require(script.Parent.ProgressionService)
@@ -39,6 +47,8 @@ local runNumber = 0
 local towersCompleted = 0
 local gameOvers = 0
 local participants: { [Player]: boolean? } = {}
+local bossEligible: { [Player]: boolean? } = {} -- entrou na run antes do andar do boss
+local bossLootRun = 0 -- nº da run que já deu o item do boss (o boss pode renascer num wipe durante o aviso)
 local hearts: { Part } = {}
 
 local function publish()
@@ -53,7 +63,15 @@ end
 
 local function setInRun(player: Player, inRun: boolean)
 	participants[player] = if inRun then true else nil
+	if not inRun then
+		bossEligible[player] = nil
+	end
 	player:SetAttribute(Keys.InRunAttr, inRun)
+end
+
+-- Participante que entrou na run antes do andar do boss: recebe XP, Gold e o item do boss.
+local function isBossEligible(player: Player): boolean
+	return participants[player] == true and bossEligible[player] == true
 end
 
 local function startRun()
@@ -72,6 +90,8 @@ local function enterRun(player: Player)
 	end
 	-- Marca como participante ANTES de criar o andar: o HUD só avisa "ANDAR N" para quem está na torre.
 	setInRun(player, true)
+	-- Run nova começa no andar 1; entrando numa run em andamento, vale o andar atual.
+	bossEligible[player] = not runActive or DungeonService.getCurrentFloor() < Dungeon.floorsPerTower
 	if not runActive then
 		startRun() -- já leva os participantes para a entrada
 	else
@@ -112,10 +132,70 @@ local function endRun(reason: string)
 	LifeService.reviveDead(nil) -- o spawn provider agora aponta o lobby
 end
 
+-- Jogadores vivos perto de `position` (os mesmos que recebem o XP do mob).
+local function playersNear(position: Vector3): { Player }
+	local list: { Player } = {}
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if
+			root
+			and root:IsA("BasePart")
+			and LifeService.isAlive(player)
+			and (root.Position - position).Magnitude <= Progression.xpShareRadius
+		then
+			table.insert(list, player)
+		end
+	end
+	return list
+end
+
+-- Maior Sorte (efetiva) entre os jogadores vivos perto de `position` que passam no filtro.
+-- No coop, ter alguém "sortudo" no grupo melhora os achados de todos.
+local function bestLuckNear(position: Vector3, filter: ((Player) -> boolean)?): number
+	local best = 0
+	for _, player in playersNear(position) do
+		if filter == nil or filter(player) then
+			best = math.max(best, ProgressionService.getEffectiveAttributes(player).Luck)
+		end
+	end
+	return best
+end
+
+-- Dá uma peça a um jogador sem deixar um erro parar quem chamou (run, save, outros jogadores).
+local function safeLoot(kind: string, player: Player, roll: (Player, number) -> unknown, luck: number)
+	local ok, err = pcall(roll, player, luck)
+	if not ok then
+		warn(`[Loot] falha no drop {kind} de {player.Name}: {err}`)
+	end
+end
+
+-- Item garantido do boss: 1 por participante com direito (vivo ou espectando), uma vez por run.
+local function grantBossLoot(position: Vector3)
+	if bossLootRun == runNumber then
+		return
+	end
+	bossLootRun = runNumber
+	local luck = bestLuckNear(position, isBossEligible)
+	for player in participants do
+		if player.Parent and isBossEligible(player) then
+			safeLoot("do boss", player, GearService.rollBossLoot, luck)
+		end
+	end
+end
+
 -- Boss derrotado: torre concluída. O HUD mostra "TORRE CONCLUÍDA" e, depois de um tempo, todos voltam ao lobby.
-local function onTowerCompleted()
+local function onTowerCompleted(position: Vector3)
 	towersCompleted += 1
 	workspace:SetAttribute(Keys.WorldAttr.TowersCompleted, towersCompleted)
+	-- Antes do save: o item entra no save imediato abaixo. (Erros ficam dentro de safeLoot.)
+	local ok, err = pcall(function(): string?
+		grantBossLoot(position)
+		return nil
+	end)
+	if not ok then
+		warn(`[Loot] falha nos itens do boss: {err}`)
+	end
 	-- Momento crítico: a recompensa do boss acabou de entrar. Salva já, sem esperar o autosave.
 	for _, player in Players:GetPlayers() do
 		DataService.requestSave(player)
@@ -178,30 +258,18 @@ local function spawnHeart(position: Vector3, parent: Instance)
 	print("[Run] um Coração caiu!")
 end
 
--- Maior Sorte entre os jogadores vivos perto de `position` (os mesmos que recebem o XP do mob).
--- No coop, ter alguém "sortudo" no grupo melhora os achados de todos.
-local function bestLuckNear(position: Vector3): number
-	local best = 0
-	for _, player in Players:GetPlayers() do
-		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if
-			root
-			and root:IsA("BasePart")
-			and LifeService.isAlive(player)
-			and (root.Position - position).Magnitude <= Progression.xpShareRadius
-		then
-			best = math.max(best, ProgressionService.getEffectiveAttributes(player).Luck)
-		end
-	end
-	return best
-end
-
 local function onMobDied(_: Types.MobDef, position: Vector3, parent: Instance)
-	-- Achado raro: a chance base sobe com a Sorte (Formulas.luckChance, a mesma regra de drops/baús futuros).
-	local chance = Formulas.luckChance(Run.heartDropChance, bestLuckNear(position))
+	-- Achados raros: a chance base sobe com a Sorte (Formulas.luckChance). Coração primeiro (não depende do
+	-- equipamento); depois a chance de peça de cada participante perto (loot individual).
+	local luck = bestLuckNear(position)
+	local chance = Formulas.luckChance(Run.heartDropChance, luck)
 	if rng:NextNumber() < chance then
 		spawnHeart(position, parent)
+	end
+	for _, player in playersNear(position) do
+		if isParticipant(player) then
+			safeLoot("de mob", player, GearService.rollMobLoot, luck)
+		end
 	end
 end
 
@@ -239,6 +307,7 @@ local function onPlayerRemoving(player: Player)
 		return
 	end
 	participants[player] = nil
+	bossEligible[player] = nil
 	if not runActive then
 		return
 	end
@@ -253,9 +322,25 @@ function RunSessionService.getLives(): number
 	return lives
 end
 
+-- SÓ TESTES no Studio (DevService): o jogador sai da run e entra de novo no andar atual (como quem voltou pelo
+-- portal). Devolve se ele ficou com direito ao item/XP/Gold do boss.
+function RunSessionService.debugRejoin(player: Player): boolean
+	if not runActive or not participants[player] then
+		return false
+	end
+	setInRun(player, false)
+	enterRun(player)
+	return isBossEligible(player)
+end
+
+function RunSessionService.isBossEligible(player: Player): boolean
+	return isBossEligible(player)
+end
+
 function RunSessionService.init()
 	EnemyService.setDeathHandler(onMobDied)
 	BossService.setDefeatedHandler(onTowerCompleted)
+	BossService.setRewardFilter(isBossEligible)
 	workspace:SetAttribute(Keys.WorldAttr.TowersCompleted, towersCompleted)
 	workspace:SetAttribute(Keys.WorldAttr.GameOvers, gameOvers)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
