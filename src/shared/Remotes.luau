@@ -10,6 +10,8 @@
 --   CombatFeedback  servidor -> clientes (CombatFeedbackPayload)  algo foi atingido: mostrar número/flash/tremor
 --   RewardGranted   servidor -> 1 cliente (RewardPayload)         você ganhou XP/Gold: mostrar texto flutuante
 --   LevelUp         servidor -> 1 cliente (LevelUpPayload)        você subiu de nível: mostrar aviso
+--   AllocateAttribute   cliente -> servidor (attributeName: string)  quero pôr 1 ponto livre neste atributo
+--   AllocateRecommended cliente -> servidor ()                       quero distribuir os pontos livres no recomendado
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService: RunService = game:GetService("RunService")
@@ -21,6 +23,8 @@ export type RemoteName =
 	| "CombatFeedback"
 	| "RewardGranted"
 	| "LevelUp"
+	| "AllocateAttribute"
+	| "AllocateRecommended"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -38,11 +42,19 @@ export type RewardPayload = {
 
 export type LevelUpPayload = {
 	level: number, -- novo nível
-	gains: { [string]: number }, -- pontos ganhos por atributo (ex.: { Strength = 2, Vitality = 1 })
+	points: number, -- pontos de atributo ganhos (ficam livres para o jogador distribuir)
 }
 
-local REMOTE_NAMES: { RemoteName } =
-	{ "AttackRequest", "DodgeRequest", "AbilityRequest", "CombatFeedback", "RewardGranted", "LevelUp" }
+local REMOTE_NAMES: { RemoteName } = {
+	"AttackRequest",
+	"DodgeRequest",
+	"AbilityRequest",
+	"CombatFeedback",
+	"RewardGranted",
+	"LevelUp",
+	"AllocateAttribute",
+	"AllocateRecommended",
+}
 local FOLDER_NAME = "Remotes"
 local CLIENT_WAIT_TIMEOUT = 30
 

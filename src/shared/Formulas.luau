@@ -15,6 +15,25 @@ function Formulas.attributeNames(): { Types.AttributeName }
 	return table.clone(ATTRIBUTE_ORDER)
 end
 
+-- Tabela de consulta (e não um laço): o verificador de tipos alargaria o nome do laço para `string`.
+local ATTRIBUTE_BY_NAME: { [string]: Types.AttributeName } = {
+	Strength = "Strength",
+	Vitality = "Vitality",
+	Intelligence = "Intelligence",
+	Wisdom = "Wisdom",
+	Dexterity = "Dexterity",
+	Defense = "Defense",
+	Luck = "Luck",
+}
+
+-- Valida um valor vindo de fora (ex.: Remote do cliente): devolve o nome do atributo se for um dos 7, senão nil.
+function Formulas.parseAttributeName(value: unknown): Types.AttributeName?
+	if typeof(value) ~= "string" then
+		return nil
+	end
+	return ATTRIBUTE_BY_NAME[value]
+end
+
 function Formulas.emptyAttributes(): Types.Attributes
 	return {
 		Strength = 0,

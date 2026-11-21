@@ -21,6 +21,7 @@ Keys.PlayerAttr = table.freeze({
 	XP = "XP", -- XP dentro do nível atual
 	XPToNext = "XPToNext", -- XP necessário para o próximo nível (0 no nível máximo)
 	Gold = "Gold",
+	UnspentPoints = "UnspentPoints", -- pontos de atributo ganhos e ainda não distribuídos
 })
 
 -- Attributes do workspace (estado do andar, definidos SÓ pelo servidor; o HUD lê).

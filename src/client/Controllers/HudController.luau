@@ -15,6 +15,7 @@ local TweenService: TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Balance = Shared:WaitForChild("Balance")
 local Keys = require(Shared:WaitForChild("Keys"))
+local AttributeInfo = require(Shared:WaitForChild("AttributeInfo"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local Combat = require(Balance:WaitForChild("Combat"))
 local Abilities = require(Balance:WaitForChild("Abilities"))
@@ -39,15 +40,7 @@ local COLORS = {
 }
 
 -- Nomes dos atributos na interface (ordem de exibição).
-local STAT_LABELS: { { key: string, short: string, long: string } } = {
-	{ key = "Strength", short = "FOR", long = "Força" },
-	{ key = "Vitality", short = "VIT", long = "Vitalidade" },
-	{ key = "Intelligence", short = "INT", long = "Inteligência" },
-	{ key = "Wisdom", short = "SAB", long = "Sabedoria" },
-	{ key = "Dexterity", short = "DES", long = "Destreza" },
-	{ key = "Defense", short = "DEF", long = "Defesa" },
-	{ key = "Luck", short = "SOR", long = "Sorte" },
-}
+local STAT_LABELS = AttributeInfo
 
 type Bar = { fill: Frame, label: TextLabel }
 type CooldownIcon = { frame: Frame, overlay: Frame, timer: TextLabel }
@@ -318,18 +311,15 @@ local function showLevelUp(payload: unknown)
 		return
 	end
 	local data = payload :: Remotes.LevelUpPayload
-	if typeof(data.level) ~= "number" or typeof(data.gains) ~= "table" then
+	if typeof(data.level) ~= "number" or typeof(data.points) ~= "number" then
 		return
 	end
-	local gainParts: { string } = {}
-	for _, stat in STAT_LABELS do
-		local gained = data.gains[stat.key]
-		if typeof(gained) == "number" and gained > 0 then
-			table.insert(gainParts, `+{gained} {stat.long}`)
-		end
-	end
-
-	showToast(`NÍVEL {data.level}!`, table.concat(gainParts, "   "), COLORS.gold, 0.22)
+	showToast(
+		`NÍVEL {data.level}!`,
+		`+{data.points} pontos de atributo (tecla C ou botão "pontos" para distribuir)`,
+		COLORS.gold,
+		0.22
+	)
 end
 
 -- Vidas mudaram: perdeu (wipe) ou ganhou (Coração). O game over é avisado por onRunChanged.

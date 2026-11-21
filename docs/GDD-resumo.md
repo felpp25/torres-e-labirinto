@@ -86,8 +86,10 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
 - **3 pontos de atributo por nível.**
 - **O jogador escolhe em qual atributo colocar cada ponto.** Botão **"distribuir recomendado"**: coloca os pontos
   nos atributos de scaling da classe.
-  - *Protótipo:* os pontos vão automaticamente para o "recomendado". A escolha manual (painel com +1 por atributo,
-    validado no servidor) fica para depois do protótipo. Ainda a decidir: se dá para resetar pontos (ex.: item ou Gold).
+  - *Implementado:* ao subir de nível os pontos ficam LIVRES; painel de atributos (tecla C / botão X / botão
+    "+N pontos" na tela) com +1 por atributo, prévia do efeito, ★ nos atributos de scaling e botão "Recomendado".
+    O servidor valida cada pedido. Ponto colocado é definitivo (sem reset por enquanto).
+  - Ainda a decidir: se dá para resetar pontos (ex.: item ou Gold).
 
 ## Classes e builds
 
