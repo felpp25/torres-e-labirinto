@@ -12,7 +12,7 @@ export type Attributes = {
 	Wisdom: number, -- Sabedoria: mana máxima
 	Dexterity: number, -- Destreza: stamina
 	Defense: number, -- Defesa: reduz dano físico e mágico
-	Luck: number, -- Sorte: crítico (drops e baús depois do protótipo)
+	Luck: number, -- Sorte: crítico e achados raros (Coração, equipamentos; baús no futuro)
 }
 
 -- Físico escala com Força; mágico escala com Inteligência. O recurso gasto é de cada habilidade (AbilityDef).
@@ -164,6 +164,46 @@ export type ConsumableDef = {
 	effect: ConsumableEffect,
 	amount: number, -- Heal: fração da vida máxima; Stamina/Mana: fração do máximo do recurso
 	cooldown: number, -- s entre usos deste item (o atalho fica no cliente: client/Hotkeys)
+}
+
+-- Equipamento (GDD > Equipamentos). O catálogo fica em Balance/Gear; o save guarda só referências (OwnedGear).
+export type EquipSlot = "Weapon" | "Helmet" | "Armor" | "Pants" | "Boots" | "Bracelet" | "Necklace"
+export type Rarity = "Common" | "Rare"
+-- Linha da peça (o "scaling" dela: quais atributos dá). Armas não têm linha.
+export type GearLine = "Combatant" | "Guardian"
+
+-- Peça do catálogo, com os valores da raridade COMUM (a Rara multiplica por Gear.rarityMultiplier).
+export type GearDef = {
+	id: string, -- vai para o save: NUNCA renomear nem apagar um id já usado
+	displayName: string,
+	slot: EquipSlot,
+	line: GearLine?, -- nil nas armas
+	classId: string?, -- só armas: a classe que pode usar
+	damageType: DamageType?, -- só armas: o tipo de dano que o Poder multiplica
+	power: number, -- Poder da arma Comum (0,05 = +5% de dano); 0 nas outras peças
+	attributes: Attributes, -- pontos da peça Comum
+	minLevel: number, -- nível mínimo do personagem para equipar
+}
+
+-- Peça que a conta possui (o que vai para o save). Pontos, Poder, nome e preço vêm do catálogo.
+-- Fortalecimento e gema (etapas 2 e 3 do GDD) entram aqui depois, com um novo VERSION do save.
+export type OwnedGear = {
+	id: number, -- único na conta e nunca reutilizado
+	defId: string,
+	rarity: Rarity,
+}
+
+-- Visão do cliente (atributo GearData; formato em Shared/GearSnapshot).
+export type GearEntry = {
+	id: number,
+	defId: string,
+	rarity: Rarity,
+	inUse: boolean, -- equipada por algum personagem da conta: não conta no baú e não pode ser vendida
+}
+
+export type GearSnapshot = {
+	gear: { GearEntry },
+	equipped: { [EquipSlot]: number }, -- slots do personagem ativo (slot -> id da peça)
 }
 
 -- Uma sala na grade do labirinto (gerada pelo MazeGenerator).

@@ -6,6 +6,7 @@ local Types = require(script.Parent.Types)
 local Combat = require(script.Parent.Balance.Combat)
 local Progression = require(script.Parent.Balance.Progression)
 local Luck = require(script.Parent.Balance.Luck)
+local Gear = require(script.Parent.Balance.Gear)
 
 local Formulas = {}
 
@@ -35,6 +36,50 @@ function Formulas.parseAttributeName(value: unknown): Types.AttributeName?
 	return ATTRIBUTE_BY_NAME[value]
 end
 
+local SLOT_BY_NAME: { [string]: Types.EquipSlot } = {
+	Weapon = "Weapon",
+	Helmet = "Helmet",
+	Armor = "Armor",
+	Pants = "Pants",
+	Boots = "Boots",
+	Bracelet = "Bracelet",
+	Necklace = "Necklace",
+}
+
+-- Valida um slot de equipamento vindo de fora (Remote, save). Nil se não for um dos 7.
+function Formulas.parseEquipSlot(value: unknown): Types.EquipSlot?
+	if typeof(value) ~= "string" then
+		return nil
+	end
+	return SLOT_BY_NAME[value]
+end
+
+local RARITY_BY_NAME: { [string]: Types.Rarity } = {
+	Common = "Common",
+	Rare = "Rare",
+}
+
+function Formulas.parseRarity(value: unknown): Types.Rarity?
+	if typeof(value) ~= "string" then
+		return nil
+	end
+	return RARITY_BY_NAME[value]
+end
+
+-- Maior id de peça aceito: limite técnico (inteiro exato em JSON e em Remotes), não de balanceamento.
+local MAX_GEAR_ID = 2 ^ 31 - 1
+
+-- Valida o id de uma peça vindo de fora: inteiro de 1 a MAX_GEAR_ID (rejeita NaN, infinito e frações).
+function Formulas.parseGearId(value: unknown): number?
+	if typeof(value) ~= "number" then
+		return nil
+	end
+	if value ~= value or value % 1 ~= 0 or value < 1 or value > MAX_GEAR_ID then
+		return nil
+	end
+	return value
+end
+
 function Formulas.emptyAttributes(): Types.Attributes
 	return {
 		Strength = 0,
@@ -47,20 +92,48 @@ function Formulas.emptyAttributes(): Types.Attributes
 	}
 end
 
+-- Soma atributo por atributo (ex.: pontos distribuídos + equipamento = atributos efetivos). Devolve uma tabela nova.
+function Formulas.addAttributes(a: Types.Attributes, b: Types.Attributes): Types.Attributes
+	local result = Formulas.emptyAttributes()
+	for _, name in ATTRIBUTE_ORDER do
+		result[name] = a[name] + b[name]
+	end
+	return result
+end
+
+-- Pontos que uma peça dá na raridade dela (a Rara multiplica os valores da Comum). Tabela nova.
+function Formulas.gearAttributes(def: Types.GearDef, rarity: Types.Rarity): Types.Attributes
+	local multiplier = Gear.rarityMultiplier[rarity] or 1
+	local result = Formulas.emptyAttributes()
+	for _, name in ATTRIBUTE_ORDER do
+		result[name] = def.attributes[name] * multiplier
+	end
+	return result
+end
+
+-- Poder de uma arma na raridade dela (0 nas peças que não são arma).
+function Formulas.gearPower(def: Types.GearDef, rarity: Types.Rarity): number
+	return def.power * (Gear.rarityMultiplier[rarity] or 1)
+end
+
 function Formulas.isScaling(classDef: Types.ClassDef, attribute: Types.AttributeName): boolean
 	return table.find(classDef.scalingAttributes, attribute) ~= nil
 end
 
--- Dano do GDD: Base × (1 + 0,02 × Atributo × M). Físico usa Força; mágico usa Inteligência.
+-- Dano do GDD: Base × (1 + 0,02 × Atributo × M) × (1 + Poder). Físico usa Força; mágico usa Inteligência.
+-- `power` = Poder da arma equipada, só quando ela é do mesmo tipo de dano do golpe (nil ou 0 = sem bônus).
+-- M vale para o atributo inteiro (distribuído + equipamento): pontos de equipamento num atributo ★ rendem 1,5×.
 function Formulas.damage(
 	baseDamage: number,
 	damageType: Types.DamageType,
 	attributes: Types.Attributes,
-	classDef: Types.ClassDef
+	classDef: Types.ClassDef,
+	power: number?
 ): number
 	local attribute: Types.AttributeName = if damageType == "Physical" then "Strength" else "Intelligence"
 	local m = if Formulas.isScaling(classDef, attribute) then Combat.scalingMultiplier else Combat.commonMultiplier
-	return baseDamage * (1 + Combat.damagePerAttributePoint * attributes[attribute] * m)
+	local fromAttribute = 1 + Combat.damagePerAttributePoint * attributes[attribute] * m
+	return baseDamage * fromAttribute * (1 + math.max(power or 0, 0))
 end
 
 -- Fração do dano bloqueada pela Defesa (0 a <1). Vale igual para dano físico e mágico.
