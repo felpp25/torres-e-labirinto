@@ -240,7 +240,20 @@ for rarity in RARITY_MULTIPLIER do
 	assert(SELL_PRICE[rarity] ~= nil, `Gear: falta o preço de venda de {rarity}`)
 end
 
-return table.freeze({
+-- Tipo declarado: sem ele, o verificador alarga `slots` para { string } (perde os nomes exatos dos slots).
+export type GearBalance = {
+	byId: { [string]: Types.GearDef },
+	slots: { Types.EquipSlot },
+	dropPool: { string },
+	startingWeapon: { [string]: string },
+	rarityMultiplier: { [string]: number },
+	sellPrice: { [string]: number },
+	chestCapacity: number,
+	bossRareChance: number,
+	mobDropChance: number,
+}
+
+local GEAR: GearBalance = {
 	byId = table.freeze(BY_ID),
 	slots = table.freeze(SLOTS),
 	dropPool = table.freeze(DROP_POOL),
@@ -250,4 +263,6 @@ return table.freeze({
 	chestCapacity = 50, -- peças no baú da conta (as equipadas não contam)
 	bossRareChance = 0.35, -- item garantido do chefão: chance de ser Raro (com a Sorte do grupo)
 	mobDropChance = 0.005, -- chance de cada mob dar uma peça Comum (com a Sorte do grupo)
-})
+}
+
+return table.freeze(GEAR)

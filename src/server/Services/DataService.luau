@@ -92,9 +92,22 @@ function DataService.loadKey(key: string): (LoadStatus, PlayerSchema.Profile?, s
 	local now = os.time()
 	local status: LoadStatus = "error"
 	local loaded: PlayerSchema.Profile? = nil
+	local futureVersion: number? = nil
 	local ok, err = withRetries(function(): unknown
 		return getStore():UpdateAsync(key, function(current: unknown): unknown
 			-- (O callback não pode esperar/yield e pode rodar mais de uma vez: só calcula e devolve.)
+			futureVersion = nil
+			-- Dados de uma versão MAIS NOVA do jogo (ex.: servidor antigo ainda aberto depois de uma atualização):
+			-- não carrega nem grava, senão o reconcile apagaria o que esta versão não conhece.
+			if typeof(current) == "table" then
+				local storedVersion = (current :: { [string]: unknown }).schemaVersion
+				if typeof(storedVersion) == "number" and storedVersion > PlayerSchema.VERSION then
+					futureVersion = storedVersion
+					status = "error"
+					loaded = nil
+					return nil
+				end
+			end
 			local profile = PlayerSchema.reconcile(current)
 			local session = profile.session
 			if session and session.id ~= SESSION_ID and now - session.time < LOCK_EXPIRE then
@@ -110,6 +123,11 @@ function DataService.loadKey(key: string): (LoadStatus, PlayerSchema.Profile?, s
 	end)
 	if not ok then
 		return "error", nil, err
+	end
+	if futureVersion ~= nil then
+		return "error",
+			nil,
+			`dados salvos na versão {futureVersion} (este servidor entende até a {PlayerSchema.VERSION})`
 	end
 	return status, loaded, nil
 end
