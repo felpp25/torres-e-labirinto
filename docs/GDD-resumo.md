@@ -99,7 +99,8 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
     focado em Defesa/Força/Vitalidade deve conseguir **zerar uma run solo** (com bastante desafio).
   - *A decidir (próximo passo de design):* sistema de **aggro** (mobs focam o tank) para o tank ter papel claro no
     grupo; hoje os mobs atacam o jogador mais próximo.
-- **Sorte é GLOBAL:** afeta tudo que é chance de coisa boa.
+- **Sorte é GLOBAL:** afeta tudo que é chance de coisa boa (exceção: o fortalecimento de equipamentos, ver
+  "Equipamentos").
   - **Crítico:** `5% + 0,5% × Sorte`, crítico causa **1,5×** de dano.
   - **Achados raros** (regra única, `Formulas.luckChance`): `chance base × (1 + Sorte / 50)` (a cada 50 pts as
     chances dobram). Hoje: **Coração**. Futuro: drops de itens, baús, salas secretas.
@@ -190,20 +191,221 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
   - **Reset de atributos:** devolve todos os pontos para redistribuir; preço cresce com o nível.
 - *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
 
-## Equipamentos, fortalecimento e gemas (futuro, definido pelo designer)
+## Equipamentos, fortalecimento e gemas (decidido pelo designer, ainda não construído)
 
-- **Fortalecimento:** gastar **Gold para "upar" equipamentos**.
-- **Gemas:** complementam atributos (ataque, defesa, vitalidade etc.). **Cada equipamento comporta 1 gema.**
-  - Níveis **1 a 5**; cada nível acrescenta uma **porcentagem** no atributo da gema.
-  - **Nível 1 a 3:** compradas na loja com Gold. **Nível 4:** só nas runs **Avançadas**. **Nível 5:** só na run
-    **Pesadelo**.
-- **A definir antes de construir:** quais slots de equipamento existem (arma, armadura, acessório...); como os
-  equipamentos são obtidos; níveis e custo do fortalecimento (e se pode falhar); porcentagem de cada nível de gema;
-  se a gema pode ser trocada/removida; se equipamento é do personagem ou da conta.
+### O que o equipamento dá
+- **Pontos nos 7 atributos** (os mesmos do personagem), somados aos pontos distribuídos. As fórmulas não mudam e a
+  especialização sai do ★ da classe: um atributo de scaling vale 1,5× também quando vem do equipamento.
+  - Ex.: Colar Arcano (+4 INT, +1 SAB): o Mago (INT ★) ganha +12% de dano mágico; o Sacerdote (INT comum) ganha +8% e
+    só +5 de mana. Serve aos dois, rende mais para quem foi feito.
+- **Atributos FIXOS** por modelo e raridade (sem sorteio no drop): fácil comparar e passar entre personagens.
+- **Sorte só nos acessórios** (Pulseira e Colar): a Sorte mexe na economia de drops.
+
+### Slots (7) e linhas
+- **Arma, Capacete, Armadura, Calças, Botas, Pulseira e Colar.** Cada peça leva **1 gema**.
+- Armaduras e acessórios servem a **qualquer classe** (a escolha é pelos atributos). **Armas são presas à classe.**
+- A Armadura é a peça grande (mais pontos); os acessórios são os menores.
+- **Linhas** (o "scaling" de cada peça):
+
+| Linha | Atributos | Feita para |
+|---|---|---|
+| Guardião | Defesa ++, Vitalidade + | tanks |
+| Combatente | Força ++, Vitalidade + | corpo a corpo (Lutador) |
+| Ágil | Força ++, Destreza + | golpes rápidos, muita stamina |
+| Arcano | Inteligência ++, Sabedoria + | dano mágico |
+| Sagrado | Sabedoria ++, Vitalidade + | cura e suporte |
+
+- **Referência de força** (números finais em `Balance`, ajustados no playtest): um conjunto completo Comum ≈ metade
+  dos pontos do nível 10 (~14); um conjunto Raro ≈ os 27 pontos do nível 10.
+- **Raridades:** **Comum** (cinza) e **Raro** (azul, o DOBRO dos pontos e do Poder do Comum) na Torre 1 Normal.
+  Épico e acima vêm com os modos Avançado/Pesadelo e a forja.
+- **Pontos por slot** (Comum / Raro): Arma = Poder + 1 a 3 pts / dobro; Capacete 2 / 4; Armadura 3 / 6; Calças 2 / 4;
+  Botas 2 / 4; Pulseira e Colar 2 / 4 (metade da linha, metade Sorte). Conjunto completo: ~14 / ~28.
+
+### Armas
+- A arma dá **Poder** (+% no dano do tipo dela: físico nas luvas, mágico num cajado) + atributos próprios.
+  O Poder multiplica o dano final (como o bônus do Foco Interior):
+  `Dano = Base × (1 + 0,02 × Atributo × M) × (1 + Poder)`.
+- **Padrão: 3 armas por classe.**
+  - **Inicial:** todo personagem da classe começa com ela.
+  - **Intermediária:** evolução do mid-game.
+  - **Avançada:** late-game, só para a **classe avançada**.
+
+| Classe primária | Arma inicial | Arma intermediária | Classe avançada | Arma avançada |
+|---|---|---|---|---|
+| Mago | Orbe | Cajado | Arcanista | Grimório |
+| Bruxo | Varinha Mágica | Lanterna Mágica | Necromante | Foice Mágica |
+| Soldado | Submetralhadora | Rifle | Pistoleiro | Pistola Dupla (uma em cada mão) |
+| Engenheiro | Espingarda de Cano Duplo | Mochila Drone | Ciborgue | Rifle de Energia |
+| Arqueiro | Arco | Besta | Caçador | Tomahawks (um em cada mão) |
+| Assassino | Espada Curta | Adagas | Ninja | Katana |
+| Lutador | Luvas | Soco Inglês | Monge | Manoplas |
+| Curandeiro | Talismã | Cetro | Sacerdote | Pergaminho |
+| Guerreiro | Espada Média | Espada Longa (Greatsword) | Paladino | Espada e Escudo |
+| — | — | — | Berserker | Machado Grande |
+
+- **Berserker:** classe única **avançada**, obtida por outros meios (a definir pelo designer).
+- **Lutador:** Luvas (Força + Destreza, sustentação) → Soco Inglês (mais Poder, dano) → Manoplas (Monge).
+- *Futuro:* o tipo de arma define o conjunto de habilidades (ex.: Orbe, Cajado e Grimório do Mago, em
+  [Ideias.md](Ideias.md)).
+
+### Catálogo da Torre 1 (Lutador; valores Comum, o Raro é o dobro)
+
+| Slot | Combatente (FOR ++, VIT +) | Guardião (DEF ++, VIT +) |
+|---|---|---|
+| Capacete | Faixa do Combatente: +2 FOR | Elmo do Guardião: +2 DEF |
+| Armadura | Gibão do Combatente: +2 FOR, +1 VIT | Couraça do Guardião: +2 DEF, +1 VIT |
+| Calças | Calças do Combatente: +1 FOR, +1 VIT | Perneiras do Guardião: +1 DEF, +1 VIT |
+| Botas | Botas do Combatente: +1 FOR, +1 VIT | Botas do Guardião: +1 DEF, +1 VIT |
+| Pulseira | Pulseira do Combatente: +1 FOR, +1 SOR | Pulseira do Guardião: +1 DEF, +1 SOR |
+| Colar | Colar do Combatente: +1 VIT, +1 SOR | Colar do Guardião: +1 VIT, +1 SOR |
+| **Conjunto** | **+7 FOR, +4 VIT, +2 SOR** | **+7 DEF, +4 VIT, +2 SOR** |
+
+| Arma (Lutador) | Comum | Raro | Perfil |
+|---|---|---|---|
+| Luvas de Couro | Poder +5%, +1 FOR, +2 DES | Poder +10%, +2 FOR, +4 DES | sustentação (+10 de stamina) |
+| Soco Inglês de Ferro | Poder +10%, +1 FOR | Poder +20%, +2 FOR | dano (~5% a mais) |
+
+- Pelo padrão de 3 armas, as **Luvas são a arma inicial** (todo Lutador começa com Luvas de Couro Comuns) e o
+  **Soco Inglês é a intermediária** (mid-game). *Protótipo:* enquanto a Torre 1 for a única torre, o Soco Inglês
+  também cai nela (decisão do designer), para testar uma segunda arma.
+
+- Efeito num Lutador nível 10 (14 FOR, 13 VIT, 230 de vida sem nada): Combatente Comum + Soco Comum = **+29% de
+  dano**, 270 de vida; Combatente Raro + Soco Raro = **+61% de dano**, 310 de vida; Guardião Raro + Luvas Raras =
+  +15% de dano, 310 de vida e **−26% de dano recebido**.
+- Ágil, Arcano e Sagrado entram com as classes que usam essas linhas.
+
+### Obtenção
+- **Boss:** **1 item garantido por jogador** (loot individual). **35% de ser Raro** (com a regra de achados da Sorte:
+  maior Sorte do grupo por perto); senão Comum.
+- **Mobs:** **0,5% por mob** (com a Sorte), sempre Comum (~0,3 item por run com ~60 mobs).
+- O slot e a linha são sorteados; **armas só da classe do personagem**. Nível mínimo dos itens da Torre 1: 1.
+- Ritmo esperado: ~1,3 item por run; 1º Raro por volta da 3ª run; conjunto Comum completo de uma linha ~33 runs;
+  conjunto Raro completo ~100 runs (~30 h). Misturar linhas e raridades é o normal no caminho.
+- **Baús** (futuro, com as salas secretas da Sorte).
+- **Fabricação na Forja** (futuro): receitas e fragmentos que caem em torres específicas nos modos **Avançado e
+  Pesadelo**.
+
+### Dono: conta + personagem
+- Os itens ficam no **baú da CONTA** (como o Gold), com **50 espaços** (equipados não contam). Cada personagem tem os
+  seus 7 slots e equipa a partir do baú.
+- Um item equipado fica **em uso** por um personagem; equipar em outro tira do primeiro.
+- **Nível mínimo** em cada item (o da torre em que cai): um personagem novo não herda o equipamento do fim de jogo.
+- **Trocar equipamento só no lobby.** Na run, o item que cai vai para o baú (evita trocar para peças de Sorte na hora
+  do drop).
+- **Item sobrando:** vende na loja (Comum 10 Gold, Raro 50 Gold). **Baú cheio:** o drop vira Gold (preço de venda),
+  com aviso.
+- **Interface:** painel "Personagem" na tecla C (a mesma dos atributos), com abas **Atributos** e **Equipamento**.
+
+### Fortalecimento (+1 a +10)
+- Cada nível dá **+10% dos atributos base da peça** (e do Poder, na arma): +10 = o dobro.
+- **Custo em Gold:** `base da torre do item × 2^(nível − 1)`. Item da Torre 1: base 100 (+1 = 100, +2 = 200, +5 = 1.600,
+  +10 = 51.200). Cada torre nova define a sua base, proporcional ao Gold que ela rende: o fortalecimento custa o
+  mesmo esforço na torre de origem do item e acompanha a economia sozinho.
+  - Descartado: ×5 por nível. A renda cresce por torre, o preço crescia 5× por nível: mesmo com 100× o Gold de hoje,
+    um +10 pediria ~24 mil runs (+8 a +10 inalcançáveis na prática).
+- **Chance de sucesso:** +1 a +3 = 100%; +4 = 90%; +5 = 80%; +6 = 70%; +7 = 60%; +8 = 50%; +9 = 40%; +10 = 30%.
+- **Falha:** até +7 só perde o Gold. Falhar a tentativa de **+8, +9 ou +10 tira 1 nível** (ex.: +7 tentando +8 → +6;
+  +9 tentando +10 → +8).
+- **Itens de bênção** somam % à chance de sucesso.
+- **A Sorte NÃO afeta o fortalecimento** (exceção à regra da Sorte global): com itens da conta, todo mundo
+  fortaleceria no personagem mais sortudo.
+- **Ritmo de referência** (média com falhas, sem bênção, na torre de origem): +5 ≈ 8 runs, +7 ≈ 42 runs,
+  +10 ≈ 1.400 runs. O +10 é meta de longo prazo; os 3 últimos níveis são ~97% do custo.
+
+### Gemas
+- **1 gema por peça.** Níveis **1 a 5** = **1 a 5 pontos** no atributo da gema (gema nível 1 = 1 ponto).
+- **Nível 1: só na loja**, **1.000 Gold** (todos os tipos custam o mesmo). Ajuda nas runs iniciais; nas torres
+  intermediárias e avançadas (mais difíceis) quase não faz diferença, de propósito.
+- **Nível 2 a 5: só drop do chefão** (a loja não vende), com **atributo sorteado** entre **6 tipos** (não existe gema
+  de Sorte, combinando com "Sorte só nos acessórios").
+- **Um sorteio de gema por chefão vencido**, por jogador (loot individual), além do item garantido. Cai **no máximo
+  1 gema**; run perdida não sorteia. Avançado e Pesadelo existem nas **torres 6 a 10**.
+
+| Torre | Normal | Avançado | Pesadelo (sempre cai gema) |
+|---|---|---|---|
+| 1 a 4 | — | — | — |
+| 5 | Nv2 25% | — | — |
+| 6 | Nv2 25% | Nv2 80% · Nv4 2% | Nv5 1% · Nv4 2% · Nv2 97% |
+| 7 | Nv3 25% · Nv2 15% | Nv3 80% · Nv4 4% | Nv5 2% · Nv4 4% · Nv3 94% |
+| 8 | Nv3 25% · Nv2 15% | Nv3 80% · Nv4 6% | Nv5 3% · Nv4 6% · Nv3 91% |
+| 9 | Nv3 35% · Nv2 15% | Nv3 80% · Nv4 8% | Nv5 4% · Nv4 8% · Nv3 88% |
+| 10 | Nv3 35% · Nv2 15% | Nv3 80% · Nv4 10% | Nv5 5% · Nv4 10% · Nv3 85% |
+
+  - **Gema da torre:** Nv2 nas torres 5 e 6; Nv3 nas torres 7 a 10. O Normal das torres 7 a 10 também dá Nv2 (15%,
+    no mesmo sorteio), que serve para a fusão 2→3 e para os outros personagens da conta.
+  - **Avançado:** a gema da torre cai 80% das vezes, mais a chance de Nv4. **Pesadelo:** sempre cai gema; o Nv4 é o
+    mesmo do Avançado, mais o Nv5, que vêm no lugar da gema da torre.
+  - **Nv4 e Nv5 crescem com a torre:** Nv4 = 2% × (torre − 5); Nv5 = 1% × (torre − 5). Os 10% (Nv4) e 5% (Nv5) do
+    designer valem na torre 10. Com chance fixa, a torre 6 (a mais fácil) seria o melhor lugar para caçar Nv5 (um
+    grupo forte ganharia 2,25× mais Nv5 lá); com a rampa, as torres 6 e 7 nunca superam a 10, a 8 só com 67% de
+    vitórias e a 9 com 50%.
+  - **A Sorte do grupo multiplica as chances de gema** (regra dos achados raros: maior Sorte do grupo por perto),
+    nunca passando de 100%.
+- **Ritmo de referência** (solo; runs de 18 min; vitória em 90% no Normal, 70% no Avançado e 40% no Pesadelo;
+  "atributo certo" = um dos 2 atributos que o personagem quer):
+
+| Marco | Tempo (solo) | Com Sorte 50 no grupo |
+|---|---|---|
+| 1ª Nv2 | 1,3 h | 0,7 h |
+| 7 Nv2 do atributo certo | 28 h (Normal), 11 h (Avançado) | 14 h (Normal) |
+| 7 Nv3 do atributo certo | 25 h (torre 7 Normal), 19 h (torre 9 Normal), 11 h (Avançado) | — |
+| 1ª Nv4 do atributo certo | 13 h (torre 10 Avançado) | — |
+| 1ª Nv5 de qualquer atributo | 14 h (torre 10 Pesadelo) | — |
+| 1ª Nv5 do atributo certo | 36 h | 18 h |
+| 7 Nv5 do atributo certo | ~200 h | ~100 h |
+
+  - Descartado: 10% no Normal (1ª Nv2 em 3,3 h, metade dos jogadores sem nenhuma após 7 runs, 7 Nv2 certas em 70 h).
+- **Incrustar** (na Forja): ~**500 Gold** por gema.
+- **Fundir** (na Forja): **3 gemas iguais** (mesmo nível e mesmo atributo) viram **1 do nível seguinte**, com o mesmo
+  atributo. Uma gema encaixada precisa ser extraída antes.
+  - Fusões que existem: **2→3** (200 Gold) e **4→5** (2.000 Gold). A 4→5 é o caminho lento para o Nv5 (~53 h para
+    a 1ª do atributo certo só com o Avançado da torre 10).
+  - **A gema da loja (Nv1) não funde** e **não existe a fusão 3→4.** Assim o Gold compra só o Nv1, o Nv4 só vem do
+    chefão (Avançado/Pesadelo) e o Nv5 do Pesadelo ou de 3 Nv4 iguais.
+  - Descartado: fundir tudo, inclusive gemas da loja. O Gold compraria qualquer nível: uma Nv5 sairia de 81 gemas da
+    loja por ~89 mil Gold (~5 runs Normal da torre 10, na hipótese de renda mais baixa), contra ~36 h de Pesadelo
+    pelo drop; exigir 5 gemas por fusão também não resolvia. Com a 3→4, o Normal da torre 10 faria Nv4 mais rápido
+    (~11 h) que o drop do Avançado (~13 h).
+- **Extração** (na Forja): gasta um **Removedor do mesmo nível da gema**, vendido **só na loja**:
+
+| Removedor | Nv 1 | Nv 2 | Nv 3 | Nv 4 | Nv 5 |
+|---|---|---|---|---|---|
+| Gold | 100 | 200 | 400 | 800 | 2.000 |
+
+- A gema extraída sai **inteira** e pode ir para qualquer equipamento do personagem ou da conta. **Intenção:** o
+  jogador pensa a build antes de encaixar (errar custa Gold), mas tem liberdade total para colocar a gema onde achar
+  melhor.
+
+### Forja (no lobby)
+- **Funções do início:** **incrustar gemas** (~500 Gold), **fundir gemas**, **fortalecimento** e **extração de
+  gemas** (com Removedor).
+- *Futuro:* fabricação (receitas e fragmentos) e **encantamento** (boost de atributo no equipamento).
+
+### A definir
+- Como se obtém o Berserker; em que torres caem as armas intermediárias e avançadas (fora o Soco Inglês do
+  protótipo).
+- Itens de bênção: quanto somam e como se obtêm.
+- Gemas, para quando as torres 5 a 10 forem construídas:
+  - um **teto para a Sorte** nos achados (hoje um único personagem com muita Sorte multiplica os drops do grupo
+    inteiro; ex.: Sorte 300 = chances ×7);
+  - nível mínimo para usar cada gema;
+  - uma bolsa de gemas (empilhável, fora do baú de 50 espaços) e o que acontece com ela cheia;
+  - quem entra no meio da run sorteia gema (e o item garantido) do chefão?
+  - o que acontece com a gema encaixada quando o item é vendido ou vira Gold com o baú cheio;
+  - a renda de Gold das torres 2 a 10 e os multiplicadores dos modos (as contas usaram hipóteses).
+
+### Ordem de construção
+1. Baú da conta, 7 slots, equipar e drop do boss (atributos somando).
+2. Forja no lobby + fortalecimento.
+3. Gemas: nível 1 e removedores na loja; incrustar, fundir e extrair na Forja (a fusão só tem gemas para fundir
+   quando existirem as torres 5+; até lá, testar com um comando do DevService).
+4. Depois: fabricação (depende dos modos Avançado e Pesadelo) e encantamento.
 
 ## Dificuldades (futuro)
 
-- Modos **Normal**, **Avançado** e **Pesadelo** para cada torre.
+- Modos **Normal**, **Avançado** e **Pesadelo**. Avançado e Pesadelo existem só nas **últimas 5 torres: 6 a 10**
+  (decisão do designer). O que cada modo dá em gemas: "Equipamentos > Gemas".
 - Quanto mais difícil: **muito mais Gold e drops melhores**; o **XP aumenta só um pouco** (nada discrepante, para a
   progressão continuar lenta e constante). O objetivo é ser difícil de verdade, não um atalho de XP.
 - A definir: o que muda em cada modo (vida/dano dos mobs, nº de mobs, vidas do grupo, ataques extras do boss...),
