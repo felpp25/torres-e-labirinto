@@ -16,6 +16,11 @@
 --   dev:Invoke("DamagePreview", player, 100)    -- dano de um golpe base 100 (sem crítico e sem a Defesa do alvo)
 --   dev:Invoke("SnapshotProfile", player)       -- guarda o perfil (conta inteira) antes de um teste
 --   dev:Invoke("RestoreProfile", player)        -- devolve o perfil guardado (no lugar: Gold, itens, equipamento...)
+--   Equipamento (passa pelas regras REAIS do GearService):
+--   dev:Invoke("ListGear", player)                          -- JSON: peças da conta, dono de cada uma, baú
+--   dev:Invoke("GiveGear", player, "GuardianHelm", "Rare")  -- dá uma peça (aviso na tela; baú cheio = Gold)
+--   dev:Invoke("FillChest", player, n, defId?, raridade?)   -- dá n peças sem aviso (testar o baú cheio)
+--   dev:Invoke("Equip", player, id) / ("Unequip", player, "Helmet") -- mensagem do resultado (ignora o anti-spam)
 
 local DataStoreService: DataStoreService = game:GetService("DataStoreService")
 local HttpService: HttpService = game:GetService("HttpService")
@@ -23,9 +28,11 @@ local RunService: RunService = game:GetService("RunService")
 local ServerStorage: ServerStorage = game:GetService("ServerStorage")
 
 local Types = require(game:GetService("ReplicatedStorage").Shared.Types)
+local Formulas = require(game:GetService("ReplicatedStorage").Shared.Formulas)
 local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local CombatService = require(script.Parent.CombatService)
 local DataService = require(script.Parent.DataService)
+local GearService = require(script.Parent.GearService)
 local ProgressionService = require(script.Parent.ProgressionService)
 
 local function store(): DataStore
@@ -65,7 +72,12 @@ local function restoreInPlace(player: Player, saved: PlayerSchema.Profile): bool
 		end
 	end
 	ProgressionService.refreshEquipment(player)
+	GearService.publish(player)
 	return true
+end
+
+local function parseRarityOrCommon(value: unknown): Types.Rarity
+	return Formulas.parseRarity(value) or "Common"
 end
 
 local COMMANDS: { [string]: Command } = {
@@ -168,6 +180,61 @@ local COMMANDS: { [string]: Command } = {
 		local saved = snapshots[player]
 		assert(saved, "DevTools: nenhum SnapshotProfile deste jogador")
 		return restoreInPlace(player, saved)
+	end,
+
+	ListGear = function(player: Player): string
+		local profile, _ = ProgressionService.getLoadedProfile(player)
+		assert(profile, "DevTools: perfil ainda não carregado")
+		local list = {}
+		for _, piece in profile.gear do
+			local owner, slot = PlayerSchema.ownerOf(profile, piece.id)
+			table.insert(list, {
+				id = piece.id,
+				defId = piece.defId,
+				rarity = piece.rarity,
+				owner = owner,
+				slot = slot,
+				known = PlayerSchema.defOf(piece) ~= nil,
+			})
+		end
+		return HttpService:JSONEncode({
+			chest = PlayerSchema.chestCount(profile),
+			nextGearId = profile.nextGearId,
+			gear = list,
+			equipped = profile.characters[profile.activeSlot].equipped,
+		})
+	end,
+
+	GiveGear = function(player: Player, defId: string, rarity: string?): string
+		local result = GearService.grant(player, defId, parseRarityOrCommon(rarity), "Dev")
+		return HttpService:JSONEncode(result or { error = "perfil não carregado" })
+	end,
+
+	FillChest = function(player: Player, count: number, defId: string?, rarity: string?): string
+		local stored, converted = 0, 0
+		for _ = 1, count do
+			local result =
+				GearService.grant(player, defId or "CombatantHeadband", parseRarityOrCommon(rarity), "Dev", true)
+			if result and result.stored then
+				stored += 1
+			elseif result then
+				converted += 1
+			end
+		end
+		GearService.publish(player)
+		return HttpService:JSONEncode({ stored = stored, converted = converted })
+	end,
+
+	Equip = function(player: Player, id: number): string
+		local ok, message = GearService.tryEquip(player, id)
+		return `{if ok then "ok" else "recusado"}: {message or "(sem mensagem)"}`
+	end,
+
+	Unequip = function(player: Player, slot: string): string
+		local parsed: Types.EquipSlot? = Formulas.parseEquipSlot(slot)
+		assert(parsed, `DevTools: slot inválido {slot}`)
+		local ok, message = GearService.tryUnequip(player, parsed)
+		return `{if ok then "ok" else "recusado"}: {message or "(sem mensagem)"}`
 	end,
 }
 

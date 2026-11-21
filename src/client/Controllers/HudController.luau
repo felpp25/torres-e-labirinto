@@ -17,6 +17,10 @@ local Balance = Shared:WaitForChild("Balance")
 local Keys = require(Shared:WaitForChild("Keys"))
 local AttributeInfo = require(Shared:WaitForChild("AttributeInfo"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
+local Types = require(Shared:WaitForChild("Types"))
+local Formulas = require(Shared:WaitForChild("Formulas"))
+local GearInfo = require(Shared:WaitForChild("GearInfo"))
+local Gear = require(Balance:WaitForChild("Gear"))
 local Combat = require(Balance:WaitForChild("Combat"))
 local Abilities = require(Balance:WaitForChild("Abilities"))
 local Classes = require(Balance:WaitForChild("Classes"))
@@ -378,6 +382,29 @@ local function showLevelUp(payload: unknown)
 	)
 end
 
+-- Ganhou uma peça de equipamento (ou Gold, se o baú estava cheio). O aviso não depende de o GearData ou o Gold
+-- já terem chegado (o Roblox não garante a ordem entre Remotes e Attributes). Altura 0.42: a 0.22 é do nível e da
+-- torre concluída, que chegam junto com a peça do chefe.
+local function onGearNotice(payload: unknown)
+	if typeof(payload) ~= "table" then
+		return
+	end
+	local data = payload :: { [string]: unknown }
+	local defId = data.defId
+	local rarity: Types.Rarity? = Formulas.parseRarity(data.rarity)
+	local goldInstead = data.goldInstead
+	local def = if typeof(defId) == "string" then Gear.byId[defId] else nil
+	if not def or not rarity or typeof(goldInstead) ~= "number" or goldInstead < 0 then
+		return
+	end
+	local name = GearInfo.fullName(def, rarity)
+	if goldInstead > 0 then
+		showToast("BAÚ CHEIO", `{name} virou {goldInstead} Gold`, COLORS.gold, 0.42)
+	else
+		showToast("ITEM NOVO!", `{name} foi para o baú`, GearInfo.rarityColor(rarity), 0.42)
+	end
+end
+
 -- Vidas mudaram: perdeu (wipe) ou ganhou (Coração). O game over é avisado por onGameOver.
 -- Ao começar uma run nova as vidas voltam ao máximo junto com a troca do nº da run: essa subida não é
 -- "+1 VIDA". Espera um instante para os Attributes chegarem e compara o nº da run de agora com o da última vez.
@@ -499,6 +526,7 @@ function HudController.start()
 	task.spawn(hideDefaultHealthBar)
 	task.spawn(moveChatWindow)
 	Remotes.get("LevelUp").OnClientEvent:Connect(showLevelUp)
+	Remotes.get("GearNotice").OnClientEvent:Connect(onGearNotice)
 	workspace:GetAttributeChangedSignal(Keys.WorldAttr.FloorNumber):Connect(onFloorChanged)
 	task.spawn(onFloorChanged)
 	workspace:GetAttributeChangedSignal(Keys.WorldAttr.GameOvers):Connect(onGameOver)

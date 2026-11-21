@@ -16,6 +16,11 @@
 --   ResetAttributes cliente -> servidor  ()                        quero resetar meus atributos (perto da loja)
 --   UsePotion       cliente -> servidor  (itemId: string)          quero usar 1 poção
 --   ShopResult      servidor -> 1 cliente (ShopResultPayload)      resultado de compra/reset (mensagem na loja)
+--   EquipGear       cliente -> servidor  (gearId: number)          quero equipar esta peça da conta (só no lobby)
+--   UnequipGear     cliente -> servidor  (slot: string)            quero tirar a peça deste slot (vai para o baú)
+--   GearResult      servidor -> 1 cliente (GearResultPayload)      resultado de equipar/tirar (painel Personagem)
+--   GearNotice      servidor -> 1 cliente (GearNoticePayload)      ganhou uma peça (ou Gold, com o baú cheio)
+-- O equipamento em si (peças da conta e slots) chega pelo Attribute "GearData" do Player (Shared/GearSnapshot).
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService: RunService = game:GetService("RunService")
@@ -33,6 +38,10 @@ export type RemoteName =
 	| "ResetAttributes"
 	| "UsePotion"
 	| "ShopResult"
+	| "EquipGear"
+	| "UnequipGear"
+	| "GearResult"
+	| "GearNotice"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -67,6 +76,23 @@ local REMOTE_NAMES: { RemoteName } = {
 	"ResetAttributes",
 	"UsePotion",
 	"ShopResult",
+	"EquipGear",
+	"UnequipGear",
+	"GearResult",
+	"GearNotice",
+}
+
+export type GearResultPayload = {
+	ok: boolean,
+	message: string, -- ex.: "Equipou Faixa do Combatente (Raro)" / "Troca de equipamento só no lobby"
+}
+
+-- Campos simples (strings): o cliente valida e consulta o catálogo.
+export type GearNoticePayload = {
+	defId: string,
+	rarity: string, -- "Common" | "Rare"
+	source: string, -- "Boss" | "Mob" | "Dev"
+	goldInstead: number, -- 0 = a peça foi para o baú; > 0 = baú cheio, virou este Gold
 }
 
 export type ShopResultPayload = {

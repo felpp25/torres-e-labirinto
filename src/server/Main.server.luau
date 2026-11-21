@@ -21,6 +21,7 @@ local Services = script.Parent.Services
 local SERVICES: { [string]: Service } = {
 	DataService = require(Services.DataService),
 	ProgressionService = require(Services.ProgressionService),
+	GearService = require(Services.GearService),
 	CombatService = require(Services.CombatService),
 	EnemyService = require(Services.EnemyService),
 	TrainingAreaService = require(Services.TrainingAreaService),
@@ -37,6 +38,7 @@ local SERVICES: { [string]: Service } = {
 local SERVICE_ORDER: { string } = {
 	"DataService",
 	"ProgressionService",
+	"GearService",
 	"CombatService",
 	"EnemyService",
 	"TrainingAreaService",
