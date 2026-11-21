@@ -29,8 +29,11 @@
 --   4  Equipamento: peças da conta (gear) e 7 slots por personagem (equipped). Migração: todo personagem cuja
 --      classe tem arma inicial ganha a arma Comum equipada (Lutador: Luvas de Couro).
 --
--- REGRA: todo campo NOVO salvo (mesmo opcional, ex.: fortalecimento ou gema da peça) aumenta VERSION. O servidor
--- que encontra dados de uma versão MAIOR que a dele recusa carregar (DataService) em vez de apagar o que não conhece.
+-- REGRA: todo campo NOVO salvo (mesmo opcional, ex.: fortalecimento ou gema da peça) e todo VALOR novo num campo
+-- que o reconcile valida (ex.: raridade "Epic", classe ou slot novos) aumenta VERSION. O servidor que encontra dados
+-- de uma versão MAIOR que a dele recusa carregar (DataService) em vez de apagar o que não conhece.
+-- PUBLICAÇÃO: ao publicar um VERSION novo, feche os servidores antigos ("Shut Down All Servers" ou "Migrate to
+-- Latest Update"). A v3 não tem a proteção acima: um servidor v3 aberto apagaria o equipamento de quem entrar nele.
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 

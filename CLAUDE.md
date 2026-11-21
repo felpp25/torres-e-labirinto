@@ -126,8 +126,11 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   - Formato **v4**: peças de equipamento da conta (`gear`) + 7 slots por personagem (`equipped`); a migração deu a
     arma inicial equipada (Lutador: Luvas de Couro). **Não rode commits anteriores ao v4** (antes de `ea69b36`)
     contra o `PlayerData_Studio`: o código antigo apagaria o equipamento ao carregar.
-  - **Todo campo novo salvo aumenta `PlayerSchema.VERSION`** (mesmo opcional). O servidor que acha dados de versão
-    maior recusa carregar (joga "sem salvar") em vez de apagar o que não conhece.
+  - **Todo campo novo salvo aumenta `PlayerSchema.VERSION`** (mesmo opcional), e também todo valor novo num campo
+    validado (ex.: raridade "Epic"). O servidor que acha dados de versão maior recusa carregar (joga "sem salvar")
+    em vez de apagar o que não conhece.
+  - **Ao publicar um VERSION novo: fechar os servidores antigos** ("Shut Down All Servers" ou "Migrate to Latest
+    Update" no Creator Hub). Servidores v3 não têm a proteção e apagariam o equipamento de quem entrasse neles.
 - **Ferramentas de teste (DevService, só no Studio):** no datamodel `Server`,
   `game.ServerStorage.DevTools.Invoke:Invoke("SetAttributes", player, { Defense = 100 })` e
   `...:Invoke("DamagePlayer", player, 13.8)` (devolve o dano aplicado) usam os sistemas REAIS do jogo.

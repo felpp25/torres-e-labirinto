@@ -66,7 +66,8 @@ local function restoreInPlace(player: Player, saved: PlayerSchema.Profile): bool
 	profile.gold = copy.gold
 	profile.inventory = copy.inventory
 	profile.gear = copy.gear
-	profile.nextGearId = copy.nextGearId
+	-- O contador nunca volta: os ids dados durante o teste não são reutilizados depois.
+	profile.nextGearId = math.max(profile.nextGearId, copy.nextGearId)
 	for index, savedCharacter in copy.characters do
 		local character = profile.characters[index]
 		if character then

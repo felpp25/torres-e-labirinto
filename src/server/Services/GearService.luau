@@ -292,6 +292,11 @@ function GearService.init()
 	Remotes.get("UnequipGear").OnServerEvent:Connect(onUnequipGear)
 	-- Publica assim que o perfil carregar (sem prazo: o carregamento pode esperar a trava de outro servidor).
 	ProgressionService.setLoadedHandler(GearService.publish)
+	-- Jogadores que já estavam no servidor e terminaram de carregar antes deste registro (publish ignora quem ainda
+	-- não carregou; esses recebem pelo handler acima).
+	for _, player in Players:GetPlayers() do
+		task.spawn(GearService.publish, player)
+	end
 	Players.PlayerRemoving:Connect(function(player: Player)
 		lastRequestAt[player] = nil
 		lastPublished[player] = nil
