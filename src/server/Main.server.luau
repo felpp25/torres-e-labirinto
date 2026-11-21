@@ -19,6 +19,7 @@ local Services = script.Parent.Services
 -- Ordem importa: quem é usado por outros vem antes. No start(), DungeonService gera o andar 1 antes de o
 -- LifeService (último) fazer os jogadores nascerem; os outros já estão ouvindo CharacterAdded.
 local SERVICES: { [string]: Service } = {
+	DataService = require(Services.DataService),
 	ProgressionService = require(Services.ProgressionService),
 	CombatService = require(Services.CombatService),
 	EnemyService = require(Services.EnemyService),
@@ -31,6 +32,7 @@ local SERVICES: { [string]: Service } = {
 	LifeService = require(Services.LifeService),
 }
 local SERVICE_ORDER: { string } = {
+	"DataService",
 	"ProgressionService",
 	"CombatService",
 	"EnemyService",

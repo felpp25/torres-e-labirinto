@@ -6,6 +6,8 @@
 --   o ponto colocado é definitivo (sem reset, por enquanto);
 -- - aplica no personagem o que vem da classe e dos atributos (vida máxima, velocidade).
 -- Tudo só muda aqui; o cliente só PEDE (validado abaixo) e recebe por Attributes (HUD) e pelo Remote LevelUp.
+-- Persistência: os dados de cada jogador SÃO o personagem ativo carregado pelo DataService (mesma tabela);
+-- o que muda aqui é o que o DataService grava. O jogador só nasce depois do carregamento (LifeService espera).
 
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,33 +21,36 @@ local Classes = require(Shared.Balance.Classes)
 local Combat = require(Shared.Balance.Combat)
 local Progression = require(Shared.Balance.Progression)
 
-type PlayerData = {
-	classId: string,
-	attributes: Types.Attributes,
-	level: number,
-	xp: number, -- XP dentro do nível atual
-	gold: number,
-	unspentPoints: number, -- pontos ganhos e ainda não distribuídos
-}
+local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
+local DataService = require(script.Parent.DataService)
+
+type PlayerData = PlayerSchema.Character
+
+local LOAD_WAIT_TIMEOUT = 60 -- s: o DataService pode esperar uma trava de outro servidor (~30 s) antes de desistir
 
 local ProgressionService = {}
 
 local playerData: { [Player]: PlayerData } = {}
+local loaded: { [Player]: boolean } = {}
 
 local function getData(player: Player): PlayerData
 	local data = playerData[player]
 	if not data then
-		data = {
-			classId = Classes.defaultClassId,
-			attributes = Formulas.emptyAttributes(),
-			level = 1,
-			xp = 0,
-			gold = 0,
-			unspentPoints = 0,
-		}
+		-- Ainda não carregou (não deveria acontecer: o jogador só nasce depois). Valor temporário, nunca salvo:
+		-- quando o carregamento terminar, ele é substituído pelo personagem salvo.
+		data = PlayerSchema.newCharacter(Classes.defaultClassId)
 		playerData[player] = data
 	end
 	return data
+end
+
+-- Espera os dados do jogador carregarem (o LifeService chama antes de fazê-lo nascer).
+function ProgressionService.waitUntilLoaded(player: Player): boolean
+	local deadline = os.clock() + LOAD_WAIT_TIMEOUT
+	while not loaded[player] and player.Parent and os.clock() < deadline do
+		task.wait(0.1)
+	end
+	return loaded[player] == true
 end
 
 local function replicate(player: Player, data: PlayerData)
@@ -187,10 +192,17 @@ local function onCharacterAdded(player: Player, character: Model)
 end
 
 local function onPlayerAdded(player: Player)
-	replicate(player, getData(player))
 	player.CharacterAdded:Connect(function(character: Model)
 		onCharacterAdded(player, character)
 	end)
+	-- Carrega o personagem salvo (espera o DataStore e a trava de sessão).
+	local data = DataService.loadAsync(player)
+	if not player.Parent then
+		return -- saiu durante o carregamento
+	end
+	playerData[player] = data
+	loaded[player] = true
+	replicate(player, data)
 	if player.Character then
 		task.spawn(onCharacterAdded, player, player.Character)
 	end
@@ -201,7 +213,9 @@ function ProgressionService.init()
 	Remotes.get("AllocateRecommended").OnServerEvent:Connect(onAllocateRecommended)
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(function(player: Player)
+		-- (O DataService guarda a sua própria referência e salva na saída; aqui só limpa o mapa.)
 		playerData[player] = nil
+		loaded[player] = nil
 	end)
 	for _, player in Players:GetPlayers() do
 		task.spawn(onPlayerAdded, player)

@@ -113,9 +113,15 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - No datamodel `Edit`, `require` fica em CACHE: depois de mudar um módulo já carregado num teste anterior, o
   `require` devolve a versão VELHA. Para testar a nova: `local c = mod:Clone(); c.Parent = mod.Parent;
   local M = require(c); c:Destroy()`.
+- **Salvamento (DataService):** no Studio usa o DataStore `PlayerData_Studio` (separado do jogo publicado,
+  `PlayerData`). Precisa de "Enable Studio Access to API Services" ligado (Configurações da Experiência >
+  Segurança; já ligado). Sem acesso, o jogo roda "sem salvar" (aviso no HUD) e nunca grava. O personagem de teste
+  do Studio agora PERSISTE entre Plays (nível, Gold, atributos). Formato e validação: `server/Data/PlayerSchema`.
 - **Ferramentas de teste (DevService, só no Studio):** no datamodel `Server`,
   `game.ServerStorage.DevTools.Invoke:Invoke("SetAttributes", player, { Defense = 100 })` e
   `...:Invoke("DamagePlayer", player, 13.8)` (devolve o dano aplicado) usam os sistemas REAIS do jogo.
+  Salvamento: `"SaveNow"(player)`, `"ReadStored"("User_<id>")` (JSON cru); testes de trava só em chaves
+  `Test_...`: `"WriteStored"`, `"LoadKey"`, `"SaveKey"`, `"SessionId"`.
   Fora do Studio o serviço não faz nada. Novos comandos de teste entram em `COMMANDS` no DevService.
 - `execute_luau` NÃO compartilha os módulos do jogo: `require` de um serviço ali devolve uma cópia nova (estado
   vazio). Para testar, provoque o efeito pelo próprio jogo (ex.: `Humanoid.Health = 0` num mob dispara a

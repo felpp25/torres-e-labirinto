@@ -12,6 +12,8 @@ local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage"
 
 local Run = require(ReplicatedStorage.Shared.Balance.Run)
 
+local ProgressionService = require(script.Parent.ProgressionService)
+
 local LifeService = {}
 
 local restartScheduled = false
@@ -91,7 +93,12 @@ local function onPlayerAdded(player: Player)
 			end)
 		end
 	end)
-	-- Entrou agora: nasce (mesmo com a run em andamento).
+	-- Entrou agora: nasce (mesmo com a run em andamento), mas só DEPOIS de os dados salvos carregarem:
+	-- senão o progresso feito antes do carregamento seria perdido (sobrescrito pelos dados salvos).
+	ProgressionService.waitUntilLoaded(player)
+	if not player.Parent then
+		return
+	end
 	spawnPlayer(player, nil)
 end
 

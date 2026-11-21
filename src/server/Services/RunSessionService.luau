@@ -17,6 +17,7 @@ local Run = require(Shared.Balance.Run)
 local Progression = require(Shared.Balance.Progression)
 
 local BossService = require(script.Parent.BossService)
+local DataService = require(script.Parent.DataService)
 local DungeonService = require(script.Parent.DungeonService)
 local EnemyService = require(script.Parent.EnemyService)
 local LifeService = require(script.Parent.LifeService)
@@ -44,6 +45,10 @@ end
 local function onTowerCompleted()
 	towersCompleted += 1
 	workspace:SetAttribute(Keys.WorldAttr.TowersCompleted, towersCompleted)
+	-- Momento crítico: a recompensa do boss acabou de entrar. Salva já, sem esperar o autosave.
+	for _, player in Players:GetPlayers() do
+		DataService.requestSave(player)
+	end
 	print(`[Run] TORRE CONCLUÍDA (run {runNumber}); nova run em {Run.towerCompleteDelay}s`)
 	task.delay(Run.towerCompleteDelay, function()
 		runNumber += 1

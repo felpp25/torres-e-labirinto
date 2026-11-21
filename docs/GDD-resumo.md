@@ -13,8 +13,12 @@
   (ex.: ~30% do XP da run nos mobs e ~70% no boss). Evita farm de mobs e faz do boss o objetivo da run.
   *Protótipo:* mobs 8 XP e 1-3 Gold; boss 1500 XP e 300 Gold por jogador. Uma torre completa leva do nível 1 a
   perto do 10 (teto atual).
-- *Protótipo:* uma torre só, andares infinitos, progresso global só na memória do servidor (sem DataStore) e sem
-  exigência de nível. Teto de nível 10 (vai subir quando houver mais torres).
+- **Salvamento (DataStore):** uma chave por jogador com **vários personagens** por conta (slots); cada personagem
+  tem classe, nível, XP, **Gold próprio**, atributos e pontos livres. A **run em andamento não é salva** (sair no
+  meio da torre = run nova ao voltar; o que foi ganho fica). Salva ao sair, ao fechar o servidor, a cada 2 min e
+  ao concluir uma torre. Trava de sessão evita perder dados ao trocar de servidor.
+  *Protótipo:* 1 personagem (Lutador) criado automaticamente; a escolha de personagem vem com o lobby.
+- *Protótipo:* uma torre só e sem exigência de nível. Teto de nível 10 (vai subir quando houver mais torres).
 
 ## Vidas
 

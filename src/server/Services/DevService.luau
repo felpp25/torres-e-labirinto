@@ -9,11 +9,27 @@
 --   dev:Invoke("SetAttributes", player, { Defense = 100 })
 --   local dano = dev:Invoke("DamagePlayer", player, 13.8) -- dano efetivamente aplicado (0 se invencível)
 
+--   dev:Invoke("SaveNow", player)               -- salva agora (espera terminar)
+--   dev:Invoke("ReadStored", "User_123")        -- valor cru no DataStore (JSON) para conferir o que foi salvo
+--   Testes de trava (só chaves "Test_..."): "WriteStored"(key, valor), "LoadKey"(key), "SaveKey"(key), "SessionId"
+
+local DataStoreService: DataStoreService = game:GetService("DataStoreService")
+local HttpService: HttpService = game:GetService("HttpService")
 local RunService: RunService = game:GetService("RunService")
 local ServerStorage: ServerStorage = game:GetService("ServerStorage")
 
+local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local CombatService = require(script.Parent.CombatService)
+local DataService = require(script.Parent.DataService)
 local ProgressionService = require(script.Parent.ProgressionService)
+
+local function store(): DataStore
+	return DataStoreService:GetDataStore(DataService.getStoreName())
+end
+
+local function assertTestKey(key: string)
+	assert(string.sub(key, 1, 5) == "Test_", "DevTools: escrita só em chaves de teste (Test_...)")
+end
 
 local DevService = {}
 
@@ -35,6 +51,37 @@ local COMMANDS: { [string]: Command } = {
 		local before = humanoid.Health
 		CombatService.damagePlayer(player, rawDamage)
 		return before - humanoid.Health
+	end,
+
+	SaveNow = function(player: Player): boolean
+		return DataService.saveNow(player)
+	end,
+
+	ReadStored = function(key: string): string
+		local value = store():GetAsync(key)
+		return if value == nil then "nil" else HttpService:JSONEncode(value)
+	end,
+
+	WriteStored = function(key: string, value: any): boolean
+		assertTestKey(key)
+		store():SetAsync(key, value)
+		return true
+	end,
+
+	LoadKey = function(key: string): string
+		assertTestKey(key)
+		local status = DataService.loadKey(key)
+		return status
+	end,
+
+	SaveKey = function(key: string): string
+		assertTestKey(key)
+		local ok, err = DataService.saveKey(key, PlayerSchema.newProfile(), false)
+		return if ok then "ok" else `falhou: {err}`
+	end,
+
+	SessionId = function(): string
+		return DataService.getSessionId()
 	end,
 }
 

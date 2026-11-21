@@ -55,6 +55,7 @@ local lastLives: number? = nil
 local lastRunNumber: number? = nil
 local statsLabel: TextLabel? = nil
 local floorLabel: TextLabel? = nil
+local saveWarningLabel: TextLabel? = nil
 local bossFrame: Frame? = nil
 local bossBar: Bar? = nil
 local bossNameLabel: TextLabel? = nil
@@ -195,6 +196,14 @@ local function build()
 	statsLabel = makeText(panel, "", UDim2.new(1, -16, 0, 14), UDim2.fromOffset(8, 94), 11)
 	floorLabel = makeText(panel, "", UDim2.new(1, -16, 0, 16), UDim2.fromOffset(8, 112), 13)
 
+	-- Aviso quando o progresso NÃO está sendo salvo (falha ao carregar do DataStore). Abaixo do botão de pontos.
+	local saveWarning =
+		makeText(gui, "⚠ Progresso NÃO está sendo salvo", UDim2.fromOffset(260, 18), UDim2.fromOffset(14, 184), 13)
+	saveWarning.TextColor3 = COLORS.health
+	saveWarning.TextStrokeTransparency = 0
+	saveWarning.Visible = false
+	saveWarningLabel = saveWarning
+
 	dodgeIcon = makeCooldownIcon(gui, -72, "Esquiva", "Q")
 	abilityIcon = makeCooldownIcon(gui, 8, "Palma", "E")
 
@@ -246,6 +255,9 @@ local function update()
 	if livesLabel then
 		local lives = workspace:GetAttribute(Keys.WorldAttr.Lives)
 		livesLabel.Text = if typeof(lives) == "number" then `Vidas: {lives}` else ""
+	end
+	if saveWarningLabel then
+		saveWarningLabel.Visible = localPlayer:GetAttribute(Keys.PlayerAttr.SaveStatus) == "offline"
 	end
 	if floorLabel then
 		local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)

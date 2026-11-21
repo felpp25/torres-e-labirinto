@@ -22,6 +22,7 @@ Keys.PlayerAttr = table.freeze({
 	XPToNext = "XPToNext", -- XP necessário para o próximo nível (0 no nível máximo)
 	Gold = "Gold",
 	UnspentPoints = "UnspentPoints", -- pontos de atributo ganhos e ainda não distribuídos
+	SaveStatus = "SaveStatus", -- "ok" = progresso sendo salvo; "offline" = jogando sem salvar (falha no DataStore)
 })
 
 -- Attributes do workspace (estado do andar, definidos SÓ pelo servidor; o HUD lê).
