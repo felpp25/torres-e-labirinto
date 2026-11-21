@@ -19,6 +19,8 @@ local GearSnapshot = require(Shared:WaitForChild("GearSnapshot"))
 local Shop = require(Balance:WaitForChild("Shop"))
 local Gear = require(Balance:WaitForChild("Gear"))
 
+local ChatBlocker = require(script.Parent.Parent:WaitForChild("ChatBlocker"))
+
 local localPlayer = Players.LocalPlayer
 
 local PROMPT_NAME = "ShopPrompt"
@@ -250,6 +252,7 @@ local function setOpen(open: boolean)
 	if panel then
 		panel.Visible = open
 	end
+	ChatBlocker.setHidden("Shop", open)
 	if open then
 		if messageLabel then
 			messageLabel.Text = ""

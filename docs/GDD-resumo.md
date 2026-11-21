@@ -116,10 +116,10 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
 - **3 pontos de atributo por nível.**
 - **O jogador escolhe em qual atributo colocar cada ponto.** Botão **"distribuir recomendado"**: coloca os pontos
   nos atributos de scaling da classe.
-  - *Implementado:* ao subir de nível os pontos ficam LIVRES; painel **Personagem**, aba **Atributos** (tecla C /
-    botão X / botão "Personagem" na tela, sempre visível) com +1 por atributo, prévia do efeito, ★ nos atributos de
-    scaling e botão "Recomendado". Mostra o valor distribuído e, em verde, o que o equipamento soma. O servidor
-    valida cada pedido. Para refazer os pontos: **reset na loja** (Gold, ver "Lobby e loja").
+  - *Implementado:* ao subir de nível os pontos ficam LIVRES; janela **Personagem** (tecla C / botão X / botão
+    "Personagem" na tela, sempre visível) > botão **Distribuir pontos** (janela própria) com +1 por atributo, prévia
+    do efeito, ★ nos atributos de scaling e botão "Recomendado". Mostra o valor distribuído e, em verde, o que o
+    equipamento soma. O servidor valida cada pedido. Para refazer os pontos: **reset na loja** (Gold).
   - O equipamento soma **por fora** dos pontos distribuídos: o reset só devolve os pontos distribuídos.
 
 ## Classes e builds
@@ -314,7 +314,10 @@ de item novo e venda na loja. Fortalecimento, gemas e Forja ainda não existem.
   do drop).
 - **Item sobrando:** vende na loja (Comum 10 Gold, Raro 50 Gold). **Baú cheio:** o drop vira Gold (preço de venda),
   com aviso.
-- **Interface:** painel "Personagem" na tecla C (a mesma dos atributos), com abas **Atributos** e **Equipamento**.
+- **Interface (layout provisório, inspirado na mochila do DDTank; arte depois):** janela "Personagem" na tecla C com o
+  personagem em 3D ao meio, o corpo à esquerda (Capacete, Armadura, Calças, Botas), arma e acessórios à direita
+  (Arma, Pulseira, Colar), os atributos embaixo e a **mochila** (baú da conta) em grade ao lado. Clicar numa peça
+  mostra os detalhes e a ação (Equipar/Trocar/Tirar). **Distribuir pontos** fica numa janela separada.
 
 ### Fortalecimento (+1 a +10)
 - Cada nível dá **+10% dos atributos base da peça** (e do Poder, na arma): +10 = o dobro.

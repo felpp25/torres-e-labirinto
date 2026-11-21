@@ -156,6 +156,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   regras, limpe os mobs do andar no início (`Mobs:ClearAllChildren()`): personagens parados morrem entre chamadas.
 - Testes pelo MCP: `character_navigation` leva o personagem; `user_mouse_input`/`user_keyboard_input` simulam o
   jogador; `execute_luau` no datamodel `Server` confere o resultado (vida, posição, Attributes).
+- Interface: a janela de chat do Roblox (CoreGui) fica no canto inferior esquerdo e ENGOLE cliques da nossa UI ali
+  (medido: botão sem `Activated`). Janelas grandes escondem o chat enquanto abertas (`client/ChatBlocker`). Crie
+  ScreenGuis com `ZIndexBehavior = Sibling` (com Global, o fundo de uma janela de ZIndex maior cobre os próprios filhos).
 - Cliques do `user_mouse_input`: prefira `instance_path` (ex.: `LocalPlayer.PlayerGui.ShopGui.Panel.SellTab`). As
   coordenadas x/y não batem com as da `screen_capture` (medido: o clique caiu ~46 px abaixo, na linha seguinte).
 - Luau (verificador de tipos): local SEM anotação alarga união de literais para `string` (ex.: `local slot =
