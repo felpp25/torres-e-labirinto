@@ -17,7 +17,7 @@ local LIST: { Info } = {
 	{ key = "Wisdom", short = "SAB", long = "Sabedoria", description = "Aumenta a mana máxima" },
 	{ key = "Dexterity", short = "DES", long = "Destreza", description = "Aumenta a stamina máxima" },
 	{ key = "Defense", short = "DEF", long = "Defesa", description = "Reduz o dano recebido" },
-	{ key = "Luck", short = "SOR", long = "Sorte", description = "Aumenta a chance de crítico" },
+	{ key = "Luck", short = "SOR", long = "Sorte", description = "Aumenta o crítico e a chance de achados raros" },
 }
 
 return table.freeze(LIST)

@@ -86,7 +86,9 @@ local function preview(key: Types.AttributeName, attributes: Types.Attributes, c
 	elseif key == "Defense" then
 		return `Reduz dano em {percent(Formulas.defenseReduction(attributes.Defense))}`
 	else
-		return `Crítico {percent(Formulas.critChance(attributes.Luck))}`
+		local finds = string.gsub(string.format("%.2f", Formulas.luckFindMultiplier(attributes.Luck)), "%.?0+$", "")
+		local findsText = string.gsub(finds, "%.", ",")
+		return `Crítico {percent(Formulas.critChance(attributes.Luck))}  ·  Achados ×{findsText}`
 	end
 end
 

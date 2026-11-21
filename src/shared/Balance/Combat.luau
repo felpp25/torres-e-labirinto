@@ -25,8 +25,10 @@ local Combat = table.freeze({
 	critChancePerLuck = 0.005,
 	critMultiplier = 1.5,
 
-	-- Defesa: redução = Defesa / (Defesa + defenseConstant)
-	defenseConstant = 100,
+	-- Defesa: redução = Defesa / (Defesa + defenseConstant). Nunca chega a 100% (tank invencível seria antijogo).
+	-- 40: 10 pts = 20%, 27 pts (tudo no nível 10) = 40%, 100 pts = 71%. Com 100, a Defesa rendia pouco nos
+	-- valores reais (27 pts = só 21%) e perdia sempre para a Vitalidade (medido na bateria de atributos).
+	defenseConstant = 40,
 
 	-- Fórmula de dano do GDD: Base × (1 + damagePerAttributePoint × Atributo × M)
 	damagePerAttributePoint = 0.02,

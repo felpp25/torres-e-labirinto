@@ -23,8 +23,8 @@
 - **Sem vidas: game over**: a torre recomeça do andar 1 com labirinto novo (XP e Gold ficam, ver acima).
 - **Vida extra comprada** (Developer Product, no futuro): com limite por run (ex.: 1), para não virar
   "pague para não perder" perto do boss. O Coração continua como alternativa grátis.
-- **Coração:** item raro dropado por mobs, devolve 1 vida (máximo 3). Chance base **0,1% por mob**; no futuro a
-  Sorte aumenta essa chance.
+- **Coração:** item raro dropado por mobs, devolve 1 vida (máximo 3). Chance base **0,1% por mob**, multiplicada
+  pela Sorte (regra de achados raros: Sorte 50 = 0,2%, Sorte 100 = 0,3%).
 
 ## Visão geral
 
@@ -76,9 +76,20 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
 | **Sorte** | Aumenta a chance de crítico, a taxa de drop dos mobs e a chance de achar baús secretos no mapa. |
 
 - **Recursos:** ações **físicas** (golpes especiais, esquiva) gastam **stamina**; ações **mágicas** gastam **mana**.
-- **Defesa:** `redução de dano = Defesa / (Defesa + 100)` (50 → 33%, 100 → 50%; nunca chega a 100%).
-- **Sorte (protótipo):** `chance de crítico = 5% + 0,5% × Sorte`, crítico causa **1,5×** de dano.
-  Drop e baús secretos ficam para depois do protótipo.
+- **Defesa:** `redução de dano = Defesa / (Defesa + 40)` (10 → 20%, 27 → 40%, 100 → 71%; **nunca chega a
+  100%**: tank invencível é antijogo). A constante era 100, mas a bateria de atributos mostrou que a Defesa rendia
+  pouco nos valores reais (27 pts = 21%) e perdia sempre para a Vitalidade.
+  - **Objetivo de design do tank:** o tank precisa se sentir **útil e até indispensável na party**, e um jogador
+    focado em Defesa/Força/Vitalidade deve conseguir **zerar uma run solo** (com bastante desafio).
+  - *A decidir (próximo passo de design):* sistema de **aggro** (mobs focam o tank) para o tank ter papel claro no
+    grupo; hoje os mobs atacam o jogador mais próximo.
+- **Sorte é GLOBAL:** afeta tudo que é chance de coisa boa.
+  - **Crítico:** `5% + 0,5% × Sorte`, crítico causa **1,5×** de dano.
+  - **Achados raros** (regra única, `Formulas.luckChance`): `chance base × (1 + Sorte / 50)` (a cada 50 pts as
+    chances dobram). Hoje: **Coração**. Futuro: drops de itens, baús, salas secretas.
+  - No coop, os achados usam a **maior Sorte entre os jogadores perto** (ter alguém sortudo ajuda o grupo).
+- **Sabedoria e Inteligência** não têm uso para o Lutador (sem mana nem dano mágico); o painel não avisa
+  (decisão do designer).
 - Cada classe tem **2 atributos com scaling extra**.
 - **Fórmula de dano:** `Dano = Base × (1 + 0,02 × Atributo × M)`
   - `Atributo` = Força para dano físico, Inteligência para dano mágico;

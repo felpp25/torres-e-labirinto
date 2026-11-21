@@ -5,6 +5,7 @@
 local Types = require(script.Parent.Types)
 local Combat = require(script.Parent.Balance.Combat)
 local Progression = require(script.Parent.Balance.Progression)
+local Luck = require(script.Parent.Balance.Luck)
 
 local Formulas = {}
 
@@ -74,6 +75,17 @@ end
 
 function Formulas.critChance(luck: number): number
 	return math.clamp(Combat.critBaseChance + Combat.critChancePerLuck * math.max(luck, 0), 0, 1)
+end
+
+-- Quanto a Sorte multiplica a chance de "achados" raros (1 = sem bônus; 50 pts = ×2; 100 pts = ×3).
+function Formulas.luckFindMultiplier(luck: number): number
+	return 1 + math.max(luck, 0) / Luck.findDivisor
+end
+
+-- Chance de um "achado" raro (Coração; no futuro drops, baús, salas secretas) com a Sorte aplicada.
+-- Ex.: base 0,1% com Sorte 27 -> 0,154%; com Sorte 100 -> 0,3%.
+function Formulas.luckChance(baseChance: number, luck: number): number
+	return math.clamp(baseChance * Formulas.luckFindMultiplier(luck), 0, 1)
 end
 
 -- `roll` é um número em [0, 1) sorteado pelo servidor; separado para a função continuar pura e testável.

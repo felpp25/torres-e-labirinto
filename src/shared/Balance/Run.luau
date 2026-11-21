@@ -18,7 +18,8 @@ local Run = table.freeze({
 	startingLives = 3,
 	maxLives = 3,
 
-	-- Coração (devolve 1 vida): chance por mob morto. A Sorte vai aumentar isto no futuro.
+	-- Coração (devolve 1 vida): chance BASE por mob morto; a Sorte multiplica (Formulas.luckChance,
+	-- usando a maior Sorte entre os jogadores perto do mob).
 	heartDropChance = 0.001, -- 0,1%
 	heartPickupRadius = 4, -- studs
 	heartCheckInterval = 0.15, -- s entre verificações de quem pegou o coração

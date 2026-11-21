@@ -12,12 +12,15 @@ local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage"
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Keys = require(Shared.Keys)
+local Formulas = require(Shared.Formulas)
 local Run = require(Shared.Balance.Run)
+local Progression = require(Shared.Balance.Progression)
 
 local BossService = require(script.Parent.BossService)
 local DungeonService = require(script.Parent.DungeonService)
 local EnemyService = require(script.Parent.EnemyService)
 local LifeService = require(script.Parent.LifeService)
+local ProgressionService = require(script.Parent.ProgressionService)
 
 local HEART_COLOR = Color3.fromRGB(255, 60, 90)
 local HEART_SIZE = 2
@@ -103,9 +106,29 @@ local function spawnHeart(position: Vector3, parent: Instance)
 	print("[Run] um Coração caiu!")
 end
 
+-- Maior Sorte entre os jogadores vivos perto de `position` (os mesmos que recebem o XP do mob).
+-- No coop, ter alguém "sortudo" no grupo melhora os achados de todos.
+local function bestLuckNear(position: Vector3): number
+	local best = 0
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if
+			root
+			and root:IsA("BasePart")
+			and LifeService.isAlive(player)
+			and (root.Position - position).Magnitude <= Progression.xpShareRadius
+		then
+			best = math.max(best, ProgressionService.getAttributes(player).Luck)
+		end
+	end
+	return best
+end
+
 local function onMobDied(_: Types.MobDef, position: Vector3, parent: Instance)
-	-- TODO (futuro): a Sorte de quem matou aumenta a chance (GDD > Vidas).
-	if rng:NextNumber() < Run.heartDropChance then
+	-- Achado raro: a chance base sobe com a Sorte (Formulas.luckChance, a mesma regra de drops/baús futuros).
+	local chance = Formulas.luckChance(Run.heartDropChance, bestLuckNear(position))
+	if rng:NextNumber() < chance then
 		spawnHeart(position, parent)
 	end
 end
