@@ -115,6 +115,19 @@ local function afterAttributesChanged(player: Player, data: PlayerData)
 	replicate(player, data)
 end
 
+-- SÓ PARA TESTES no Studio (chamado pelo DevService, que não existe fora do Studio): define atributos direto.
+-- `values` = { Defense = 100, ... }; nomes inválidos são ignorados; atributos não citados ficam como estão.
+function ProgressionService.debugSetAttributes(player: Player, values: { [string]: number })
+	local data = getData(player)
+	for key, value in values do
+		local name = Formulas.parseAttributeName(key)
+		if name and typeof(value) == "number" then
+			data.attributes[name] = math.max(math.floor(value), 0)
+		end
+	end
+	afterAttributesChanged(player, data)
+end
+
 -- Pedido do cliente: 1 ponto livre no atributo `attributeName`. VALIDADO: tipo, nome e se há ponto livre.
 local function onAllocateAttribute(player: Player, attributeName: unknown)
 	local name = Formulas.parseAttributeName(attributeName)

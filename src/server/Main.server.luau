@@ -27,6 +27,7 @@ local SERVICES: { [string]: Service } = {
 	BossService = require(Services.BossService),
 	DungeonService = require(Services.DungeonService),
 	RunSessionService = require(Services.RunSessionService),
+	DevService = require(Services.DevService),
 	LifeService = require(Services.LifeService),
 }
 local SERVICE_ORDER: { string } = {
@@ -38,6 +39,7 @@ local SERVICE_ORDER: { string } = {
 	"BossService",
 	"DungeonService",
 	"RunSessionService",
+	"DevService",
 	"LifeService",
 }
 
