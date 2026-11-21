@@ -83,7 +83,7 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
 
 ## Classes e builds
 
-Cada classe primária evolui para uma classe avançada (detalhes de habilidades em `Ideias.md`):
+Cada classe primária evolui para uma classe avançada (detalhes de habilidades em [Ideias.md](Ideias.md)):
 
 | Primária | Avançada |
 |---|---|
