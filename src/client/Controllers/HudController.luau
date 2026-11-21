@@ -308,8 +308,10 @@ local function update()
 	end
 	if statsLabel then
 		local parts: { string } = {}
+		-- Valores EFETIVOS: pontos distribuídos + equipamento (o painel Personagem mostra a divisão).
 		for _, stat in STAT_LABELS do
-			table.insert(parts, `{stat.short} {numberAttr(Keys.statAttr(stat.key))}`)
+			local value = numberAttr(Keys.statAttr(stat.key)) + numberAttr(Keys.gearStatAttr(stat.key))
+			table.insert(parts, `{stat.short} {value}`)
 		end
 		statsLabel.Text = table.concat(parts, "  ")
 	end
@@ -376,7 +378,7 @@ local function showLevelUp(payload: unknown)
 	end
 	showToast(
 		`NÍVEL {data.level}!`,
-		`+{data.points} pontos de atributo (tecla C ou botão "pontos" para distribuir)`,
+		`+{data.points} pontos de atributo (tecla C ou botão "Personagem" para distribuir)`,
 		COLORS.gold,
 		0.22
 	)

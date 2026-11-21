@@ -4,7 +4,7 @@
 --
 -- Teclado (decisão do designer): 1, 2, 3 = habilidades da classe (na ordem de Balance/Classes > abilities);
 -- 4 = ultimate; E = Poção de Vida, R = Poção de Mana, T = Poção de Stamina.
--- Fora daqui: clique = ataque, Q = esquiva, C = atributos, F = loja (lobby) / próximo aliado (espectador).
+-- Fora daqui: clique = ataque, Q = esquiva, C = painel Personagem, F = loja (lobby) / próximo aliado (espectador).
 -- Controle: habilidades Y, R1, L2; ultimate L1; poções no direcional (a loja usa o direcional para cima).
 
 export type Slot = {
