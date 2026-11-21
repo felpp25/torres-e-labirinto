@@ -27,6 +27,7 @@ local Dungeon = table.freeze({
 	extraMobsPerStep = 1, -- +1 mob por sala de combate...
 	floorsPerMobStep = 2, -- ...a cada 2 andares (andares 1-2: 2 mobs; 3-4: 3 mobs; ...)
 	mobStatGrowthPerFloor = 0.15, -- +15% de vida e dano por andar
+	bossFloorMaxMobs = 30, -- teto de mobs no andar do boss (o andar inteiro), dividido entre as salas
 	mobSpawnSpread = 0.3, -- mobs nascem até esta fração do lado da sala a partir do centro
 
 	-- Puzzle de placas de pressão (ficam ativadas depois de pisadas; funciona solo e em grupo)

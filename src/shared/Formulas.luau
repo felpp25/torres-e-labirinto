@@ -159,6 +159,28 @@ function Formulas.mobsPerRoom(floorNumber: number, base: number, extraPerStep: n
 	return base + extraPerStep * steps
 end
 
+-- Quantos mobs em cada uma das `roomCount` salas: `perRoom` em todas, sem passar de `maxTotal` no andar (se houver).
+-- Com teto, ele é dividido igualmente e as primeiras salas recebem o resto.
+-- Ex.: 9 salas, 4 por sala, teto 30 -> 4,4,4,3,3,3,3,3,3 (= 30). 7 salas × 4 = 28 fica 28 (abaixo do teto).
+function Formulas.mobDistribution(roomCount: number, perRoom: number, maxTotal: number?): { number }
+	local counts: { number } = {}
+	if roomCount <= 0 then
+		return counts
+	end
+	if maxTotal == nil or roomCount * perRoom <= maxTotal then
+		for i = 1, roomCount do
+			counts[i] = perRoom
+		end
+		return counts
+	end
+	local base = math.floor(maxTotal / roomCount)
+	local extra = maxTotal - base * roomCount
+	for i = 1, roomCount do
+		counts[i] = base + (if i <= extra then 1 else 0)
+	end
+	return counts
+end
+
 -- Multiplicador de vida e dano dos mobs no andar N (andar 1 = 1,0).
 function Formulas.floorStatMultiplier(floorNumber: number, growthPerFloor: number): number
 	return 1 + growthPerFloor * (math.max(floorNumber, 1) - 1)

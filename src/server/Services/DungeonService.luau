@@ -63,29 +63,35 @@ local function spawnMobs(
 	built: RoomBuilder.BuiltFloor,
 	layout: Types.FloorLayout,
 	floorNumber: number,
-	rng: Random
+	rng: Random,
+	isBossFloor: boolean
 ): number
 	local mobsFolder = Instance.new("Folder")
 	mobsFolder.Name = "Mobs"
 	mobsFolder.Parent = built.folder
 
+	local mobRooms: { Types.Room } = {}
+	for _, room in layout.rooms do
+		if room.kind == "Combat" or room.kind == "DeadEnd" then
+			table.insert(mobRooms, room)
+		end
+	end
 	local perRoom =
 		Formulas.mobsPerRoom(floorNumber, Dungeon.mobsPerCombatRoom, Dungeon.extraMobsPerStep, Dungeon.floorsPerMobStep)
+	-- No andar do boss há um teto de mobs no andar inteiro (o desafio principal é o boss).
+	local counts = Formulas.mobDistribution(#mobRooms, perRoom, if isBossFloor then Dungeon.bossFloorMaxMobs else nil)
 	local multiplier = Formulas.floorStatMultiplier(floorNumber, Dungeon.mobStatGrowthPerFloor)
 	local spread = Dungeon.roomSize * Dungeon.mobSpawnSpread
 	local total = 0
-	for _, room in layout.rooms do
-		if room.kind == "Combat" or room.kind == "DeadEnd" then
-			local center = built.roomCenters[room]
-			for _ = 1, perRoom do
-				local mobId = Dungeon.mobPool[rng:NextInteger(1, #Dungeon.mobPool)]
-				local def = Mobs[mobId]
-				assert(def, `mob desconhecido em Dungeon.mobPool: {mobId}`)
-				local offset =
-					Vector3.new(rng:NextNumber(-spread, spread), SPAWN_HEIGHT, rng:NextNumber(-spread, spread))
-				EnemyService.spawn(def, CFrame.new(center + offset), multiplier, mobsFolder)
-				total += 1
-			end
+	for index, room in mobRooms do
+		local center = built.roomCenters[room]
+		for _ = 1, counts[index] do
+			local mobId = Dungeon.mobPool[rng:NextInteger(1, #Dungeon.mobPool)]
+			local def = Mobs[mobId]
+			assert(def, `mob desconhecido em Dungeon.mobPool: {mobId}`)
+			local offset = Vector3.new(rng:NextNumber(-spread, spread), SPAWN_HEIGHT, rng:NextNumber(-spread, spread))
+			EnemyService.spawn(def, CFrame.new(center + offset), multiplier, mobsFolder)
+			total += 1
 		end
 	end
 	return total
@@ -116,7 +122,7 @@ function DungeonService.startFloor(floorNumber: number, seed: number?)
 	workspace:SetAttribute(Keys.WorldAttr.FloorNumber, floorNumber)
 	-- Gerador próprio do conteúdo, derivado da seed (separado do do layout): mesmos mobs e placas ao refazer.
 	local contentRng = Random.new(floorSeed + 1)
-	local mobCount = spawnMobs(built, layout, floorNumber, contentRng)
+	local mobCount = spawnMobs(built, layout, floorNumber, contentRng, isBossFloor)
 	local arena = built.arena
 	if isBossFloor and arena then
 		PuzzleService.clear()
