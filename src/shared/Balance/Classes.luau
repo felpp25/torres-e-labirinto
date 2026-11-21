@@ -21,7 +21,7 @@ local FIGHTER: Types.ClassDef = {
 	baseStamina = 100,
 	walkSpeed = 18,
 	combo = FIGHTER_COMBO,
-	abilities = { "IronPalm" },
+	abilities = { "IronPalm", "InnerFocus" }, -- atalhos na mesma ordem: E / Y e R / R1
 }
 
 local Classes: { [string]: Types.ClassDef } = {

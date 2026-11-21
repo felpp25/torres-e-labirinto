@@ -7,7 +7,7 @@
 --   AttackRequest   cliente -> servidor  ()                       quero dar o próximo golpe do combo
 --   DodgeRequest    cliente -> servidor  ()                       quero esquivar (servidor cobra stamina/recarga)
 --   AbilityRequest  cliente -> servidor  (abilityId: string)      quero usar uma habilidade
---   CombatFeedback  servidor -> clientes (CombatFeedbackPayload)  algo foi atingido: mostrar número/flash/tremor
+--   CombatFeedback  servidor -> clientes (CombatFeedbackPayload)  algo foi atingido (ou curado): número/flash/tremor
 --   RewardGranted   servidor -> 1 cliente (RewardPayload)         você ganhou XP/Gold: mostrar texto flutuante
 --   LevelUp         servidor -> 1 cliente (LevelUpPayload)        você subiu de nível: mostrar aviso
 --   AllocateAttribute   cliente -> servidor (attributeName: string)  quero pôr 1 ponto livre neste atributo
@@ -40,6 +40,7 @@ export type CombatFeedbackPayload = {
 	damage: number,
 	isCrit: boolean,
 	isFinisher: boolean, -- golpe final do combo: o atacante treme a câmera
+	isHeal: boolean?, -- true = cura: `damage` é quanto curou (número verde, sem flash nem tremor)
 }
 
 export type RewardPayload = {

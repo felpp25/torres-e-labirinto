@@ -17,6 +17,8 @@ Keys.PlayerAttr = table.freeze({
 	Mana = "Mana",
 	MaxMana = "MaxMana",
 	DodgeReadyAt = "DodgeReadyAt",
+	DamageBonus = "DamageBonus", -- bônus de dano ativo (0,12 = +12%), ex.: Foco Interior
+	DamageBonusUntil = "DamageBonusUntil", -- até quando (relógio do servidor) o bônus vale
 	Level = "Level",
 	XP = "XP", -- XP dentro do nível atual
 	XPToNext = "XPToNext", -- XP necessário para o próximo nível (0 no nível máximo)

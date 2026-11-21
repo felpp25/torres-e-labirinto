@@ -1,7 +1,7 @@
 --!strict
 -- Atalhos das poções (GDD > Lobby e loja): tecla 1 = Vida, 2 = Stamina, 3 = Mana; no controle, direcional
 -- esquerda/direita/baixo;
--- no celular, botões na tela. Ícones embaixo, ao lado dos de esquiva/Palma, com quantidade e recarga.
+-- no celular, botões na tela. Ícones embaixo, à direita dos de esquiva e habilidades, com quantidade e recarga.
 -- O cliente só PEDE (UsePotion); o servidor valida (tem o item, recarga, vivo) e aplica.
 
 local ContextActionService: ContextActionService = game:GetService("ContextActionService")
@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Keys = require(Shared:WaitForChild("Keys"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local Shop = require(Shared:WaitForChild("Balance"):WaitForChild("Shop"))
+local ActionBar = require(script.Parent.Parent:WaitForChild("ActionBar"))
 
 local localPlayer = Players.LocalPlayer
 
@@ -67,9 +68,8 @@ local function build()
 		local def = Shop.items[itemId]
 		local frame = Instance.new("Frame")
 		frame.Name = `Potion_{itemId}`
-		frame.Size = UDim2.fromOffset(64, 64)
-		-- Os ícones de esquiva e Palma ocupam de -72 a +72 em volta do centro; as poções vêm à direita.
-		frame.Position = UDim2.new(0.5, 88 + (index - 1) * 80, 1, -80)
+		frame.Size = UDim2.fromOffset(ActionBar.iconSize, ActionBar.iconSize)
+		frame.Position = ActionBar.position(ActionBar.potionSlot(index)) -- depois da esquiva e das habilidades
 		frame.BackgroundColor3 = ICON_COLORS[itemId] or Color3.fromRGB(60, 60, 70)
 		frame.BackgroundTransparency = 0.2
 		frame.Parent = gui

@@ -15,7 +15,7 @@ export type Attributes = {
 	Luck: number, -- Sorte: crítico (drops e baús depois do protótipo)
 }
 
--- Físico escala com Força e gasta stamina; mágico escala com Inteligência e gasta mana.
+-- Físico escala com Força; mágico escala com Inteligência. O recurso gasto é de cada habilidade (AbilityDef).
 export type DamageType = "Physical" | "Magical"
 export type ResourceType = "Stamina" | "Mana"
 
@@ -29,19 +29,42 @@ export type ComboHitDef = {
 	isFinisher: boolean, -- golpe final do combo (tremor de câmera)
 }
 
-export type AbilityDef = {
+-- Habilidades. Cada uma declara o próprio recurso pela NATUREZA dela (GDD > Atributos > Recursos): golpes, armas
+-- e movimento gastam stamina; Chi, sagrado, elemental e cura gastam mana. `kind` diz o que a habilidade faz.
+
+-- "Strike": golpe com dano numa área retangular à frente do personagem.
+export type StrikeAbilityDef = {
+	kind: "Strike",
 	id: string,
 	displayName: string,
-	damageType: DamageType,
-	baseDamage: number,
+	shortName: string, -- texto curto para botões e ícones
 	resource: ResourceType,
 	cost: number,
 	cooldown: number, -- s
 	recovery: number, -- s em que o ataque básico fica bloqueado depois de usar a habilidade
+	damageType: DamageType,
+	baseDamage: number,
 	range: number,
 	width: number,
 	knockback: number,
 }
+
+-- "SelfBuff": efeito no próprio jogador: cura na hora e bônus de dano por um tempo.
+export type SelfBuffAbilityDef = {
+	kind: "SelfBuff",
+	id: string,
+	displayName: string,
+	shortName: string,
+	resource: ResourceType,
+	cost: number,
+	cooldown: number,
+	recovery: number,
+	healFraction: number, -- cura na hora: fração da vida máxima (0,12 = 12%)
+	damageBonus: number, -- dano extra enquanto durar (0,12 = +12%), em todo golpe e habilidade
+	duration: number, -- s do bônus de dano
+}
+
+export type AbilityDef = StrikeAbilityDef | SelfBuffAbilityDef
 
 export type ClassDef = {
 	id: string,

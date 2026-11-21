@@ -1,6 +1,6 @@
 --!strict
 -- Feedback visual do combate (só no cliente; nada aqui decide resultado de jogo).
--- - número de dano flutuante e flash no alvo: quando o servidor avisa que algo foi atingido;
+-- - número de dano flutuante e flash no alvo: quando o servidor avisa que algo foi atingido (cura: número verde);
 -- - tremor de câmera: no golpe final do combo do PRÓPRIO jogador;
 -- - rastro do golpe e "fantasma" da esquiva: chamados pelo InputController na hora do input.
 
@@ -22,6 +22,7 @@ local NUMBER_COLOR = Color3.fromRGB(255, 255, 255)
 local CRIT_COLOR = Color3.fromRGB(255, 220, 60)
 local PLAYER_HIT_COLOR = Color3.fromRGB(255, 70, 70)
 local REWARD_COLOR = Color3.fromRGB(120, 255, 140)
+local HEAL_COLOR = Color3.fromRGB(90, 230, 110)
 local REWARD_TEXT_DURATION = 1.4
 local SWING_FADE_TIME = 0.15
 
@@ -167,6 +168,13 @@ local function onCombatFeedback(payload: unknown)
 	end
 	local data = payload :: Remotes.CombatFeedbackPayload
 	if typeof(data.target) ~= "Instance" or not data.target:IsA("Model") or typeof(data.damage) ~= "number" then
+		return
+	end
+	if data.isHeal == true then
+		local adornee = data.target:FindFirstChild("Head") or data.target.PrimaryPart
+		if adornee and adornee:IsA("BasePart") then
+			floatingText(adornee, `+{data.damage}`, HEAL_COLOR, Vector2.new(90, 36), Combat.damageNumberDuration)
+		end
 		return
 	end
 	local isPlayerTarget = Players:GetPlayerFromCharacter(data.target) ~= nil

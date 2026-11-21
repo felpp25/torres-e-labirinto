@@ -4,6 +4,7 @@
 -- O cliente nunca informa alvo, posição ou dano.
 
 local CollectionService: CollectionService = game:GetService("CollectionService")
+local Debris: Debris = game:GetService("Debris")
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -28,10 +29,16 @@ type CombatState = {
 	stamina: number,
 	mana: number,
 	lastStaminaUseAt: number,
+	damageBonus: number, -- bônus de dano ativo (0,12 = +12%), ex.: Foco Interior
+	damageBonusUntil: number,
 }
 
 local RESOURCE_TICK = 0.1 -- s entre atualizações de regeneração
 local MAX_ABILITY_ID_LENGTH = 32
+-- Aura do bônus de dano: um Highlight criado pelo servidor, para o grupo ver quem está fortalecido.
+local AURA_NAME = "DamageBonusAura"
+local AURA_FILL = Color3.fromRGB(90, 160, 255)
+local AURA_OUTLINE = Color3.fromRGB(170, 210, 255)
 
 local CombatService = {}
 
@@ -56,6 +63,8 @@ local function newState(player: Player): CombatState
 		stamina = Formulas.maxStamina(classDef, attributes),
 		mana = Formulas.maxMana(classDef, attributes),
 		lastStaminaUseAt = 0,
+		damageBonus = 0,
+		damageBonusUntil = 0,
 	}
 end
 
@@ -177,6 +186,10 @@ local function damageEnemy(
 	local classDef = ProgressionService.getClass(attacker)
 	local attributes = ProgressionService.getAttributes(attacker)
 	local raw = Formulas.damage(baseDamage, damageType, attributes, classDef)
+	local state = states[attacker]
+	if state and now() < state.damageBonusUntil then
+		raw *= 1 + state.damageBonus
+	end
 	local isCrit = Formulas.rollCrit(attributes.Luck, rng:NextNumber())
 	if isCrit then
 		raw *= Combat.critMultiplier
@@ -212,6 +225,54 @@ local function trySpend(state: CombatState, resource: Types.ResourceType, cost: 
 		state.mana -= cost
 	end
 	return true
+end
+
+local function showAura(character: Model, duration: number)
+	local old = character:FindFirstChild(AURA_NAME)
+	if old then
+		old:Destroy()
+	end
+	local aura = Instance.new("Highlight")
+	aura.Name = AURA_NAME
+	aura.FillColor = AURA_FILL
+	aura.FillTransparency = 0.75
+	aura.OutlineColor = AURA_OUTLINE
+	aura.OutlineTransparency = 0.2
+	aura.DepthMode = Enum.HighlightDepthMode.Occluded
+	aura.Parent = character
+	Debris:AddItem(aura, duration)
+end
+
+-- Habilidade em si mesmo (ex.: Foco Interior): cura na hora e bônus de dano por `duration` segundos.
+-- Usar de novo com o bônus ativo renova a duração (não acumula).
+local function applySelfBuff(player: Player, state: CombatState, def: Types.SelfBuffAbilityDef, t: number)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not character or not humanoid then
+		return
+	end
+	local before = humanoid.Health
+	humanoid.Health = math.min(humanoid.MaxHealth, before + humanoid.MaxHealth * def.healFraction)
+	local healed = math.floor(humanoid.Health - before)
+	if healed > 0 then
+		local payload: Remotes.CombatFeedbackPayload = {
+			target = character,
+			attacker = player,
+			damage = healed,
+			isCrit = false,
+			isFinisher = false,
+			isHeal = true,
+		}
+		Remotes.get("CombatFeedback"):FireAllClients(payload)
+	end
+
+	if def.damageBonus > 0 and def.duration > 0 then
+		state.damageBonus = def.damageBonus
+		state.damageBonusUntil = t + def.duration
+		player:SetAttribute(Keys.PlayerAttr.DamageBonus, def.damageBonus)
+		player:SetAttribute(Keys.PlayerAttr.DamageBonusUntil, state.damageBonusUntil)
+		showAura(character, def.duration)
+	end
 end
 
 local function onAttackRequest(player: Player)
@@ -283,16 +344,23 @@ local function onAbilityRequest(player: Player, abilityId: unknown)
 	state.comboExpiresAt = 0 -- habilidade quebra o combo
 	player:SetAttribute(Keys.abilityReadyAttr(abilityId), state.abilityReadyAt[abilityId])
 
-	local range = def.range + Combat.rangeTolerance
-	local direction = aimDirection(root, range)
-	for _, enemy in queryEnemies(root, direction, range, def.width) do
-		damageEnemy(player, enemy, def.baseDamage, def.damageType, direction, def.knockback, true)
+	if def.kind == "Strike" then
+		local range = def.range + Combat.rangeTolerance
+		local direction = aimDirection(root, range)
+		for _, enemy in queryEnemies(root, direction, range, def.width) do
+			damageEnemy(player, enemy, def.baseDamage, def.damageType, direction, def.knockback, true)
+		end
+	else
+		applySelfBuff(player, state, def, t)
 	end
 end
 
 local function resetState(player: Player)
 	local state = newState(player)
 	states[player] = state
+	-- Morreu/renasceu: o bônus de dano acaba (a aura some junto com o personagem antigo).
+	player:SetAttribute(Keys.PlayerAttr.DamageBonus, 0)
+	player:SetAttribute(Keys.PlayerAttr.DamageBonusUntil, 0)
 	local classDef = ProgressionService.getClass(player)
 	local attributes = ProgressionService.getAttributes(player)
 	replicateResources(player, state, Formulas.maxStamina(classDef, attributes), Formulas.maxMana(classDef, attributes))

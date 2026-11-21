@@ -81,9 +81,17 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
 | **Defesa** | Aumenta a armadura, que reduz o dano físico e o mágico na mesma proporção. Atributo do tank. |
 | **Sorte** | Aumenta a chance de crítico, a taxa de drop dos mobs e a chance de achar baús secretos no mapa. |
 
-- **Recursos:** ações **físicas** (golpes especiais, esquiva) gastam **stamina**; ações **mágicas** gastam **mana**.
-  **Mana e stamina começam em 100** para todas as classes (Sabedoria e Destreza somam a partir daí).
-  - *Em discussão:* como classes físicas (Lutador/Monge) usam mana, e qual recurso cada habilidade gasta.
+- **Recursos: cada habilidade declara o próprio recurso, pela NATUREZA dela** (não pela classe):
+  - **Stamina:** golpes, armas e movimento. A **esquiva** sempre gasta stamina, em todas as classes.
+  - **Mana:** Chi, sagrado, elemental e cura.
+  - Cada classe fica num ponto do espectro: **Lutador** quase só stamina; **Monge** híbrido (o caminho Chi gasta
+    mana); **Paladino** golpes de arma (stamina) + poderes sagrados (mana); **Mago e Sacerdote** quase só mana
+    (stamina para esquivar). Assim Sabedoria e Destreza valem conforme a build e as três poções servem para alguém.
+  - Descartados: um recurso por classe (Sabedoria inútil para físicos, Destreza inútil para magos) e custo duplo
+    (duas barras a gerenciar em toda ação).
+  - **Mana e stamina começam em 100** para todas as classes (Sabedoria e Destreza somam a partir daí).
+  - O **Lutador já tem uma habilidade de mana** (Foco Interior, ver Classes), para a Sabedoria ter uso desde a
+    classe inicial.
 - **Defesa:** `redução de dano = Defesa / (Defesa + 40)` (10 → 20%, 27 → 40%, 100 → 71%; **nunca chega a
   100%**: tank invencível é antijogo). A constante era 100, mas a bateria de atributos mostrou que a Defesa rendia
   pouco nos valores reais (27 pts = 21%) e perdia sempre para a Vitalidade.
@@ -96,8 +104,8 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
   - **Achados raros** (regra única, `Formulas.luckChance`): `chance base × (1 + Sorte / 50)` (a cada 50 pts as
     chances dobram). Hoje: **Coração**. Futuro: drops de itens, baús, salas secretas.
   - No coop, os achados usam a **maior Sorte entre os jogadores perto** (ter alguém sortudo ajuda o grupo).
-- **Sabedoria e Inteligência** não têm uso para o Lutador (sem mana nem dano mágico); o painel não avisa
-  (decisão do designer).
+- **Inteligência** não tem uso para o Lutador (sem dano mágico); o painel não avisa (decisão do designer).
+  A **Sabedoria** serve ao Lutador pelo Foco Interior (mais mana = mais usos seguidos).
 - Cada classe tem **2 atributos com scaling extra**.
 - **Fórmula de dano:** `Dano = Base × (1 + 0,02 × Atributo × M)`
   - `Atributo` = Força para dano físico, Inteligência para dano mágico;
@@ -139,6 +147,11 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
 - **Papel:** linha de frente.
 - **Scaling:** Força e Vitalidade.
 - **Caminhos (Monge):** Punhos, Chi, Postura.
+- **Habilidades do Lutador (protótipo):**
+  - **Palma de Ferro** (E / Y): golpe forte com empurrão. 30 de **stamina**, recarga 6 s.
+  - **Foco Interior** (R / R1): cura **12% da vida** e dá **+12% de dano por 6 s** (vale para todo golpe e
+    habilidade; aura azul visível para o grupo). 50 de **mana**, recarga 10 s. A **mana é o limite**, não a
+    recarga: com 100 de mana são 3 usos no ritmo máximo e cada +20 de mana (4 pontos de Sabedoria) dá mais 1.
 
 ## Morte e checkpoint
 

@@ -2,7 +2,7 @@
 -- HUD (só exibe; os valores vêm do servidor por Attributes do Player e do Humanoid).
 -- Canto superior esquerdo (padrão de RPG): nível, barras de vida/stamina/mana/XP, Gold e atributos.
 -- A janela de chat do Roblox, que fica nesse canto por padrão, é movida para o canto inferior esquerdo.
--- Embaixo, no centro: ícones de recarga da esquiva e da Palma de Ferro.
+-- Embaixo, no centro: ícones de recarga da esquiva e das habilidades da classe (e o bônus de dano ativo).
 -- Centro da tela: aviso de "subiu de nível".
 
 local Players: Players = game:GetService("Players")
@@ -19,10 +19,12 @@ local AttributeInfo = require(Shared:WaitForChild("AttributeInfo"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local Combat = require(Balance:WaitForChild("Combat"))
 local Abilities = require(Balance:WaitForChild("Abilities"))
+local Classes = require(Balance:WaitForChild("Classes"))
+local AbilitySlots = require(script.Parent.Parent:WaitForChild("AbilitySlots"))
+local ActionBar = require(script.Parent.Parent:WaitForChild("ActionBar"))
 
 local localPlayer = Players.LocalPlayer
 
-local ABILITY_ID = "IronPalm"
 local PANEL_WIDTH = 260
 local FONT = Enum.Font.GothamBold
 
@@ -37,6 +39,7 @@ local COLORS = {
 	text = Color3.fromRGB(255, 255, 255),
 	cooldown = Color3.fromRGB(0, 0, 0),
 	unavailable = Color3.fromRGB(120, 40, 40),
+	buff = Color3.fromRGB(150, 200, 255),
 }
 
 -- Nomes dos atributos na interface (ordem de exibição).
@@ -59,7 +62,8 @@ local bossFrame: Frame? = nil
 local bossBar: Bar? = nil
 local bossNameLabel: TextLabel? = nil
 local dodgeIcon: CooldownIcon? = nil
-local abilityIcon: CooldownIcon? = nil
+local abilityIcons: { [string]: CooldownIcon } = {} -- por id da habilidade
+local buffLabel: TextLabel? = nil
 local screenGui: ScreenGui? = nil
 
 local function numberAttr(name: string): number
@@ -115,12 +119,12 @@ local function setBar(bar: Bar, current: number, max: number)
 	bar.label.Text = `{math.floor(current)} / {math.floor(max)}`
 end
 
-local function makeCooldownIcon(parent: Instance, x: number, title: string, key: string): CooldownIcon
+local function makeCooldownIcon(parent: Instance, position: UDim2, title: string, key: string): CooldownIcon
 	local frame = Instance.new("Frame")
 	frame.BackgroundColor3 = COLORS.panel
 	frame.BackgroundTransparency = 0.2
-	frame.Size = UDim2.fromOffset(64, 64)
-	frame.Position = UDim2.new(0.5, x, 1, -80)
+	frame.Size = UDim2.fromOffset(ActionBar.iconSize, ActionBar.iconSize)
+	frame.Position = position
 	frame.Parent = parent
 	corner(frame, 10)
 
@@ -203,8 +207,23 @@ local function build()
 	saveWarning.Visible = false
 	saveWarningLabel = saveWarning
 
-	dodgeIcon = makeCooldownIcon(gui, -72, "Esquiva", "Q")
-	abilityIcon = makeCooldownIcon(gui, 8, "Palma", "E")
+	dodgeIcon = makeCooldownIcon(gui, ActionBar.position(1), "Esquiva", "Q")
+	local classDef = Classes.byId[Classes.defaultClassId]
+	for index, abilityId in classDef.abilities do
+		local def = Abilities[abilityId]
+		local slot = AbilitySlots[index]
+		if def and slot then
+			local position = ActionBar.position(ActionBar.abilitySlot(index))
+			abilityIcons[abilityId] = makeCooldownIcon(gui, position, def.shortName, slot.label)
+		end
+	end
+	-- Bônus de dano ativo (ex.: Foco Interior), logo acima da barra de ações.
+	local buffPosition = ActionBar.position(1) + UDim2.fromOffset(0, -24)
+	local buff = makeText(gui, "", UDim2.fromOffset(240, 18), buffPosition, 14)
+	buff.TextColor3 = COLORS.buff
+	buff.TextStrokeTransparency = 0
+	buff.Visible = false
+	buffLabel = buff
 
 	-- Barra do chefe: topo central, escondida até existir um chefe vivo.
 	local boss = Instance.new("Frame")
@@ -289,11 +308,20 @@ local function update()
 		local readyAt = numberAttr(Keys.PlayerAttr.DodgeReadyAt)
 		updateCooldown(dodgeIcon, readyAt, Combat.dodge.cooldown, stamina >= Combat.dodge.staminaCost)
 	end
-	local ability = Abilities[ABILITY_ID]
-	if abilityIcon and ability then
-		local readyAt = numberAttr(Keys.abilityReadyAttr(ABILITY_ID))
-		local resource = if ability.resource == "Stamina" then stamina else numberAttr(Keys.PlayerAttr.Mana)
-		updateCooldown(abilityIcon, readyAt, ability.cooldown, resource >= ability.cost)
+	local mana = numberAttr(Keys.PlayerAttr.Mana)
+	for abilityId, icon in abilityIcons do
+		local ability = Abilities[abilityId]
+		local readyAt = numberAttr(Keys.abilityReadyAttr(abilityId))
+		local resource = if ability.resource == "Stamina" then stamina else mana
+		updateCooldown(icon, readyAt, ability.cooldown, resource >= ability.cost)
+	end
+	if buffLabel then
+		local remaining = numberAttr(Keys.PlayerAttr.DamageBonusUntil) - workspace:GetServerTimeNow()
+		local bonus = numberAttr(Keys.PlayerAttr.DamageBonus)
+		buffLabel.Visible = remaining > 0 and bonus > 0
+		if buffLabel.Visible then
+			buffLabel.Text = `Dano +{math.round(bonus * 100)}% ({math.ceil(remaining)} s)`
+		end
 	end
 end
 
