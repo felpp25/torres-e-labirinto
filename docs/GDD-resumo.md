@@ -14,7 +14,8 @@
   *Protótipo:* mobs 8 XP e 1-3 Gold; boss 1500 XP e 300 Gold por jogador. Uma torre completa leva do nível 1 a
   perto do 10 (teto atual).
 - **Salvamento (DataStore):** uma chave por jogador com **vários personagens** por conta (slots); cada personagem
-  tem classe, nível, XP, atributos e pontos livres. O **Gold é da CONTA**, compartilhado por todos os personagens:
+  tem classe, nível, XP, atributos, pontos livres e os 7 slots de equipamento. O **Gold** e o **baú de
+  equipamentos** (50 espaços) são da **CONTA**, compartilhados por todos os personagens:
   o jogador troca de personagem no lobby para atender o grupo (ex.: o time precisa de um curandeiro) sem recomeçar
   a economia. A **run em andamento não é salva** (sair no
   meio da torre = run nova ao voltar; o que foi ganho fica). Salva ao sair, ao fechar o servidor, a cada 2 min e
@@ -103,7 +104,8 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
   "Equipamentos").
   - **Crítico:** `5% + 0,5% × Sorte`, crítico causa **1,5×** de dano.
   - **Achados raros** (regra única, `Formulas.luckChance`): `chance base × (1 + Sorte / 50)` (a cada 50 pts as
-    chances dobram). Hoje: **Coração**. Futuro: drops de itens, baús, salas secretas.
+    chances dobram). Hoje: **Coração** e **equipamentos** (Raro do item do chefe, drop dos mobs). Futuro: gemas,
+    baús, salas secretas.
   - No coop, os achados usam a **maior Sorte entre os jogadores perto** (ter alguém sortudo ajuda o grupo).
 - **Inteligência** não tem uso para o Lutador (sem dano mágico); o painel não avisa (decisão do designer).
   A **Sabedoria** serve ao Lutador pelo Foco Interior (mais mana = mais usos seguidos).
@@ -114,10 +116,11 @@ Sete atributos, iguais para todas as classes (substituem a lista antiga com Agil
 - **3 pontos de atributo por nível.**
 - **O jogador escolhe em qual atributo colocar cada ponto.** Botão **"distribuir recomendado"**: coloca os pontos
   nos atributos de scaling da classe.
-  - *Implementado:* ao subir de nível os pontos ficam LIVRES; painel de atributos (tecla C / botão X / botão
-    "+N pontos" na tela) com +1 por atributo, prévia do efeito, ★ nos atributos de scaling e botão "Recomendado".
-    O servidor valida cada pedido. Ponto colocado é definitivo (sem reset por enquanto).
-  - Ainda a decidir: se dá para resetar pontos (ex.: item ou Gold).
+  - *Implementado:* ao subir de nível os pontos ficam LIVRES; painel **Personagem**, aba **Atributos** (tecla C /
+    botão X / botão "Personagem" na tela, sempre visível) com +1 por atributo, prévia do efeito, ★ nos atributos de
+    scaling e botão "Recomendado". Mostra o valor distribuído e, em verde, o que o equipamento soma. O servidor
+    valida cada pedido. Para refazer os pontos: **reset na loja** (Gold, ver "Lobby e loja").
+  - O equipamento soma **por fora** dos pontos distribuídos: o reset só devolve os pontos distribuídos.
 
 ## Classes e builds
 
@@ -189,9 +192,15 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     T = Stamina**; botões na tela no celular), com recarga e limite de quantas guardar.
   - **Teclas (decisão do designer):** 1, 2, 3 = habilidades; 4 = ultimate; E, R, T = poções.
   - **Reset de atributos:** devolve todos os pontos para redistribuir; preço cresce com o nível.
+  - **Vender equipamento** (aba Vender): peças do baú (as equipadas não aparecem), Comum 10 e Raro 50 Gold; peça
+    Rara pede um segundo clique para confirmar.
 - *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
 
-## Equipamentos, fortalecimento e gemas (decidido pelo designer, ainda não construído)
+## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapa 1 construída)
+
+*Implementado (etapa 1):* catálogo da Torre 1, baú da conta (50), 7 slots, equipar/trocar no lobby (painel
+Personagem > Equipamento), atributos e Poder do equipamento no combate, item garantido do chefe, drop dos mobs, aviso
+de item novo e venda na loja. Fortalecimento, gemas e Forja ainda não existem.
 
 ### O que o equipamento dá
 - **Pontos nos 7 atributos** (os mesmos do personagem), somados aos pontos distribuídos. As fórmulas não mudam e a
@@ -278,7 +287,13 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
 ### Obtenção
 - **Boss:** **1 item garantido por jogador** (loot individual). **35% de ser Raro** (com a regra de achados da Sorte:
   maior Sorte do grupo por perto); senão Comum.
-- **Mobs:** **0,5% por mob** (com a Sorte), sempre Comum (~0,3 item por run com ~60 mobs).
+  - **Quem tem direito (decisão do designer):** quem entrou na run **antes do andar do chefe**. Quem entra (ou volta
+    pelo portal) já no andar 5 não ganha o item, **nem o XP e o Gold do chefe**, e a Sorte dele não conta no sorteio
+    do Raro (fecha a brecha de sair, vestir peças de Sorte no lobby e voltar só para o chefe). Quem está parado no
+    lobby também não ganha nada do chefe.
+- **Mobs:** **0,5% por mob** (com a Sorte), sempre Comum. Cada participante perto do mob tem o seu sorteio (loot
+  individual). A torre atual tem mais mobs que a estimativa (andar 1 com ~16-18, andar 5 com 30; ~110 por run):
+  ~0,55 item de mob por run jogando solo.
 - O slot e a linha são sorteados; **armas só da classe do personagem**. Nível mínimo dos itens da Torre 1: 1.
 - Ritmo esperado: ~1,3 item por run; 1º Raro por volta da 3ª run; conjunto Comum completo de uma linha ~33 runs;
   conjunto Raro completo ~100 runs (~30 h). Misturar linhas e raridades é o normal no caminho.
@@ -289,7 +304,11 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
 ### Dono: conta + personagem
 - Os itens ficam no **baú da CONTA** (como o Gold), com **50 espaços** (equipados não contam). Cada personagem tem os
   seus 7 slots e equipa a partir do baú.
-- Um item equipado fica **em uso** por um personagem; equipar em outro tira do primeiro.
+- Um item equipado fica **em uso** por um personagem; equipar em outro tira do primeiro (exceto a arma, que não pode
+  deixar o outro personagem sem arma).
+- **Slot de arma nunca fica vazio (decisão do designer):** a arma só é trocada por outra, nunca tirada. A arma inicial
+  só pode ser vendida depois de trocada.
+- **Baú cheio (50/50):** não dá para tirar uma peça (ela não teria onde ficar); trocar continua permitido.
 - **Nível mínimo** em cada item (o da torre em que cai): um personagem novo não herda o equipamento do fim de jogo.
 - **Trocar equipamento só no lobby.** Na run, o item que cai vai para o baú (evita trocar para peças de Sorte na hora
   do drop).
@@ -391,12 +410,14 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     inteiro; ex.: Sorte 300 = chances ×7);
   - nível mínimo para usar cada gema;
   - uma bolsa de gemas (empilhável, fora do baú de 50 espaços) e o que acontece com ela cheia;
-  - quem entra no meio da run sorteia gema (e o item garantido) do chefão?
+  - quem entra no meio da run sorteia gema do chefão? (o item garantido já segue a regra: só quem entrou antes do
+    andar do chefe);
   - o que acontece com a gema encaixada quando o item é vendido ou vira Gold com o baú cheio;
   - a renda de Gold das torres 2 a 10 e os multiplicadores dos modos (as contas usaram hipóteses).
 
 ### Ordem de construção
-1. Baú da conta, 7 slots, equipar e drop do boss (atributos somando).
+1. ~~Baú da conta, 7 slots, equipar e drop do boss (atributos somando).~~ **Feito** (mais o drop dos mobs, a venda
+   na loja e o painel Personagem).
 2. Forja no lobby + fortalecimento.
 3. Gemas: nível 1 e removedores na loja; incrustar, fundir e extrair na Forja (a fusão só tem gemas para fundir
    quando existirem as torres 5+; até lá, testar com um comando do DevService).

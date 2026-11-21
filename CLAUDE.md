@@ -38,11 +38,14 @@ src/
   client/   -> StarterPlayer/StarterPlayerScripts (scripts do cliente)
   shared/   -> ReplicatedStorage/Shared        (módulos usados pelos dois lados)
     Types.luau      tipos compartilhados
-    Balance/        TODOS os números de balanceamento (combate, classes, habilidades, mobs, progressão, andares)
+    Balance/        TODOS os números de balanceamento (combate, classes, habilidades, mobs, progressão, andares,
+                    equipamentos: Balance/Gear)
     Formulas.luau   fórmulas puras (dano, defesa, crítico, XP...): servidor decide, cliente só mostra
     Remotes.luau    RemoteEvents com nome tipado (servidor cria; cliente espera)
+    GearInfo.luau / GearSnapshot.luau  textos das peças e o formato do Attribute GearData (equipamento do jogador)
   server/Main.server.luau   bootstrap: init() de todos os serviços, depois start()
-  server/Services/          um serviço por sistema (combate, inimigos, boss, andares, puzzle, run, vida...)
+  server/Services/          um serviço por sistema (combate, inimigos, boss, andares, puzzle, run, vida,
+                            equipamento = GearService...)
   server/Dungeon/           MazeGenerator (layout puro por seed) e RoomBuilder (peças)
   server/Enemies/           EnemyFactory (modelo greybox) e Telegraph (avisos de ataque e quem é atingido)
   client/Main.client.luau   bootstrap dos controllers (mesmo padrão)
@@ -120,6 +123,11 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `PlayerData`). Precisa de "Enable Studio Access to API Services" ligado (Configurações da Experiência >
   Segurança; já ligado). Sem acesso, o jogo roda "sem salvar" (aviso no HUD) e nunca grava. O personagem de teste
   do Studio agora PERSISTE entre Plays (nível, Gold, atributos). Formato e validação: `server/Data/PlayerSchema`.
+  - Formato **v4**: peças de equipamento da conta (`gear`) + 7 slots por personagem (`equipped`); a migração deu a
+    arma inicial equipada (Lutador: Luvas de Couro). **Não rode commits anteriores ao v4** (antes de `ea69b36`)
+    contra o `PlayerData_Studio`: o código antigo apagaria o equipamento ao carregar.
+  - **Todo campo novo salvo aumenta `PlayerSchema.VERSION`** (mesmo opcional). O servidor que acha dados de versão
+    maior recusa carregar (joga "sem salvar") em vez de apagar o que não conhece.
 - **Ferramentas de teste (DevService, só no Studio):** no datamodel `Server`,
   `game.ServerStorage.DevTools.Invoke:Invoke("SetAttributes", player, { Defense = 100 })` e
   `...:Invoke("DamagePlayer", player, 13.8)` (devolve o dano aplicado) usam os sistemas REAIS do jogo.
@@ -127,6 +135,13 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `"SetUltimate"(player, 0-100)` para testar habilidades.
   Salvamento: `"SaveNow"(player)`, `"ReadStored"("User_<id>")` (JSON cru); testes de trava só em chaves
   `Test_...`: `"WriteStored"`, `"LoadKey"`, `"SaveKey"`, `"SessionId"`.
+  Atributos e dano: `"GetStats"(player)` (distribuídos, equipamento, efetivos, Poder, máximos) e
+  `"DamagePreview"(player, 100)` (dano real de um golpe base 100, sem crítico e sem a Defesa do alvo).
+  Equipamento: `"ListGear"`, `"GiveGear"(player, defId, "Rare")`, `"FillChest"(player, n, defId?, raridade?)`,
+  `"Equip"(player, id)`, `"Unequip"(player, slot)`. Drops: `"SampleDrops"`, `"SampleLoot"`, `"RollBossLoot"`,
+  `"ForceMobDrop"`, `"GoToFloor"(n)` (numa run ativa), `"RejoinRun"`, `"BossEligible"`.
+  **Testes que mexem no personagem: `"SnapshotProfile"(player)` no início e `"RestoreProfile"(player)` +
+  `"SaveNow"` no fim** (devolve Gold, itens, equipamento e atributos; o personagem de teste é o save do usuário).
   Fora do Studio o serviço não faz nada. Novos comandos de teste entram em `COMMANDS` no DevService.
 - `execute_luau` NÃO compartilha os módulos do jogo: `require` de um serviço ali devolve uma cópia nova (estado
   vazio). Para testar, provoque o efeito pelo próprio jogo (ex.: `Humanoid.Health = 0` num mob dispara a
@@ -138,6 +153,11 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   regras, limpe os mobs do andar no início (`Mobs:ClearAllChildren()`): personagens parados morrem entre chamadas.
 - Testes pelo MCP: `character_navigation` leva o personagem; `user_mouse_input`/`user_keyboard_input` simulam o
   jogador; `execute_luau` no datamodel `Server` confere o resultado (vida, posição, Attributes).
+- Cliques do `user_mouse_input`: prefira `instance_path` (ex.: `LocalPlayer.PlayerGui.ShopGui.Panel.SellTab`). As
+  coordenadas x/y não batem com as da `screen_capture` (medido: o clique caiu ~46 px abaixo, na linha seguinte).
+- Luau (verificador de tipos): local SEM anotação alarga união de literais para `string` (ex.: `local slot =
+  def.slot` perde o `EquipSlot`; idem laço `for _, slot in Gear.slots`). Anote: `local slot: Types.EquipSlot = ...`,
+  `for _, slot: Types.EquipSlot in ...`. Módulo que devolve tabela com campos desse tipo: declare o tipo do módulo.
 
 ## Lições de física do Roblox (medidas em playtest)
 
