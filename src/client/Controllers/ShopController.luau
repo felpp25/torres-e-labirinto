@@ -1,7 +1,8 @@
 --!strict
 -- Painel da loja (GDD > Lobby e loja). Abre ao acionar o prompt "Loja" do balcão do lobby
 -- (tecla F / direcional para cima no controle / toque no celular) e fecha sozinho ao se afastar.
--- O cliente só PEDE (BuyItem / ResetAttributes); o servidor valida e responde por ShopResult.
+-- Abas: Comprar (poções e reset de atributos) e Vender (peças de equipamento do baú; as equipadas não aparecem).
+-- O cliente só PEDE (BuyItem / ResetAttributes / SellGear); o servidor valida e responde por ShopResult.
 
 local Players: Players = game:GetService("Players")
 local ProximityPromptService: ProximityPromptService = game:GetService("ProximityPromptService")
@@ -9,18 +10,26 @@ local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage"
 local RunService: RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Balance = Shared:WaitForChild("Balance")
+local Types = require(Shared:WaitForChild("Types"))
 local Keys = require(Shared:WaitForChild("Keys"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
-local Shop = require(Shared:WaitForChild("Balance"):WaitForChild("Shop"))
+local GearInfo = require(Shared:WaitForChild("GearInfo"))
+local GearSnapshot = require(Shared:WaitForChild("GearSnapshot"))
+local Shop = require(Balance:WaitForChild("Shop"))
+local Gear = require(Balance:WaitForChild("Gear"))
 
 local localPlayer = Players.LocalPlayer
 
 local PROMPT_NAME = "ShopPrompt"
 local CLOSE_DISTANCE = Shop.shopRange + 6
-local CONFIRM_WINDOW = 3 -- s: o reset pede um segundo clique para confirmar
+local CONFIRM_WINDOW = 3 -- s: o reset e a venda de peça Rara pedem um segundo clique para confirmar
 local FONT = Enum.Font.GothamBold
 local ROW_HEIGHT = 64
+local SELL_ROW_HEIGHT = 46
 local PANEL_WIDTH = 420
+local HEADER_HEIGHT = 52
+local PANEL_HEIGHT = HEADER_HEIGHT + #Shop.order * ROW_HEIGHT + ROW_HEIGHT + 40
 
 local COLORS = {
 	panel = Color3.fromRGB(20, 20, 28),
@@ -33,18 +42,28 @@ local COLORS = {
 	danger = Color3.fromRGB(190, 70, 60),
 	ok = Color3.fromRGB(120, 255, 140),
 	fail = Color3.fromRGB(255, 110, 110),
+	tabActive = Color3.fromRGB(70, 110, 200),
+	tabIdle = Color3.fromRGB(50, 50, 62),
 }
 
+type Tab = "Buy" | "Sell"
 type ItemRow = { owned: TextLabel, buy: TextButton }
 
 local ShopController = {}
 
 local panel: Frame? = nil
-local titleLabel: TextLabel? = nil
+local goldLabel: TextLabel? = nil
 local messageLabel: TextLabel? = nil
 local resetButton: TextButton? = nil
 local rows: { [string]: ItemRow } = {}
 local resetConfirmUntil = 0
+local tabButtons: { [string]: TextButton } = {}
+local pages: { [string]: Frame } = {}
+local currentTab: Tab = "Buy"
+local sellList: ScrollingFrame? = nil
+local sellButtons: { [number]: TextButton } = {}
+local sellConfirmUntil: { [number]: number } = {}
+local snapshot: Types.GearSnapshot = GearSnapshot.empty()
 
 local function numberAttr(name: string): number
 	local value = localPlayer:GetAttribute(name)
@@ -81,6 +100,15 @@ local function makeButton(parent: Instance, text: string, size: UDim2, position:
 	return button
 end
 
+local function hexColor(color: Color3): string
+	return string.format(
+		"#%02X%02X%02X",
+		math.round(color.R * 255),
+		math.round(color.G * 255),
+		math.round(color.B * 255)
+	)
+end
+
 local function resetPrice(): number
 	return Shop.resetPricePerLevel * math.max(numberAttr(Keys.PlayerAttr.Level), 1)
 end
@@ -91,8 +119,11 @@ local function refresh()
 		return
 	end
 	local gold = numberAttr(Keys.PlayerAttr.Gold)
-	if titleLabel then
-		titleLabel.Text = `Loja  ·  Gold: {gold}`
+	if goldLabel then
+		goldLabel.Text = `Gold: {gold}`
+	end
+	for name, button in tabButtons do
+		button.BackgroundColor3 = if name == currentTab then COLORS.tabActive else COLORS.tabIdle
 	end
 	for itemId, row in rows do
 		local def = Shop.items[itemId]
@@ -106,14 +137,124 @@ local function refresh()
 		resetButton.Text = if confirming then "Confirmar?" else `Resetar ({resetPrice()})`
 		resetButton.BackgroundColor3 = if gold >= resetPrice() then COLORS.danger else COLORS.disabled
 	end
+	local t = os.clock()
+	for id, button in sellButtons do
+		button.Text = if t < (sellConfirmUntil[id] or 0) then "Confirmar?" else "Vender"
+	end
+end
+
+-- Lista de venda: só peças do baú (as equipadas não aparecem), por slot, Rara primeiro, nome e id.
+local function rebuildSellRows()
+	local list = sellList
+	if not list then
+		return
+	end
+	for _, child in list:GetChildren() do
+		if not child:IsA("UIListLayout") then
+			child:Destroy()
+		end
+	end
+	table.clear(sellButtons)
+
+	local chest: { Types.GearEntry } = {}
+	for _, entry in snapshot.gear do
+		if not entry.inUse then
+			table.insert(chest, entry)
+		end
+	end
+	local slotOrder: { [string]: number } = {}
+	for index, slot in Gear.slots do
+		slotOrder[slot] = index
+	end
+	table.sort(chest, function(a: Types.GearEntry, b: Types.GearEntry): boolean
+		local defA, defB = Gear.byId[a.defId], Gear.byId[b.defId]
+		if slotOrder[defA.slot] ~= slotOrder[defB.slot] then
+			return slotOrder[defA.slot] < slotOrder[defB.slot]
+		end
+		if a.rarity ~= b.rarity then
+			return a.rarity == "Rare"
+		end
+		if defA.displayName ~= defB.displayName then
+			return defA.displayName < defB.displayName
+		end
+		return a.id < b.id
+	end)
+
+	if #chest == 0 then
+		local empty = makeText(list, "Nada para vender: o baú está vazio.", UDim2.new(1, -8, 0, 30), UDim2.new(), 13)
+		empty.TextColor3 = COLORS.dim
+		empty.LayoutOrder = 1
+	end
+	for index, entry in chest do
+		local def = Gear.byId[entry.defId]
+		local rarity: Types.Rarity = entry.rarity
+		local price = Gear.sellPrice[rarity] or 0
+		local row = Instance.new("Frame")
+		row.LayoutOrder = index
+		row.Size = UDim2.new(1, -8, 0, SELL_ROW_HEIGHT - 4)
+		row.BackgroundColor3 = COLORS.row
+		row.Parent = list
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = row
+		local title = makeText(
+			row,
+			`<font color="{hexColor(GearInfo.rarityColor(rarity))}">{def.displayName}</font>  ·  {GearInfo.rarityLabel(
+				rarity
+			)}`,
+			UDim2.new(1, -120, 0, 18),
+			UDim2.fromOffset(10, 3),
+			14
+		)
+		title.RichText = true
+		title.TextTruncate = Enum.TextTruncate.AtEnd
+		local detail = makeText(
+			row,
+			`{GearInfo.slotLabel(def.slot)}  ·  {GearInfo.describe(def, rarity)}  ·  {price} Gold`,
+			UDim2.new(1, -120, 0, 14),
+			UDim2.fromOffset(10, 22),
+			11
+		)
+		detail.TextColor3 = COLORS.dim
+		detail.TextTruncate = Enum.TextTruncate.AtEnd
+		local id = entry.id
+		local sell = makeButton(row, "Vender", UDim2.fromOffset(100, 30), UDim2.new(1, -106, 0, 6), COLORS.buy)
+		sell.TextSize = 14
+		sell.Activated:Connect(function()
+			-- Peça Rara vale mais: pede um segundo clique para confirmar.
+			if rarity == "Rare" and os.clock() >= (sellConfirmUntil[id] or 0) then
+				sellConfirmUntil[id] = os.clock() + CONFIRM_WINDOW
+			else
+				sellConfirmUntil[id] = nil
+				Remotes.get("SellGear"):FireServer(id)
+			end
+			refresh()
+		end)
+		sellButtons[id] = sell
+	end
+	refresh()
+end
+
+local function selectTab(tab: Tab)
+	currentTab = tab
+	for name, page in pages do
+		page.Visible = name == tab
+	end
+	if tab == "Sell" then
+		rebuildSellRows()
+	end
+	refresh()
 end
 
 local function setOpen(open: boolean)
 	if panel then
 		panel.Visible = open
 	end
-	if open and messageLabel then
-		messageLabel.Text = ""
+	if open then
+		if messageLabel then
+			messageLabel.Text = ""
+		end
+		selectTab(currentTab)
 	end
 	refresh()
 end
@@ -124,42 +265,13 @@ local function counterPosition(): Vector3?
 	return if counter and counter:IsA("BasePart") then counter.Position else nil
 end
 
-local function build()
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "ShopGui"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 6
-	gui.Parent = localPlayer:WaitForChild("PlayerGui")
-
-	local height = 52 + #Shop.order * ROW_HEIGHT + ROW_HEIGHT + 40
-	local frame = Instance.new("Frame")
-	frame.Name = "Panel"
-	frame.AnchorPoint = Vector2.new(0.5, 0.5)
-	frame.Position = UDim2.fromScale(0.5, 0.5)
-	frame.Size = UDim2.fromOffset(PANEL_WIDTH, height)
-	frame.BackgroundColor3 = COLORS.panel
-	frame.BackgroundTransparency = 0.08
-	frame.Visible = false
-	frame.Parent = gui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = frame
-	panel = frame
-
-	local title = makeText(frame, "Loja", UDim2.new(1, -60, 0, 24), UDim2.fromOffset(14, 12), 18)
-	title.TextColor3 = COLORS.gold
-	titleLabel = title
-	local close = makeButton(frame, "X", UDim2.fromOffset(32, 32), UDim2.new(1, -42, 0, 8), COLORS.disabled)
-	close.Activated:Connect(function()
-		setOpen(false)
-	end)
-
+local function buildBuyPage(page: Frame)
 	local function makeRow(index: number, name: string, description: string): Frame
 		local row = Instance.new("Frame")
-		row.Position = UDim2.fromOffset(10, 52 + (index - 1) * ROW_HEIGHT)
+		row.Position = UDim2.fromOffset(10, HEADER_HEIGHT + (index - 1) * ROW_HEIGHT)
 		row.Size = UDim2.new(1, -20, 0, ROW_HEIGHT - 8)
 		row.BackgroundColor3 = COLORS.row
-		row.Parent = frame
+		row.Parent = page
 		local rowCorner = Instance.new("UICorner")
 		rowCorner.CornerRadius = UDim.new(0, 8)
 		rowCorner.Parent = row
@@ -198,9 +310,114 @@ local function build()
 		refresh()
 	end)
 	resetButton = reset
+end
 
-	local message =
-		makeText(frame, "", UDim2.new(1, -28, 0, 22), UDim2.fromOffset(14, 52 + (#Shop.order + 1) * ROW_HEIGHT + 6), 14)
+local function buildSellPage(page: Frame)
+	local hint = makeText(
+		page,
+		"Equipadas não aparecem aqui (tire no painel Personagem, tecla C)",
+		UDim2.new(1, -28, 0, 14),
+		UDim2.fromOffset(14, HEADER_HEIGHT),
+		11
+	)
+	hint.TextColor3 = COLORS.dim
+	local list = Instance.new("ScrollingFrame")
+	list.Name = "SellList"
+	list.Position = UDim2.fromOffset(10, HEADER_HEIGHT + 20)
+	list.Size = UDim2.new(1, -20, 0, PANEL_HEIGHT - HEADER_HEIGHT - 20 - 40)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 6
+	list.CanvasSize = UDim2.new()
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ScrollingDirection = Enum.ScrollingDirection.Y
+	list.Parent = page
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 4)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = list
+	sellList = list
+end
+
+local function build()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "ShopGui"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 6
+	gui.Parent = localPlayer:WaitForChild("PlayerGui")
+
+	local frame = Instance.new("Frame")
+	frame.Name = "Panel"
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.Position = UDim2.fromScale(0.5, 0.5)
+	frame.Size = UDim2.fromOffset(PANEL_WIDTH, PANEL_HEIGHT)
+	frame.BackgroundColor3 = COLORS.panel
+	frame.BackgroundTransparency = 0.08
+	frame.Visible = false
+	frame.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = frame
+	panel = frame
+
+	-- Telas baixas (celular deitado): o painel encolhe para caber.
+	local scale = Instance.new("UIScale")
+	scale.Parent = frame
+	local function updateScale()
+		local size = gui.AbsoluteSize
+		if size.X <= 0 or size.Y <= 0 then
+			return
+		end
+		scale.Scale = math.clamp(math.min((size.Y - 16) / PANEL_HEIGHT, (size.X - 16) / PANEL_WIDTH), 0.5, 1)
+	end
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateScale)
+	updateScale()
+
+	local buyTab = makeButton(frame, "Comprar", UDim2.fromOffset(110, 32), UDim2.fromOffset(10, 8), COLORS.tabActive)
+	buyTab.Name = "BuyTab"
+	buyTab.Activated:Connect(function()
+		selectTab("Buy")
+	end)
+	local sellTab = makeButton(frame, "Vender", UDim2.fromOffset(110, 32), UDim2.fromOffset(126, 8), COLORS.tabIdle)
+	sellTab.Name = "SellTab"
+	sellTab.Activated:Connect(function()
+		selectTab("Sell")
+	end)
+	tabButtons.Buy = buyTab
+	tabButtons.Sell = sellTab
+
+	local gold = makeText(frame, "Gold: 0", UDim2.fromOffset(120, 32), UDim2.new(1, -170, 0, 8), 16)
+	gold.TextColor3 = COLORS.gold
+	gold.TextXAlignment = Enum.TextXAlignment.Right
+	goldLabel = gold
+	local close = makeButton(frame, "X", UDim2.fromOffset(32, 32), UDim2.new(1, -42, 0, 8), COLORS.disabled)
+	close.Activated:Connect(function()
+		setOpen(false)
+	end)
+
+	local function makePage(name: string): Frame
+		local page = Instance.new("Frame")
+		page.Name = name
+		page.BackgroundTransparency = 1
+		page.Size = UDim2.fromScale(1, 1)
+		page.Parent = frame
+		return page
+	end
+	local buyPage = makePage("BuyPage")
+	local sellPage = makePage("SellPage")
+	sellPage.Visible = false
+	pages.Buy = buyPage
+	pages.Sell = sellPage
+	buildBuyPage(buyPage)
+	buildSellPage(sellPage)
+
+	local message = makeText(
+		frame,
+		"",
+		UDim2.new(1, -28, 0, 22),
+		UDim2.fromOffset(14, HEADER_HEIGHT + (#Shop.order + 1) * ROW_HEIGHT + 6),
+		14
+	)
 	message.Name = "Message"
 	messageLabel = message
 end
@@ -219,6 +436,13 @@ local function onShopResult(payload: unknown)
 	refresh()
 end
 
+local function onGearDataChanged()
+	snapshot = GearSnapshot.decode(localPlayer:GetAttribute(Keys.PlayerAttr.GearData))
+	if panel and panel.Visible and currentTab == "Sell" then
+		rebuildSellRows()
+	end
+end
+
 function ShopController.init()
 	build()
 end
@@ -235,7 +459,9 @@ function ShopController.start()
 			refresh()
 		end
 	end)
-	-- Fecha sozinho ao se afastar do balcão (e atualiza o botão de confirmação do reset).
+	localPlayer:GetAttributeChangedSignal(Keys.PlayerAttr.GearData):Connect(onGearDataChanged)
+	onGearDataChanged()
+	-- Fecha sozinho ao se afastar do balcão (e atualiza os botões de confirmação).
 	RunService.Heartbeat:Connect(function()
 		local frame = panel
 		if not frame or not frame.Visible then
@@ -246,8 +472,21 @@ function ShopController.start()
 		local counter = counterPosition()
 		if root and root:IsA("BasePart") and counter and (root.Position - counter).Magnitude > CLOSE_DISTANCE then
 			setOpen(false)
-		elseif resetConfirmUntil > 0 and os.clock() >= resetConfirmUntil then
+			return
+		end
+		local t = os.clock()
+		local expired = false
+		if resetConfirmUntil > 0 and t >= resetConfirmUntil then
 			resetConfirmUntil = 0
+			expired = true
+		end
+		for id, untilTime in sellConfirmUntil do
+			if t >= untilTime then
+				sellConfirmUntil[id] = nil
+				expired = true
+			end
+		end
+		if expired then
 			refresh()
 		end
 	end)

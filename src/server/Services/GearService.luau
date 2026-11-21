@@ -230,6 +230,31 @@ function GearService.tryUnequip(player: Player, slot: Types.EquipSlot): (boolean
 	return false, nil -- slot já vazio (tela desatualizada)
 end
 
+-- Vende uma peça do BAÚ (a loja já conferiu a distância do balcão). Preço do catálogo, nunca do cliente.
+-- Peça equipada não é vendida (a arma equipada nem pode ser tirada: troque por outra antes).
+function GearService.trySell(player: Player, id: number): (boolean, string)
+	local profile = ProgressionService.getLoadedProfile(player)
+	if not profile then
+		return false, "Aguarde, carregando seus dados"
+	end
+	local found = PlayerSchema.findGear(profile, id)
+	local outcome, piece = PlayerSchema.sell(profile, id)
+	if outcome == "Sold" and piece then
+		local price = Gear.sellPrice[piece.rarity] or 0
+		ProgressionService.addGold(player, price)
+		GearService.publish(player)
+		print(`[Loja] {player.Name} vendeu {nameOf(piece)} (id {id}) por {price} Gold`)
+		return true, `Vendeu {nameOf(piece)} por {price} Gold`
+	elseif outcome == "InUse" then
+		local def = if found then PlayerSchema.defOf(found) else nil
+		if def and def.slot == "Weapon" then
+			return false, "Arma em uso: troque por outra antes de vender"
+		end
+		return false, "Item em uso: tire antes de vender"
+	end
+	return false, "Item não encontrado"
+end
+
 -- Anti-spam por jogador (os pedidos acima do ritmo são ignorados em silêncio).
 local function allowRequest(player: Player): boolean
 	local t = os.clock()

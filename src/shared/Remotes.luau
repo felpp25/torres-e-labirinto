@@ -20,6 +20,8 @@
 --   UnequipGear     cliente -> servidor  (slot: string)            quero tirar a peça deste slot (vai para o baú)
 --   GearResult      servidor -> 1 cliente (GearResultPayload)      resultado de equipar/tirar (painel Personagem)
 --   GearNotice      servidor -> 1 cliente (GearNoticePayload)      ganhou uma peça (ou Gold, com o baú cheio)
+--   SellGear        cliente -> servidor  (gearId: number)          quero vender esta peça do baú (perto da loja;
+--                                                                  resposta em ShopResult)
 -- O equipamento em si (peças da conta e slots) chega pelo Attribute "GearData" do Player (Shared/GearSnapshot).
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -42,6 +44,7 @@ export type RemoteName =
 	| "UnequipGear"
 	| "GearResult"
 	| "GearNotice"
+	| "SellGear"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -80,6 +83,7 @@ local REMOTE_NAMES: { RemoteName } = {
 	"UnequipGear",
 	"GearResult",
 	"GearNotice",
+	"SellGear",
 }
 
 export type GearResultPayload = {
