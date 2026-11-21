@@ -110,6 +110,11 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - `execute_luau` NÃO compartilha os módulos do jogo: `require` de um serviço ali devolve uma cópia nova (estado
   vazio). Para testar, provoque o efeito pelo próprio jogo (ex.: `Humanoid.Health = 0` num mob dispara a
   recompensa real) e leia o resultado por Attributes/instâncias.
+- Teste com 2+ jogadores: o usuário escolhe "Server & Clients" no menu ao lado do Play (barra de cima, à esquerda),
+  2 clientes, Play/F7; "End Session" em qualquer janela fecha tudo (depois voltar o menu para "Test").
+  Pelo MCP cada janela é um `studio_id` (sem nome); `get_studio_state` diz qual tem o foco em `Server` (servidor) e
+  quais em `Client` (jogadores). Rode as chamadas UMA POR VEZ (em paralelo elas se atropelam) e, para testes de
+  regras, limpe os mobs do andar no início (`Mobs:ClearAllChildren()`): personagens parados morrem entre chamadas.
 - Testes pelo MCP: `character_navigation` leva o personagem; `user_mouse_input`/`user_keyboard_input` simulam o
   jogador; `execute_luau` no datamodel `Server` confere o resultado (vida, posição, Attributes).
 
