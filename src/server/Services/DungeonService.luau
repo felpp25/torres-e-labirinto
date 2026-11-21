@@ -1,6 +1,7 @@
 --!strict
--- Andares da run: gera o layout (MazeGenerator), constrói (RoomBuilder), coloca os mobs e leva os jogadores
--- para a entrada. Todos morreram: a run volta ao andar 1 com um labirinto novo (GDD > Morte e checkpoint).
+-- Andares da run: gera o layout (MazeGenerator), constrói (RoomBuilder), coloca os mobs e o puzzle e leva os
+-- jogadores para a entrada. TUDO do andar (layout, mobs, placas) sai da seed: a mesma seed refaz o mesmo andar.
+-- Todos morreram: recomeça o ANDAR ATUAL com a mesma seed (GDD > Morte e checkpoint).
 -- Ligado por Balance/Run.startInDungeon.
 
 local Players: Players = game:GetService("Players")
@@ -27,8 +28,9 @@ local PLAYER_SPAWN_SPACING = 4
 
 local DungeonService = {}
 
-local rng = Random.new()
+local seedRng = Random.new() -- só sorteia a seed de cada andar novo
 local currentFloor = 0
+local currentSeed = 0
 local current: RoomBuilder.BuiltFloor? = nil
 local container: Folder? = nil
 
@@ -55,12 +57,18 @@ local function playerIndex(player: Player): number
 	return table.find(Players:GetPlayers(), player) or 1
 end
 
-local function spawnMobs(built: RoomBuilder.BuiltFloor, layout: Types.FloorLayout, floorNumber: number): number
+local function spawnMobs(
+	built: RoomBuilder.BuiltFloor,
+	layout: Types.FloorLayout,
+	floorNumber: number,
+	rng: Random
+): number
 	local mobsFolder = Instance.new("Folder")
 	mobsFolder.Name = "Mobs"
 	mobsFolder.Parent = built.folder
 
-	local perRoom = Dungeon.mobsPerCombatRoom + Dungeon.extraMobsPerFloor * (floorNumber - 1)
+	local perRoom =
+		Formulas.mobsPerRoom(floorNumber, Dungeon.mobsPerCombatRoom, Dungeon.extraMobsPerStep, Dungeon.floorsPerMobStep)
 	local multiplier = Formulas.floorStatMultiplier(floorNumber, Dungeon.mobStatGrowthPerFloor)
 	local spread = Dungeon.roomSize * Dungeon.mobSpawnSpread
 	local total = 0
@@ -81,26 +89,30 @@ local function spawnMobs(built: RoomBuilder.BuiltFloor, layout: Types.FloorLayou
 	return total
 end
 
--- Gera e constrói o andar `floorNumber` (o anterior é destruído, com os mobs dele) e leva os vivos para a entrada.
-function DungeonService.startFloor(floorNumber: number)
+-- Constrói o andar `floorNumber` (o anterior é destruído, com os mobs dele) e leva os vivos para a entrada.
+-- Sem `seed`: andar novo (seed sorteada). Com `seed`: refaz exatamente aquele andar.
+function DungeonService.startFloor(floorNumber: number, seed: number?)
 	if current then
 		current.folder:Destroy()
 		current = nil
 	end
 
-	local seed = rng:NextInteger(1, 2 ^ 31 - 2)
-	local layout = MazeGenerator.generate(seed, floorNumber, Dungeon)
+	local floorSeed = seed or seedRng:NextInteger(1, 2 ^ 31 - 2)
+	currentSeed = floorSeed
+	local layout = MazeGenerator.generate(floorSeed, floorNumber, Dungeon)
 	local ok, problems = MazeGenerator.validate(layout, Dungeon)
 	if not ok then
-		warn(`[Andar] seed {seed} violou regras: {table.concat(problems, "; ")}`)
+		warn(`[Andar] seed {floorSeed} violou regras: {table.concat(problems, "; ")}`)
 	end
 
 	local built = RoomBuilder.build(layout, Dungeon.floorOrigin, getContainer())
 	current = built
 	currentFloor = floorNumber
 	workspace:SetAttribute(Keys.WorldAttr.FloorNumber, floorNumber)
-	local mobCount = spawnMobs(built, layout, floorNumber)
-	PuzzleService.setup(built.roomCenters[built.puzzle], built.folder)
+	-- Gerador próprio do conteúdo, derivado da seed (separado do do layout): mesmos mobs e placas ao refazer.
+	local contentRng = Random.new(floorSeed + 1)
+	local mobCount = spawnMobs(built, layout, floorNumber, contentRng)
+	PuzzleService.setup(built.roomCenters[built.puzzle], built.folder, contentRng)
 
 	local deadEnds = 0
 	for _, room in layout.rooms do
@@ -108,7 +120,8 @@ function DungeonService.startFloor(floorNumber: number)
 			deadEnds += 1
 		end
 	end
-	print(`[Andar] {floorNumber}: seed {seed}, {#layout.rooms} salas, {deadEnds} becos, {mobCount} mobs`)
+	local action = if seed then "recomeçado" else "gerado"
+	print(`[Andar] {floorNumber} {action}: seed {floorSeed}, {#layout.rooms} salas, {deadEnds} becos, {mobCount} mobs`)
 
 	for _, player in Players:GetPlayers() do
 		if LifeService.isAlive(player) and player.Character then
@@ -160,8 +173,8 @@ function DungeonService.start()
 		return if current then entranceCFrame(playerIndex(player)) else nil
 	end)
 	LifeService.setAllDeadHandler(function()
-		print("[Run] todos morreram: recomeçando do andar 1")
-		DungeonService.startFloor(1)
+		print(`[Run] todos morreram: recomeçando o andar {currentFloor} (mesmo labirinto)`)
+		DungeonService.startFloor(currentFloor, currentSeed)
 		LifeService.respawnAll()
 	end)
 end

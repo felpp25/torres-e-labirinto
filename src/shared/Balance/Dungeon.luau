@@ -21,7 +21,8 @@ local Dungeon = table.freeze({
 	-- Mobs (salas de combate e becos)
 	mobPool = table.freeze({ "Brute" }),
 	mobsPerCombatRoom = 2,
-	extraMobsPerFloor = 1, -- +1 mob por sala de combate a cada andar
+	extraMobsPerStep = 1, -- +1 mob por sala de combate...
+	floorsPerMobStep = 2, -- ...a cada 2 andares (andares 1-2: 2 mobs; 3-4: 3 mobs; ...)
 	mobStatGrowthPerFloor = 0.15, -- +15% de vida e dano por andar
 	mobSpawnSpread = 0.3, -- mobs nascem até esta fração do lado da sala a partir do centro
 

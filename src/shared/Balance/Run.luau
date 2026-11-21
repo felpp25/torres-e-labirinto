@@ -6,7 +6,8 @@ local Run = table.freeze({
 	-- false: modo de treino no lobby (bonecos + onda de mobs), útil para testar só o combate.
 	startInDungeon = true,
 
-	-- Todos morreram antes de concluir o andar: espera este tempo e reinicia a run no andar 1.
+	-- Todos morreram antes de concluir o andar: espera este tempo e recomeça o ANDAR ATUAL
+	-- (mesmo labirinto; mobs e placas voltam ao estado inicial; XP e Gold ganhos ficam).
 	allDeadRestartDelay = 3,
 })
 

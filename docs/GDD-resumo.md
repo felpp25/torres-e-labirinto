@@ -22,8 +22,8 @@
 - *Protótipo:* a sala de Entrada é zona segura para ACORDAR mobs (um mob dormindo não acorda vendo alguém lá
   dentro; um mob já acordado continua perseguindo). Evita emboscada no instante em que o andar começa.
 - *Protótipo:* andares infinitos com dificuldade crescente (o limite de 5 andares + boss vem depois).
-- **Dificuldade por andar:** a cada andar, +1 mob por sala de combate e +15% de vida e dano nos mobs
-  (valores iniciais, ajustáveis).
+- **Dificuldade por andar:** +1 mob por sala de combate **a cada 2 andares** e +15% de vida e dano nos mobs
+  a cada andar (valores iniciais, ajustáveis).
 
 ## Recompensas
 
@@ -96,9 +96,11 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
   - o **checkpoint**: quando um sobrevivente passa pelo checkpoint do andar, todos os mortos do grupo renascem ali.
 - O andar pode ser concluído com **apenas um jogador vivo**.
 - Enquanto está morto, o jogador fica em **modo espectador**: a câmera segue um aliado vivo (com botão para trocar).
-- **Todos morreram antes de concluir o andar:** a run volta ao **andar 1** (labirinto novo), mantendo nível e XP.
+- **Todos morreram antes de concluir o andar:** todos voltam ao **início do andar atual**. O labirinto **não muda**
+  (mesmo layout); mobs e placas voltam ao estado inicial do andar. Nível, XP e Gold ganhos ficam.
+  (Decisão do designer, substitui o "perde a run / volta ao andar 1" da versão anterior deste resumo.)
 - **No checkpoint**, vida e mana voltam ao máximo antes do próximo andar.
-- Versão completa: perder a run custa os itens da run, mas mantém nível e XP.
+- Ainda a definir: se morrer custa algo (itens da run, Gold) agora que não se perde mais a run.
 
 ## Regra técnica
 

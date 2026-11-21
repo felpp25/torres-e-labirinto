@@ -28,7 +28,6 @@ type Puzzle = {
 
 local PuzzleService = {}
 
-local rng = Random.new()
 local current: Puzzle? = nil
 local onExitReached: (player: Player) -> () = function(_: Player) end
 
@@ -153,7 +152,8 @@ local function check(puzzle: Puzzle)
 end
 
 -- Cria placas e saída na sala do puzzle. `center` = centro do piso da sala (altura do topo do piso).
-function PuzzleService.setup(center: Vector3, parent: Instance)
+-- `rng` vem da seed do andar: refazer o andar recria as mesmas placas nos mesmos cantos.
+function PuzzleService.setup(center: Vector3, parent: Instance, rng: Random)
 	local folder = Instance.new("Folder")
 	folder.Name = "Puzzle"
 	folder.Parent = parent

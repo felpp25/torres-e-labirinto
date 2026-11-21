@@ -152,6 +152,13 @@ function Formulas.chooseAimDirection(
 	return best or flatFacing
 end
 
+-- Mobs por sala de combate no andar N: base + extra a cada `floorsPerStep` andares
+-- (base 2, extra 1, a cada 2: andares 1-2 = 2, 3-4 = 3, 5-6 = 4...).
+function Formulas.mobsPerRoom(floorNumber: number, base: number, extraPerStep: number, floorsPerStep: number): number
+	local steps = math.floor((math.max(floorNumber, 1) - 1) / math.max(floorsPerStep, 1))
+	return base + extraPerStep * steps
+end
+
 -- Multiplicador de vida e dano dos mobs no andar N (andar 1 = 1,0).
 function Formulas.floorStatMultiplier(floorNumber: number, growthPerFloor: number): number
 	return 1 + growthPerFloor * (math.max(floorNumber, 1) - 1)

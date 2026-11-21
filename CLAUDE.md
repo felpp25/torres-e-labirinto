@@ -100,6 +100,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - O `rojo serve` 7.7.1 pode travar no Windows ao substituir um arquivo inteiro (`Rojo crashed! ... NotFound ...
   change_processor.rs`). Sintoma: arquivos novos não aparecem no Studio. Solução: reiniciar o `rojo serve` e clicar
   de novo em Rojo > Connect no Studio (o plugin não reconecta sozinho).
+- Antes de um teste, confira o modo com `list_roblox_studios`: se o Studio já estiver em Play (sobra de um teste
+  anterior), `start_stop_play(true)` não reinicia e o teste roda o código ANTIGO. Pare primeiro.
 - Antes de dar Play depois de mudar arquivos (inclusive depois do `stylua src`, que reescreve arquivos), confira
   que o Rojo já sincronizou: `execute_luau` no datamodel `Edit` procurando um trecho novo no `.Source` do script.
   Um Play iniciado antes da sincronização roda a versão antiga (aconteceu no M4: HUD "sumido").
