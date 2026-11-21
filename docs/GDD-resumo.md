@@ -17,6 +17,11 @@
   da entrada até a sala do puzzle.
 - Um **puzzle simples (30 a 90 s)** abre a escada (o **checkpoint**) para o próximo andar.
 - **Todo puzzle precisa de versão solo.**
+- *Protótipo:* puzzle de 2 a 3 placas de pressão na sala do Puzzle; cada placa fica ativada depois de pisada
+  (solo: uma por vez; grupo: cada um pisa uma). Todas ativas = a saída (escada) abre; pisar nela = checkpoint.
+- *Protótipo:* a sala de Entrada é zona segura para ACORDAR mobs (um mob dormindo não acorda vendo alguém lá
+  dentro; um mob já acordado continua perseguindo). Evita emboscada no instante em que o andar começa.
+- *Protótipo:* andares infinitos com dificuldade crescente (o limite de 5 andares + boss vem depois).
 - **Dificuldade por andar:** a cada andar, +1 mob por sala de combate e +15% de vida e dano nos mobs
   (valores iniciais, ajustáveis).
 

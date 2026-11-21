@@ -58,6 +58,7 @@ local bars: { [string]: Bar } = {}
 local levelLabel: TextLabel? = nil
 local goldLabel: TextLabel? = nil
 local statsLabel: TextLabel? = nil
+local floorLabel: TextLabel? = nil
 local dodgeIcon: CooldownIcon? = nil
 local abilityIcon: CooldownIcon? = nil
 local screenGui: ScreenGui? = nil
@@ -165,7 +166,7 @@ local function build()
 	panel.BackgroundColor3 = COLORS.panel
 	panel.BackgroundTransparency = 0.25
 	panel.Position = UDim2.fromOffset(12, 8)
-	panel.Size = UDim2.fromOffset(PANEL_WIDTH, 112)
+	panel.Size = UDim2.fromOffset(PANEL_WIDTH, 134)
 	panel.Parent = gui
 	corner(panel, 10)
 
@@ -190,6 +191,7 @@ local function build()
 	gold.TextColor3 = COLORS.gold
 	goldLabel = gold
 	statsLabel = makeText(panel, "", UDim2.new(1, -16, 0, 14), UDim2.fromOffset(8, 94), 11)
+	floorLabel = makeText(panel, "", UDim2.new(1, -16, 0, 16), UDim2.fromOffset(8, 112), 13)
 
 	dodgeIcon = makeCooldownIcon(gui, -72, "Esquiva", "Q")
 	abilityIcon = makeCooldownIcon(gui, 8, "Palma", "E")
@@ -217,6 +219,18 @@ local function update()
 	if goldLabel then
 		goldLabel.Text = `Gold: {numberAttr(Keys.PlayerAttr.Gold)}`
 	end
+	if floorLabel then
+		local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)
+		if typeof(floorNumber) == "number" then
+			local active = workspace:GetAttribute(Keys.WorldAttr.PlatesActive)
+			local total = workspace:GetAttribute(Keys.WorldAttr.PlatesTotal)
+			local exitOpen = workspace:GetAttribute(Keys.WorldAttr.ExitOpen) == true
+			local puzzle = if exitOpen then "Saída aberta!" else `Placas {active or 0}/{total or 0}`
+			floorLabel.Text = `Andar {floorNumber}  ·  {puzzle}`
+		else
+			floorLabel.Text = "Lobby"
+		end
+	end
 	if statsLabel then
 		local parts: { string } = {}
 		for _, stat in STAT_LABELS do
@@ -238,6 +252,28 @@ local function update()
 	end
 end
 
+-- Aviso grande no centro da tela que some sozinho (subiu de nível, andar novo).
+local function showToast(title: string, detailText: string, color: Color3, heightScale: number)
+	local gui = screenGui
+	if not gui then
+		return
+	end
+	local toast = makeText(gui, title, UDim2.fromOffset(500, 50), UDim2.new(0.5, -250, heightScale, 0), 40)
+	toast.TextXAlignment = Enum.TextXAlignment.Center
+	toast.TextColor3 = color
+	toast.TextStrokeTransparency = 0
+	local detail = makeText(toast, detailText, UDim2.new(1, 0, 0, 24), UDim2.fromOffset(0, 50), 20)
+	detail.TextXAlignment = Enum.TextXAlignment.Center
+
+	task.delay(1.8, function()
+		local info = TweenInfo.new(0.6)
+		TweenService:Create(toast, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		TweenService:Create(detail, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		task.wait(0.7)
+		toast:Destroy()
+	end)
+end
+
 local function showLevelUp(payload: unknown)
 	if typeof(payload) ~= "table" or not screenGui then
 		return
@@ -254,26 +290,14 @@ local function showLevelUp(payload: unknown)
 		end
 	end
 
-	local toast = makeText(
-		screenGui :: ScreenGui,
-		`NÍVEL {data.level}!`,
-		UDim2.fromOffset(400, 50),
-		UDim2.new(0.5, -200, 0.22, 0),
-		40
-	)
-	toast.TextXAlignment = Enum.TextXAlignment.Center
-	toast.TextColor3 = COLORS.gold
-	toast.TextStrokeTransparency = 0
-	local detail = makeText(toast, table.concat(gainParts, "   "), UDim2.new(1, 0, 0, 24), UDim2.fromOffset(0, 50), 20)
-	detail.TextXAlignment = Enum.TextXAlignment.Center
+	showToast(`NÍVEL {data.level}!`, table.concat(gainParts, "   "), COLORS.gold, 0.22)
+end
 
-	task.delay(1.5, function()
-		local info = TweenInfo.new(0.6)
-		TweenService:Create(toast, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-		TweenService:Create(detail, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-		task.wait(0.7)
-		toast:Destroy()
-	end)
+local function onFloorChanged()
+	local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)
+	if typeof(floorNumber) == "number" then
+		showToast(`ANDAR {floorNumber}`, "Ative as placas na sala azul para abrir a saída", COLORS.text, 0.32)
+	end
 end
 
 -- A barra de vida padrão do Roblox some: a do HUD a substitui. SetCoreGuiEnabled pode falhar se chamado
@@ -309,6 +333,8 @@ function HudController.start()
 	task.spawn(hideDefaultHealthBar)
 	task.spawn(moveChatWindow)
 	Remotes.get("LevelUp").OnClientEvent:Connect(showLevelUp)
+	workspace:GetAttributeChangedSignal(Keys.WorldAttr.FloorNumber):Connect(onFloorChanged)
+	onFloorChanged()
 	RunService.Heartbeat:Connect(update)
 end
 

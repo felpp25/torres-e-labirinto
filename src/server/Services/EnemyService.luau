@@ -44,6 +44,9 @@ local INDICATOR_TRANSPARENCY = 0.55
 local EnemyService = {}
 
 local rng = Random.new()
+local isWakeSafe: (position: Vector3) -> boolean = function(_: Vector3): boolean
+	return false
+end
 
 local function aliveCharacterRoots(): { [Player]: BasePart }
 	local result: { [Player]: BasePart } = {}
@@ -75,7 +78,8 @@ local function nearestTarget(enemy: Enemy): BasePart?
 	local bestDistance = maxDistance
 	for _, root in aliveCharacterRoots() do
 		local distance = (root.Position - enemy.root.Position).Magnitude
-		if distance <= bestDistance and (enemy.aggroed or hasLineOfSight(enemy.root.Position, root.Position)) then
+		local canWake = not isWakeSafe(root.Position) and hasLineOfSight(enemy.root.Position, root.Position)
+		if distance <= bestDistance and (enemy.aggroed or canWake) then
 			best = root
 			bestDistance = distance
 		end
@@ -292,6 +296,12 @@ function EnemyService.spawn(def: Types.MobDef, cframe: CFrame, statMultiplier: n
 	end)
 	task.spawn(runAI, enemy)
 	return model
+end
+
+-- Zona segura para ACORDAR mobs (ex.: a sala de Entrada do andar): um jogador ali não acorda mobs dormindo,
+-- mas mobs já acordados continuam perseguindo. Evita emboscada no instante em que o jogador nasce.
+function EnemyService.setWakeSafeZone(predicate: (position: Vector3) -> boolean)
+	isWakeSafe = predicate
 end
 
 function EnemyService.init() end

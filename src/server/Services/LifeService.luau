@@ -5,7 +5,7 @@
 -- - se todos morrem, chama o handler de "todos mortos" depois de um tempo
 --   (padrão: renasce todo mundo; o DungeonService troca por "reiniciar a run no andar 1");
 -- - onde nascer vem do "spawn provider" (o DungeonService aponta para a entrada do andar atual);
--- - reviveDeadAt(cframe): usado pelo checkpoint para trazer os mortos de volta.
+-- - reviveDead(): usado pelo checkpoint para trazer os mortos de volta.
 
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -60,8 +60,8 @@ function LifeService.setAllDeadHandler(handler: () -> ())
 	allDeadHandler = handler
 end
 
--- Traz de volta só quem está morto, na posição indicada (checkpoint).
-function LifeService.reviveDeadAt(cframe: CFrame)
+-- Traz de volta só quem está morto (checkpoint), na posição indicada ou, sem ela, no spawn provider.
+function LifeService.reviveDead(cframe: CFrame?)
 	for _, player in Players:GetPlayers() do
 		if not LifeService.isAlive(player) then
 			task.spawn(spawnPlayer, player, cframe)

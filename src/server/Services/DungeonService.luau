@@ -9,14 +9,18 @@ local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage"
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Formulas = require(Shared.Formulas)
+local Keys = require(Shared.Keys)
 local Dungeon = require(Shared.Balance.Dungeon)
 local Mobs = require(Shared.Balance.Mobs)
 local Run = require(Shared.Balance.Run)
 
 local MazeGenerator = require(script.Parent.Parent.Dungeon.MazeGenerator)
 local RoomBuilder = require(script.Parent.Parent.Dungeon.RoomBuilder)
+local CombatService = require(script.Parent.CombatService)
 local EnemyService = require(script.Parent.EnemyService)
 local LifeService = require(script.Parent.LifeService)
+local ProgressionService = require(script.Parent.ProgressionService)
+local PuzzleService = require(script.Parent.PuzzleService)
 
 local SPAWN_HEIGHT = 4 -- studs acima do piso
 local PLAYER_SPAWN_SPACING = 4
@@ -94,8 +98,9 @@ function DungeonService.startFloor(floorNumber: number)
 	local built = RoomBuilder.build(layout, Dungeon.floorOrigin, getContainer())
 	current = built
 	currentFloor = floorNumber
-	workspace:SetAttribute("FloorNumber", floorNumber)
+	workspace:SetAttribute(Keys.WorldAttr.FloorNumber, floorNumber)
 	local mobCount = spawnMobs(built, layout, floorNumber)
+	PuzzleService.setup(built.roomCenters[built.puzzle], built.folder)
 
 	local deadEnds = 0
 	for _, room in layout.rooms do
@@ -116,7 +121,35 @@ function DungeonService.getCurrentFloor(): number
 	return currentFloor
 end
 
-function DungeonService.init() end
+-- Checkpoint (GDD > Morte e checkpoint): um jogador vivo passou pela saída aberta.
+-- Próximo andar (mais difícil); os mortos do grupo renascem na entrada; vida, mana e stamina cheias para todos.
+local function onCheckpoint(player: Player)
+	print(`[Andar] {currentFloor} concluído por {player.Name}`)
+	DungeonService.startFloor(currentFloor + 1)
+	LifeService.reviveDead(nil) -- nasce pelo spawn provider: entrada do andar novo
+	for _, member in Players:GetPlayers() do
+		if LifeService.isAlive(member) then
+			ProgressionService.restoreHealth(member)
+			CombatService.restoreResources(member)
+		end
+	end
+end
+
+-- Está dentro da sala de Entrada do andar atual? (zona segura para acordar mobs)
+local function isInEntrance(position: Vector3): boolean
+	local built = current
+	if not built then
+		return false
+	end
+	local center = built.roomCenters[built.entrance]
+	local half = Dungeon.roomSize / 2
+	return math.abs(position.X - center.X) <= half and math.abs(position.Z - center.Z) <= half
+end
+
+function DungeonService.init()
+	PuzzleService.setExitHandler(onCheckpoint)
+	EnemyService.setWakeSafeZone(isInEntrance)
+end
 
 function DungeonService.start()
 	if not Run.startInDungeon then

@@ -23,6 +23,14 @@ Keys.PlayerAttr = table.freeze({
 	Gold = "Gold",
 })
 
+-- Attributes do workspace (estado do andar, definidos SÓ pelo servidor; o HUD lê).
+Keys.WorldAttr = table.freeze({
+	FloorNumber = "FloorNumber",
+	PlatesActive = "PlatesActive",
+	PlatesTotal = "PlatesTotal",
+	ExitOpen = "ExitOpen",
+})
+
 function Keys.abilityReadyAttr(abilityId: string): string
 	return `AbilityReadyAt_{abilityId}`
 end

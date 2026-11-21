@@ -28,6 +28,10 @@ local Dungeon = table.freeze({
 	-- Puzzle de placas de pressão (ficam ativadas depois de pisadas; funciona solo e em grupo)
 	minPlates = 2,
 	maxPlates = 3,
+	plateSize = 6, -- lado da placa (studs)
+	plateCornerOffset = 14, -- distância do centro da sala até cada placa, nos eixos X e Z
+	exitSize = 8, -- lado da saída (escada) no centro da sala do puzzle
+	puzzleCheckInterval = 0.15, -- s entre verificações de quem está pisando nas placas/saída
 
 	-- Onde os andares são construídos: longe do lobby (os mobs do andar não enxergam o lobby e vice-versa)
 	floorOrigin = Vector3.new(1000, 50, 0),

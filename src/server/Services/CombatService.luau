@@ -304,6 +304,19 @@ local function onPlayerAdded(player: Player)
 	end)
 end
 
+-- Stamina e mana cheias (checkpoint).
+function CombatService.restoreResources(player: Player)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local classDef = ProgressionService.getClass(player)
+	local attributes = ProgressionService.getAttributes(player)
+	state.stamina = Formulas.maxStamina(classDef, attributes)
+	state.mana = Formulas.maxMana(classDef, attributes)
+	replicateResources(player, state, state.stamina, state.mana)
+end
+
 -- Usado por quem causa dano ao jogador (mobs, M3): durante a esquiva o jogador não toma dano.
 function CombatService.isInvulnerable(player: Player): boolean
 	local state = states[player]
