@@ -337,7 +337,7 @@ local function onRunChanged()
 	local previous = lastRunNumber
 	lastRunNumber = runNumber
 	if previous ~= nil and runNumber > previous then
-		showToast("GAME OVER", "Você perdeu o que ganhou nesta run. A torre recomeçou.", COLORS.health, 0.32)
+		showToast("GAME OVER", "A torre recomeçou do andar 1. Seu XP e Gold foram mantidos.", COLORS.health, 0.32)
 	end
 end
 

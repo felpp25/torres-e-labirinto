@@ -7,8 +7,11 @@
 
 - **Nível, atributos, XP e Gold são GLOBAIS** (da conta, acumulam entre runs; salvos em DataStore no jogo final).
 - **Cada torre (run) exige um nível mínimo** para entrar (ex.: Torre 1 livre, Torre 2 a partir do nível 10).
-- **Torre concluída:** tudo o que foi ganho na run fica. **Game over:** perde só o que foi ganho NESTA run
-  (XP, níveis, pontos, Gold) e volta a como estava antes de entrar.
+- **XP, níveis e Gold ganhos NUNCA se perdem**: nem no game over, nem saindo da run por conta própria.
+  O que se perde no game over é a tentativa (a torre recomeça do andar 1) e o prêmio do boss.
+- **Recompensas: mobs dão pouco, o boss dá o grosso** (XP, Gold e drops). Meta a definir quando o boss existir
+  (ex.: ~30% do XP da run nos mobs e ~70% no boss). Evita farm de mobs e faz do boss o objetivo da run.
+  *Protótipo (sem boss):* os mobs ainda dão a recompensa atual; rebalancear junto com o boss.
 - *Protótipo:* uma torre só, andares infinitos, progresso global só na memória do servidor (sem DataStore) e sem
   exigência de nível. Teto de nível 10 (vai subir quando houver mais torres).
 
@@ -16,7 +19,9 @@
 
 - **3 vidas do GRUPO por run.** Morrer com aliado vivo não gasta vida (espera o checkpoint).
   **Wipe** (todos mortos) gasta 1 vida e recomeça o andar atual.
-- **Sem vidas: game over** (ver acima) e a torre recomeça do andar 1 com labirinto novo.
+- **Sem vidas: game over**: a torre recomeça do andar 1 com labirinto novo (XP e Gold ficam, ver acima).
+- **Vida extra comprada** (Developer Product, no futuro): com limite por run (ex.: 1), para não virar
+  "pague para não perder" perto do boss. O Coração continua como alternativa grátis.
 - **Coração:** item raro dropado por mobs, devolve 1 vida (máximo 3). Chance base **0,1% por mob**; no futuro a
   Sorte aumenta essa chance.
 
