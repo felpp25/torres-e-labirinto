@@ -55,6 +55,46 @@ function CombatFeedbackController.playSwing(
 	Debris:AddItem(part, SWING_FADE_TIME + 0.05)
 end
 
+-- Golpe em círculo (Chute Giratório): disco brilhante no chão em volta do personagem.
+function CombatFeedbackController.playSpin(root: BasePart, radius: number)
+	local part = Instance.new("Part")
+	part.Shape = Enum.PartType.Cylinder
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Material = Enum.Material.Neon
+	part.Color = FINISHER_COLOR
+	-- O eixo do cilindro é o X: deitado (girado 90° em Z), vira um disco no chão.
+	part.Size = Vector3.new(0.2, radius * 2, radius * 2)
+	part.CFrame = CFrame.new(root.Position - Vector3.new(0, 1, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	part.Transparency = 0.5
+	part.Parent = workspace
+	TweenService:Create(part, TweenInfo.new(SWING_FADE_TIME * 2), { Transparency = 1 }):Play()
+	Debris:AddItem(part, SWING_FADE_TIME * 2 + 0.05)
+end
+
+-- Sequência de golpes (Rajada de Cem Punhos): um rastro por golpe; o último é o grande.
+function CombatFeedbackController.playBarrage(
+	root: BasePart,
+	direction: Vector3,
+	range: number,
+	width: number,
+	hits: number,
+	interval: number
+)
+	task.spawn(function()
+		for i = 1, hits do
+			if not root.Parent then
+				return
+			end
+			CombatFeedbackController.playSwing(root, direction, range, width, i == hits)
+			task.wait(interval)
+		end
+	end)
+end
+
 -- Personagem fica semitransparente durante a invencibilidade da esquiva.
 function CombatFeedbackController.playDodge(character: Model, duration: number)
 	local parts: { BasePart } = {}

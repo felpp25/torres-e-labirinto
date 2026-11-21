@@ -77,9 +77,9 @@ local function build()
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = Shop.shopRange - 2
 	prompt.RequiresLineOfSight = false
-	-- Teclas que não conflitam com o combate (E = Palma de Ferro; X no controle = painel de atributos).
+	-- Teclas que não conflitam com o combate (E = Poção de Vida; X no controle = painel de atributos).
 	prompt.KeyboardKeyCode = Enum.KeyCode.F
-	prompt.GamepadKeyCode = Enum.KeyCode.ButtonL1
+	prompt.GamepadKeyCode = Enum.KeyCode.DPadUp -- L1 é a ultimate
 	prompt.Parent = counter
 
 	-- Portal da torre

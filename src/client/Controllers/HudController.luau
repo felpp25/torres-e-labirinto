@@ -20,7 +20,7 @@ local Remotes = require(Shared:WaitForChild("Remotes"))
 local Combat = require(Balance:WaitForChild("Combat"))
 local Abilities = require(Balance:WaitForChild("Abilities"))
 local Classes = require(Balance:WaitForChild("Classes"))
-local AbilitySlots = require(script.Parent.Parent:WaitForChild("AbilitySlots"))
+local Hotkeys = require(script.Parent.Parent:WaitForChild("Hotkeys"))
 local ActionBar = require(script.Parent.Parent:WaitForChild("ActionBar"))
 
 local localPlayer = Players.LocalPlayer
@@ -40,6 +40,7 @@ local COLORS = {
 	cooldown = Color3.fromRGB(0, 0, 0),
 	unavailable = Color3.fromRGB(120, 40, 40),
 	buff = Color3.fromRGB(150, 200, 255),
+	ultimateReady = Color3.fromRGB(200, 150, 30),
 }
 
 -- Nomes dos atributos na interface (ordem de exibição).
@@ -63,6 +64,7 @@ local bossBar: Bar? = nil
 local bossNameLabel: TextLabel? = nil
 local dodgeIcon: CooldownIcon? = nil
 local abilityIcons: { [string]: CooldownIcon } = {} -- por id da habilidade
+local ultimateIcon: CooldownIcon? = nil
 local buffLabel: TextLabel? = nil
 local screenGui: ScreenGui? = nil
 
@@ -211,11 +213,16 @@ local function build()
 	local classDef = Classes.byId[Classes.defaultClassId]
 	for index, abilityId in classDef.abilities do
 		local def = Abilities[abilityId]
-		local slot = AbilitySlots[index]
+		local slot = Hotkeys.abilities[index]
 		if def and slot then
 			local position = ActionBar.position(ActionBar.abilitySlot(index))
 			abilityIcons[abilityId] = makeCooldownIcon(gui, position, def.shortName, slot.label)
 		end
+	end
+	local ultimateDef = Abilities[classDef.ultimate]
+	if ultimateDef then
+		local position = ActionBar.position(ActionBar.ultimateSlot())
+		ultimateIcon = makeCooldownIcon(gui, position, ultimateDef.shortName, Hotkeys.ultimate.label)
 	end
 	-- Bônus de dano ativo (ex.: Foco Interior), logo acima da barra de ações.
 	local buffPosition = ActionBar.position(1) + UDim2.fromOffset(0, -24)
@@ -308,12 +315,20 @@ local function update()
 		local readyAt = numberAttr(Keys.PlayerAttr.DodgeReadyAt)
 		updateCooldown(dodgeIcon, readyAt, Combat.dodge.cooldown, stamina >= Combat.dodge.staminaCost)
 	end
-	local mana = numberAttr(Keys.PlayerAttr.Mana)
 	for abilityId, icon in abilityIcons do
 		local ability = Abilities[abilityId]
 		local readyAt = numberAttr(Keys.abilityReadyAttr(abilityId))
-		local resource = if ability.resource == "Stamina" then stamina else mana
-		updateCooldown(icon, readyAt, ability.cooldown, resource >= ability.cost)
+		local affordable = numberAttr(Keys.resourceAttr(ability.resource)) >= ability.cost
+		updateCooldown(icon, readyAt, ability.cooldown, affordable)
+	end
+	-- Ultimate: a cortina escura cobre a parte da barra que falta encher; cheia, o ícone fica dourado.
+	local ultimate = Abilities[Classes.byId[Classes.defaultClassId].ultimate]
+	if ultimateIcon and ultimate then
+		local charge = numberAttr(Keys.PlayerAttr.UltimateCharge)
+		local ready = charge >= ultimate.cost
+		ultimateIcon.overlay.Size = UDim2.fromScale(1, 1 - math.clamp(charge / ultimate.cost, 0, 1))
+		ultimateIcon.timer.Text = if ready then "" else `{charge}%`
+		ultimateIcon.frame.BackgroundColor3 = if ready then COLORS.ultimateReady else COLORS.panel
 	end
 	if buffLabel then
 		local remaining = numberAttr(Keys.PlayerAttr.DamageBonusUntil) - workspace:GetServerTimeNow()

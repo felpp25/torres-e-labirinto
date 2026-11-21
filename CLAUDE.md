@@ -123,7 +123,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - **Ferramentas de teste (DevService, só no Studio):** no datamodel `Server`,
   `game.ServerStorage.DevTools.Invoke:Invoke("SetAttributes", player, { Defense = 100 })` e
   `...:Invoke("DamagePlayer", player, 13.8)` (devolve o dano aplicado) usam os sistemas REAIS do jogo.
-  `"GiveGold"(player, n)` para testar a loja.
+  `"GiveGold"(player, n)` para testar a loja; `"SetResource"(player, "Stamina"|"Mana", n)` e
+  `"SetUltimate"(player, 0-100)` para testar habilidades.
   Salvamento: `"SaveNow"(player)`, `"ReadStored"("User_<id>")` (JSON cru); testes de trava só em chaves
   `Test_...`: `"WriteStored"`, `"LoadKey"`, `"SaveKey"`, `"SessionId"`.
   Fora do Studio o serviço não faz nada. Novos comandos de teste entram em `COMMANDS` no DevService.

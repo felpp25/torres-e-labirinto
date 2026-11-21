@@ -31,6 +31,8 @@ type CombatState = {
 	lastStaminaUseAt: number,
 	damageBonus: number, -- bônus de dano ativo (0,12 = +12%), ex.: Foco Interior
 	damageBonusUntil: number,
+	ultimateCharge: number, -- barra de ultimate, 0 a ULTIMATE_MAX
+	channelUntil: number, -- até quando está preso numa sequência de golpes (Rajada): sem andar, atacar ou esquivar
 }
 
 local RESOURCE_TICK = 0.1 -- s entre atualizações de regeneração
@@ -39,6 +41,7 @@ local MAX_ABILITY_ID_LENGTH = 32
 local AURA_NAME = "DamageBonusAura"
 local AURA_FILL = Color3.fromRGB(90, 160, 255)
 local AURA_OUTLINE = Color3.fromRGB(170, 210, 255)
+local ULTIMATE_MAX = 100
 
 local CombatService = {}
 
@@ -65,7 +68,26 @@ local function newState(player: Player): CombatState
 		lastStaminaUseAt = 0,
 		damageBonus = 0,
 		damageBonusUntil = 0,
+		ultimateCharge = 0,
+		channelUntil = 0,
 	}
+end
+
+local function replicateUltimate(player: Player, state: CombatState)
+	local shown = math.floor(state.ultimateCharge)
+	if player:GetAttribute(Keys.PlayerAttr.UltimateCharge) ~= shown then
+		player:SetAttribute(Keys.PlayerAttr.UltimateCharge, shown)
+	end
+end
+
+-- Soma carga na barra de ultimate (dano causado ou recebido) e replica para o HUD.
+local function addUltimateCharge(player: Player, amount: number)
+	local state = states[player]
+	if not state or amount <= 0 then
+		return
+	end
+	state.ultimateCharge = math.min(ULTIMATE_MAX, state.ultimateCharge + amount)
+	replicateUltimate(player, state)
 end
 
 local function setIfChanged(player: Player, name: string, value: number)
@@ -130,16 +152,15 @@ local function aimDirection(root: BasePart, range: number): Vector3
 	return Formulas.chooseAimDirection(root.Position, root.CFrame.LookVector, positions, range, Combat.aimAssistAngle)
 end
 
--- Inimigos vivos dentro da caixa à frente do personagem (na direção `direction`).
-local function queryEnemies(root: BasePart, direction: Vector3, range: number, width: number): { Model }
+local function enemyOverlapParams(): OverlapParams
 	local params = OverlapParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = CollectionService:GetTagged(Keys.Tags.Enemy)
+	return params
+end
 
-	local origin = root.Position
-	local boxCFrame = CFrame.lookAt(origin, origin + direction) * CFrame.new(0, 0, -range / 2)
-	local parts = workspace:GetPartBoundsInBox(boxCFrame, Vector3.new(width, Combat.hitboxHeight, range), params)
-
+-- Um inimigo por modelo (várias peças do mesmo mob podem estar na área).
+local function enemiesFromParts(parts: { BasePart }): { Model }
 	local found: { Model } = {}
 	local seen: { [Model]: boolean } = {}
 	for _, part in parts do
@@ -150,6 +171,19 @@ local function queryEnemies(root: BasePart, direction: Vector3, range: number, w
 		end
 	end
 	return found
+end
+
+-- Inimigos vivos dentro da caixa à frente do personagem (na direção `direction`).
+local function queryEnemies(root: BasePart, direction: Vector3, range: number, width: number): { Model }
+	local origin = root.Position
+	local boxCFrame = CFrame.lookAt(origin, origin + direction) * CFrame.new(0, 0, -range / 2)
+	local size = Vector3.new(width, Combat.hitboxHeight, range)
+	return enemiesFromParts(workspace:GetPartBoundsInBox(boxCFrame, size, enemyOverlapParams()))
+end
+
+-- Inimigos vivos num círculo (esfera) em volta de `origin`.
+local function queryEnemiesInRadius(origin: Vector3, radius: number): { Model }
+	return enemiesFromParts(workspace:GetPartBoundsInRadius(origin, radius, enemyOverlapParams()))
 end
 
 -- Empurrão via Motion.push (LinearVelocity por um instante, parando antes de paredes, força limitada).
@@ -176,7 +210,8 @@ local function damageEnemy(
 	damageType: Types.DamageType,
 	direction: Vector3,
 	knockback: number,
-	isFinisher: boolean
+	isFinisher: boolean,
+	chargesUltimate: boolean -- false nos golpes da própria ultimate (ela não recarrega a si mesma)
 )
 	local humanoid = enemy:FindFirstChildOfClass("Humanoid")
 	if not humanoid or humanoid.Health <= 0 then
@@ -198,8 +233,12 @@ local function damageEnemy(
 	local defense = if typeof(defenseValue) == "number" then defenseValue else 0
 	local damage = math.max(1, math.round(Formulas.applyDefense(raw, defense)))
 
+	local dealt = math.min(damage, humanoid.Health) -- só a vida que o golpe realmente tirou carrega a ultimate
 	humanoid.Health = math.max(humanoid.Health - damage, 0)
 	applyKnockback(enemy, direction, knockback)
+	if chargesUltimate then
+		addUltimateCharge(attacker, dealt / Combat.ultimate.damageDealtToFill * ULTIMATE_MAX)
+	end
 
 	local payload: Remotes.CombatFeedbackPayload = {
 		target = enemy,
@@ -211,18 +250,23 @@ local function damageEnemy(
 	Remotes.get("CombatFeedback"):FireAllClients(payload)
 end
 
-local function trySpend(state: CombatState, resource: Types.ResourceType, cost: number): boolean
+local function trySpend(state: CombatState, resource: Types.AbilityResource, cost: number): boolean
 	if resource == "Stamina" then
 		if state.stamina < cost then
 			return false
 		end
 		state.stamina -= cost
 		state.lastStaminaUseAt = now()
-	else
+	elseif resource == "Mana" then
 		if state.mana < cost then
 			return false
 		end
 		state.mana -= cost
+	else
+		if state.ultimateCharge < cost then
+			return false
+		end
+		state.ultimateCharge -= cost
 	end
 	return true
 end
@@ -275,6 +319,51 @@ local function applySelfBuff(player: Player, state: CombatState, def: Types.Self
 	end
 end
 
+-- Golpe em círculo (ex.: Chute Giratório): acerta todos em volta e empurra cada um para longe do personagem.
+local function strikeCircle(player: Player, root: BasePart, def: Types.StrikeAbilityDef)
+	local origin = root.Position
+	for _, enemy in queryEnemiesInRadius(origin, def.range + Combat.rangeTolerance) do
+		local primary = enemy.PrimaryPart
+		local offset = if primary then (primary.Position - origin) * Vector3.new(1, 0, 1) else Vector3.zero
+		local direction = if offset.Magnitude > 1e-3 then offset.Unit else root.CFrame.LookVector
+		damageEnemy(player, enemy, def.baseDamage, def.damageType, direction, def.knockback, true, true)
+	end
+end
+
+-- Sequência de golpes à frente (ex.: Rajada de Cem Punhos). O jogador fica parado (WalkSpeed 0, sem atacar nem
+-- esquivar) até o fim; a direção é escolhida no início (assistência de mira) e não muda.
+local function runBarrage(player: Player, state: CombatState, root: BasePart, def: Types.BarrageAbilityDef, t: number)
+	local duration = def.hits * def.hitInterval
+	state.channelUntil = t + duration
+	state.nextAttackAt = math.max(state.nextAttackAt, t + duration + def.recovery)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = 0
+	end
+	local range = def.range + Combat.rangeTolerance
+	local direction = aimDirection(root, range)
+
+	task.spawn(function()
+		for i = 1, def.hits do
+			-- Morreu ou renasceu no meio: para (o personagem novo já nasce com a velocidade normal).
+			if states[player] ~= state or not getAliveRoot(player) then
+				return
+			end
+			local isLast = i == def.hits
+			local damage = if isLast then def.finalDamage else def.baseDamage
+			local knockback = if isLast then def.finalKnockback else 0
+			for _, enemy in queryEnemies(root, direction, range, def.width) do
+				damageEnemy(player, enemy, damage, def.damageType, direction, knockback, isLast, false)
+			end
+			task.wait(def.hitInterval)
+		end
+		if humanoid and humanoid.Parent and humanoid.Health > 0 and states[player] == state then
+			humanoid.WalkSpeed = ProgressionService.getClass(player).walkSpeed
+		end
+	end)
+end
+
 local function onAttackRequest(player: Player)
 	local state = states[player]
 	local root = getAliveRoot(player)
@@ -283,7 +372,7 @@ local function onAttackRequest(player: Player)
 	end
 	local t = now()
 	if t + Combat.serverTimingTolerance < state.nextAttackAt then
-		return -- ainda na recuperação do golpe anterior
+		return -- ainda na recuperação do golpe anterior (ou no meio da Rajada)
 	end
 
 	local combo = ProgressionService.getClass(player).combo
@@ -295,7 +384,7 @@ local function onAttackRequest(player: Player)
 	local range = hit.range + Combat.rangeTolerance
 	local direction = aimDirection(root, range)
 	for _, enemy in queryEnemies(root, direction, range, hit.width) do
-		damageEnemy(player, enemy, hit.baseDamage, "Physical", direction, hit.knockback, hit.isFinisher)
+		damageEnemy(player, enemy, hit.baseDamage, "Physical", direction, hit.knockback, hit.isFinisher, true)
 	end
 end
 
@@ -305,8 +394,8 @@ local function onDodgeRequest(player: Player)
 		return
 	end
 	local t = now()
-	if t + Combat.serverTimingTolerance < state.dodgeReadyAt then
-		return
+	if t + Combat.serverTimingTolerance < math.max(state.dodgeReadyAt, state.channelUntil) then
+		return -- em recarga, ou preso na Rajada
 	end
 	if not trySpend(state, "Stamina", Combat.dodge.staminaCost) then
 		return
@@ -323,7 +412,8 @@ local function onAbilityRequest(player: Player, abilityId: unknown)
 	end
 	local classDef = ProgressionService.getClass(player)
 	local def = Abilities[abilityId]
-	if not def or not table.find(classDef.abilities, abilityId) then
+	local isClassAbility = table.find(classDef.abilities, abilityId) ~= nil or classDef.ultimate == abilityId
+	if not def or not isClassAbility then
 		return
 	end
 
@@ -333,11 +423,14 @@ local function onAbilityRequest(player: Player, abilityId: unknown)
 		return
 	end
 	local t = now()
-	if t + Combat.serverTimingTolerance < (state.abilityReadyAt[abilityId] or 0) then
-		return
+	if t + Combat.serverTimingTolerance < math.max(state.abilityReadyAt[abilityId] or 0, state.channelUntil) then
+		return -- em recarga, ou preso na Rajada
 	end
 	if not trySpend(state, def.resource, def.cost) then
 		return
+	end
+	if def.resource == "Ultimate" then
+		replicateUltimate(player, state)
 	end
 	state.abilityReadyAt[abilityId] = t + def.cooldown
 	state.nextAttackAt = math.max(state.nextAttackAt, t + def.recovery)
@@ -345,19 +438,29 @@ local function onAbilityRequest(player: Player, abilityId: unknown)
 	player:SetAttribute(Keys.abilityReadyAttr(abilityId), state.abilityReadyAt[abilityId])
 
 	if def.kind == "Strike" then
-		local range = def.range + Combat.rangeTolerance
-		local direction = aimDirection(root, range)
-		for _, enemy in queryEnemies(root, direction, range, def.width) do
-			damageEnemy(player, enemy, def.baseDamage, def.damageType, direction, def.knockback, true)
+		if def.shape == "Circle" then
+			strikeCircle(player, root, def)
+		else
+			local range = def.range + Combat.rangeTolerance
+			local direction = aimDirection(root, range)
+			for _, enemy in queryEnemies(root, direction, range, def.width) do
+				damageEnemy(player, enemy, def.baseDamage, def.damageType, direction, def.knockback, true, true)
+			end
 		end
+	elseif def.kind == "Barrage" then
+		runBarrage(player, state, root, def, t)
 	else
 		applySelfBuff(player, state, def, t)
 	end
 end
 
 local function resetState(player: Player)
+	local old = states[player]
 	local state = newState(player)
+	-- A barra de ultimate fica com o jogador ao morrer; zera só ao entrar na torre (CombatService.resetUltimate).
+	state.ultimateCharge = if old then old.ultimateCharge else 0
 	states[player] = state
+	replicateUltimate(player, state)
 	-- Morreu/renasceu: o bônus de dano acaba (a aura some junto com o personagem antigo).
 	player:SetAttribute(Keys.PlayerAttr.DamageBonus, 0)
 	player:SetAttribute(Keys.PlayerAttr.DamageBonusUntil, 0)
@@ -420,6 +523,26 @@ function CombatService.debugSetResource(player: Player, resource: Types.Resource
 	replicateResources(player, state, maxStamina, maxMana)
 end
 
+-- Barra de ultimate vazia. Chamado ao ENTRAR na torre: não dá para chegar com a ultimate carregada no lobby.
+function CombatService.resetUltimate(player: Player)
+	local state = states[player]
+	if not state then
+		return
+	end
+	state.ultimateCharge = 0
+	replicateUltimate(player, state)
+end
+
+-- SÓ PARA TESTES (DevService, só no Studio): define a carga da barra de ultimate (0 a 100).
+function CombatService.debugSetUltimate(player: Player, value: number)
+	local state = states[player]
+	if not state then
+		return
+	end
+	state.ultimateCharge = math.clamp(value, 0, ULTIMATE_MAX)
+	replicateUltimate(player, state)
+end
+
 -- Stamina e mana cheias (checkpoint).
 function CombatService.restoreResources(player: Player)
 	local state = states[player]
@@ -452,7 +575,9 @@ function CombatService.damagePlayer(player: Player, rawDamage: number): boolean
 	end
 	local attributes = ProgressionService.getAttributes(player)
 	local damage = math.max(1, math.round(Formulas.applyDefense(rawDamage, attributes.Defense)))
+	local lost = math.min(damage, humanoid.Health)
 	humanoid.Health = math.max(humanoid.Health - damage, 0)
+	addUltimateCharge(player, lost / Combat.ultimate.damageTakenToFill * ULTIMATE_MAX)
 
 	local payload: Remotes.CombatFeedbackPayload = {
 		target = character,

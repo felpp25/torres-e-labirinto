@@ -17,9 +17,49 @@ local IRON_PALM: Types.StrikeAbilityDef = {
 	recovery = 0.45,
 	damageType = "Physical",
 	baseDamage = 30,
+	shape = "Front",
 	range = 8,
 	width = 6,
 	knockback = 60,
+}
+
+-- Para quando o Lutador está cercado: acerta todos em volta e abre espaço.
+local SPIN_KICK: Types.StrikeAbilityDef = {
+	kind = "Strike",
+	id = "SpinKick",
+	displayName = "Chute Giratório",
+	shortName = "Chute",
+	resource = "Stamina",
+	cost = 35,
+	cooldown = 8,
+	recovery = 0.4,
+	damageType = "Physical",
+	baseDamage = 22,
+	shape = "Circle",
+	range = 7, -- raio
+	width = 0,
+	knockback = 30,
+}
+
+-- Ultimate do Lutador: dano alto num alvo à frente (ex.: o boss). Gasta a barra de ultimate inteira.
+-- Total: 7 × 10 + 20 = 90 de dano base (3× a Palma), em 1,6 s com o Lutador parado (risco em troca do dano).
+local HUNDRED_FISTS: Types.BarrageAbilityDef = {
+	kind = "Barrage",
+	id = "HundredFists",
+	displayName = "Rajada de Cem Punhos",
+	shortName = "Rajada",
+	resource = "Ultimate",
+	cost = 100, -- barra cheia
+	cooldown = 2,
+	recovery = 0.2,
+	damageType = "Physical",
+	hits = 8,
+	hitInterval = 0.2,
+	baseDamage = 10,
+	finalDamage = 20,
+	range = 7,
+	width = 6,
+	finalKnockback = 50,
 }
 
 -- Habilidade de mana do Lutador: dá uso à Sabedoria desde a classe inicial.
@@ -42,10 +82,14 @@ local INNER_FOCUS: Types.SelfBuffAbilityDef = {
 
 table.freeze(IRON_PALM)
 table.freeze(INNER_FOCUS)
+table.freeze(SPIN_KICK)
+table.freeze(HUNDRED_FISTS)
 
 local Abilities: { [string]: Types.AbilityDef } = {
 	IronPalm = IRON_PALM,
 	InnerFocus = INNER_FOCUS,
+	SpinKick = SPIN_KICK,
+	HundredFists = HUNDRED_FISTS,
 }
 
 return table.freeze(Abilities)

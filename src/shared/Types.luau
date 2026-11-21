@@ -18,6 +18,8 @@ export type Attributes = {
 -- Físico escala com Força; mágico escala com Inteligência. O recurso gasto é de cada habilidade (AbilityDef).
 export type DamageType = "Physical" | "Magical"
 export type ResourceType = "Stamina" | "Mana"
+-- Recurso que uma habilidade gasta. "Ultimate" = a barra de ultimate (enche lutando; `cost` 100 = barra cheia).
+export type AbilityResource = ResourceType | "Ultimate"
 
 -- Um golpe do combo do ataque básico.
 export type ComboHitDef = {
@@ -32,21 +34,46 @@ export type ComboHitDef = {
 -- Habilidades. Cada uma declara o próprio recurso pela NATUREZA dela (GDD > Atributos > Recursos): golpes, armas
 -- e movimento gastam stamina; Chi, sagrado, elemental e cura gastam mana. `kind` diz o que a habilidade faz.
 
--- "Strike": golpe com dano numa área retangular à frente do personagem.
+-- Área de um golpe: "Front" = retângulo à frente do personagem; "Circle" = círculo em volta dele.
+export type StrikeShape = "Front" | "Circle"
+
+-- "Strike": golpe único com dano numa área.
 export type StrikeAbilityDef = {
 	kind: "Strike",
 	id: string,
 	displayName: string,
 	shortName: string, -- texto curto para botões e ícones
-	resource: ResourceType,
+	resource: AbilityResource,
 	cost: number,
 	cooldown: number, -- s
 	recovery: number, -- s em que o ataque básico fica bloqueado depois de usar a habilidade
 	damageType: DamageType,
 	baseDamage: number,
+	shape: StrikeShape,
+	range: number, -- Front: profundidade da área; Circle: raio (studs)
+	width: number, -- Front: largura da área (Circle ignora)
+	knockback: number, -- Front: empurra para a frente; Circle: empurra para longe do personagem
+}
+
+-- "Barrage": sequência de golpes à frente com o personagem PARADO (não anda, não ataca, não esquiva) até acabar.
+-- Os primeiros golpes dão `baseDamage`; o último dá `finalDamage` e empurra.
+export type BarrageAbilityDef = {
+	kind: "Barrage",
+	id: string,
+	displayName: string,
+	shortName: string,
+	resource: AbilityResource,
+	cost: number,
+	cooldown: number,
+	recovery: number, -- s extras de bloqueio do ataque básico depois do último golpe
+	damageType: DamageType,
+	hits: number,
+	hitInterval: number, -- s entre golpes (duração total = hits × hitInterval)
+	baseDamage: number,
+	finalDamage: number,
 	range: number,
 	width: number,
-	knockback: number,
+	finalKnockback: number,
 }
 
 -- "SelfBuff": efeito no próprio jogador: cura na hora e bônus de dano por um tempo.
@@ -55,7 +82,7 @@ export type SelfBuffAbilityDef = {
 	id: string,
 	displayName: string,
 	shortName: string,
-	resource: ResourceType,
+	resource: AbilityResource,
 	cost: number,
 	cooldown: number,
 	recovery: number,
@@ -64,7 +91,7 @@ export type SelfBuffAbilityDef = {
 	duration: number, -- s do bônus de dano
 }
 
-export type AbilityDef = StrikeAbilityDef | SelfBuffAbilityDef
+export type AbilityDef = StrikeAbilityDef | BarrageAbilityDef | SelfBuffAbilityDef
 
 export type ClassDef = {
 	id: string,
@@ -75,7 +102,8 @@ export type ClassDef = {
 	baseStamina: number,
 	walkSpeed: number,
 	combo: { ComboHitDef },
-	abilities: { string }, -- ids em Balance/Abilities
+	abilities: { string }, -- ids em Balance/Abilities (as 3 habilidades, na ordem dos atalhos)
+	ultimate: string, -- id em Balance/Abilities (gasta a barra de ultimate)
 }
 
 export type MobDef = {
@@ -135,8 +163,7 @@ export type ConsumableDef = {
 	maxOwned: number, -- quantos a conta pode guardar
 	effect: ConsumableEffect,
 	amount: number, -- Heal: fração da vida máxima; Stamina/Mana: fração do máximo do recurso
-	cooldown: number, -- s entre usos deste item
-	hotkey: number, -- tecla numérica (1, 2...)
+	cooldown: number, -- s entre usos deste item (o atalho fica no cliente: client/Hotkeys)
 }
 
 -- Uma sala na grade do labirinto (gerada pelo MazeGenerator).

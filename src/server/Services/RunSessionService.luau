@@ -82,6 +82,7 @@ local function enterRun(player: Player)
 	end
 	ProgressionService.restoreHealth(player)
 	CombatService.restoreResources(player)
+	CombatService.resetUltimate(player) -- a barra carregada nos bonecos de treino do lobby não entra na torre
 	print(`[Run] {player.Name} entrou na torre (andar {DungeonService.getCurrentFloor()})`)
 end
 

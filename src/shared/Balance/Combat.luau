@@ -20,6 +20,15 @@ local Combat = table.freeze({
 	staminaRegenPerSecond = 35,
 	manaRegenPerSecond = 3,
 
+	-- Barra de ultimate (0 a 100): enche ao causar dano e ao tomar dano. Cheia, a ultimate pode ser usada.
+	-- Referência no andar 1: mob com 60 de vida, ~2 por sala -> ~1 ultimate por andar só batendo; no boss
+	-- (1200 de vida) ~2 ultimates. A ultimate NÃO enche a barra com o próprio dano.
+	-- Fica com o jogador ao morrer (menos frustrante) e zera ao entrar na torre (não dá para carregar no lobby).
+	ultimate = table.freeze({
+		damageDealtToFill = 600, -- dano causado (depois da Defesa do alvo) para encher a barra do zero
+		damageTakenToFill = 200, -- dano recebido para encher a barra do zero (ajuda quem está na linha de frente)
+	}),
+
 	-- Crítico (Sorte)
 	critBaseChance = 0.05,
 	critChancePerLuck = 0.005,

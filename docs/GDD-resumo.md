@@ -147,11 +147,22 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
 - **Papel:** linha de frente.
 - **Scaling:** Força e Vitalidade.
 - **Caminhos (Monge):** Punhos, Chi, Postura.
-- **Habilidades do Lutador (protótipo):**
-  - **Palma de Ferro** (E / Y): golpe forte com empurrão. 30 de **stamina**, recarga 6 s.
-  - **Foco Interior** (R / R1): cura **12% da vida** e dá **+12% de dano por 6 s** (vale para todo golpe e
+- **Kit do Lutador (3 habilidades + 1 ultimate, decidido pelo designer):**
+  - **Palma de Ferro** (tecla 1 / Y): golpe forte à frente com empurrão. 30 de **stamina**, recarga 6 s.
+  - **Foco Interior** (tecla 2 / R1): cura **12% da vida** e dá **+12% de dano por 6 s** (vale para todo golpe e
     habilidade; aura azul visível para o grupo). 50 de **mana**, recarga 10 s. A **mana é o limite**, não a
     recarga: com 100 de mana são 3 usos no ritmo máximo e cada +20 de mana (4 pontos de Sabedoria) dá mais 1.
+  - **Chute Giratório** (tecla 3 / L2): acerta **todos em volta** (raio 7), 22 de dano e empurrão leve para longe.
+    35 de **stamina**, recarga 8 s. Para quando o Lutador está cercado.
+  - **Ultimate: Rajada de Cem Punhos** (tecla 4 / L1): 8 socos à frente em 1,6 s (7 × 10 + 20 = 90 de dano base, 3× a
+    Palma; o último empurra). O Lutador fica **parado** durante a rajada (sem andar, atacar ou esquivar): risco em
+    troca do dano. Feita para o boss.
+- **Ultimate (regra geral):** gasta a **barra de ultimate** (0 a 100%), não stamina nem mana.
+  - Enche **lutando**: causar 600 de dano enche a barra do zero; tomar 200 de dano também (ajuda a linha de
+    frente). Vale para as duas coisas somadas. O dano da própria ultimate não enche a barra.
+  - Referência no andar 1: ~1 ultimate por andar só batendo; ~2 durante o boss.
+  - A barra **fica com o jogador ao morrer** e **zera ao entrar na torre** (carregar nos bonecos do lobby não vale).
+  - HUD: ícone com a % de carga; dourado quando cheia.
 
 ## Morte e checkpoint
 
@@ -173,8 +184,9 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
   da run. Torre concluída ou game over: todos **voltam ao lobby**.
 - **Loja** (balcão no lobby): o Gold é gasto aqui. Primeira versão:
   - **Poções** (consumíveis da conta, levadas para a run): **Vida** (recupera parte da vida máxima), **Stamina**
-    (enche a stamina) e **Mana** (enche a mana). Usadas por **atalhos fixos** (teclas 1, 2 e 3; botões na tela no
-    celular), com recarga e limite de quantas guardar.
+    (enche a stamina) e **Mana** (enche a mana). Usadas por **atalhos fixos** (teclas **E = Vida, R = Mana,
+    T = Stamina**; botões na tela no celular), com recarga e limite de quantas guardar.
+  - **Teclas (decisão do designer):** 1, 2, 3 = habilidades; 4 = ultimate; E, R, T = poções.
   - **Reset de atributos:** devolve todos os pontos para redistribuir; preço cresce com o nível.
 - *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
 

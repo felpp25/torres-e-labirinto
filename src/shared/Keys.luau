@@ -19,6 +19,7 @@ Keys.PlayerAttr = table.freeze({
 	DodgeReadyAt = "DodgeReadyAt",
 	DamageBonus = "DamageBonus", -- bônus de dano ativo (0,12 = +12%), ex.: Foco Interior
 	DamageBonusUntil = "DamageBonusUntil", -- até quando (relógio do servidor) o bônus vale
+	UltimateCharge = "UltimateCharge", -- barra de ultimate, 0 a 100
 	Level = "Level",
 	XP = "XP", -- XP dentro do nível atual
 	XPToNext = "XPToNext", -- XP necessário para o próximo nível (0 no nível máximo)
@@ -59,6 +60,16 @@ Keys.InRunAttr = "InRun"
 
 function Keys.abilityReadyAttr(abilityId: string): string
 	return `AbilityReadyAt_{abilityId}`
+end
+
+-- Attribute do Player com o valor atual do recurso que uma habilidade gasta (stamina, mana ou barra de ultimate).
+function Keys.resourceAttr(resource: "Stamina" | "Mana" | "Ultimate"): string
+	if resource == "Stamina" then
+		return Keys.PlayerAttr.Stamina
+	elseif resource == "Mana" then
+		return Keys.PlayerAttr.Mana
+	end
+	return Keys.PlayerAttr.UltimateCharge
 end
 
 -- Valor de cada atributo (Força, Vitalidade...) replicado para o HUD.

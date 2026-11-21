@@ -21,7 +21,10 @@ local FIGHTER: Types.ClassDef = {
 	baseStamina = 100,
 	walkSpeed = 18,
 	combo = FIGHTER_COMBO,
-	abilities = { "IronPalm", "InnerFocus" }, -- atalhos na mesma ordem: E / Y e R / R1
+	-- 3 habilidades + 1 ultimate (GDD > Classes). Atalhos na mesma ordem: 1 / Y, 2 / R1, 3 / L2; ultimate 4 / L1
+	-- (client/Hotkeys).
+	abilities = { "IronPalm", "InnerFocus", "SpinKick" },
+	ultimate = "HundredFists",
 }
 
 local Classes: { [string]: Types.ClassDef } = {

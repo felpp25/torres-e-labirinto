@@ -1,7 +1,7 @@
 --!strict
--- Atalhos das poções (GDD > Lobby e loja): tecla 1 = Vida, 2 = Stamina, 3 = Mana; no controle, direcional
--- esquerda/direita/baixo;
--- no celular, botões na tela. Ícones embaixo, à direita dos de esquiva e habilidades, com quantidade e recarga.
+-- Atalhos das poções (GDD > Lobby e loja): tecla E = Vida, R = Mana, T = Stamina; no controle, direcional
+-- esquerda/baixo/direita; no celular, botões na tela. Teclas em client/Hotkeys.
+-- Ícones embaixo, à direita dos de esquiva e habilidades, com quantidade e recarga.
 -- O cliente só PEDE (UsePotion); o servidor valida (tem o item, recarga, vivo) e aplica.
 
 local ContextActionService: ContextActionService = game:GetService("ContextActionService")
@@ -14,23 +14,15 @@ local Keys = require(Shared:WaitForChild("Keys"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local Shop = require(Shared:WaitForChild("Balance"):WaitForChild("Shop"))
 local ActionBar = require(script.Parent.Parent:WaitForChild("ActionBar"))
+local Hotkeys = require(script.Parent.Parent:WaitForChild("Hotkeys"))
 
 local localPlayer = Players.LocalPlayer
 
-local KEYS: { [number]: Enum.KeyCode } = { [1] = Enum.KeyCode.One, [2] = Enum.KeyCode.Two, [3] = Enum.KeyCode.Three }
-local GAMEPAD: { [number]: Enum.KeyCode } =
-	{ [1] = Enum.KeyCode.DPadLeft, [2] = Enum.KeyCode.DPadRight, [3] = Enum.KeyCode.DPadDown }
 local SHORT_NAMES: { [string]: string } = { HealthPotion = "Vida", StaminaPotion = "Stamina", ManaPotion = "Mana" }
 local ICON_COLORS: { [string]: Color3 } = {
 	HealthPotion = Color3.fromRGB(150, 40, 50),
 	StaminaPotion = Color3.fromRGB(150, 120, 30),
 	ManaPotion = Color3.fromRGB(40, 80, 160),
-}
--- Botões de toque à esquerda dos de combate.
-local TOUCH_POSITIONS: { [number]: UDim2 } = {
-	[1] = UDim2.new(1, -300, 1, -200),
-	[2] = UDim2.new(1, -370, 1, -150),
-	[3] = UDim2.new(1, -370, 1, -80),
 }
 
 type Icon = { frame: Frame, name: TextLabel, count: TextLabel, overlay: Frame, timer: TextLabel }
@@ -77,7 +69,8 @@ local function build()
 		corner.CornerRadius = UDim.new(0, 10)
 		corner.Parent = frame
 
-		makeText(frame, tostring(def.hotkey), 4, 16, 14)
+		local slot = Hotkeys.potions[itemId]
+		makeText(frame, if slot then slot.label else "", 4, 16, 14)
 		local name = makeText(frame, SHORT_NAMES[itemId] or def.displayName, 22, 14, 12)
 		local count = makeText(frame, "x0", 40, 18, 15)
 
@@ -135,15 +128,11 @@ function PotionController.start()
 	for _, itemId in Shop.order do
 		local def = Shop.items[itemId]
 		local action = `Potion_{itemId}`
-		local key = KEYS[def.hotkey]
-		local pad = GAMEPAD[def.hotkey]
-		if key and pad then
-			ContextActionService:BindAction(action, makeHandler(itemId), true, key, pad)
+		local slot = Hotkeys.potions[itemId]
+		if slot then
+			ContextActionService:BindAction(action, makeHandler(itemId), true, slot.key, slot.pad)
 			ContextActionService:SetTitle(action, SHORT_NAMES[itemId] or def.displayName)
-			local position = TOUCH_POSITIONS[def.hotkey]
-			if position then
-				ContextActionService:SetPosition(action, position)
-			end
+			ContextActionService:SetPosition(action, slot.touch)
 		end
 	end
 	RunService.Heartbeat:Connect(update)

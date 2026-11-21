@@ -3,10 +3,11 @@
 -- ContextActionService: cada ação vale para teclado/mouse/controle e, no celular, ganha um botão na tela.
 -- O cliente faz uma PREVISÃO (recarga, stamina, combo) só para responder na hora; quem decide é o servidor.
 --
--- PC: clique = ataque (combo de 3) | Q = esquiva | E = Palma de Ferro | R = Foco Interior
--- Controle: R2 = ataque | B = esquiva | Y = Palma de Ferro | R1 = Foco Interior
--- Celular: botões "Atacar", "Esquiva", "Palma" e "Foco" na tela
--- As teclas das habilidades vêm de AbilitySlots, na ordem das habilidades da classe.
+-- PC: clique = ataque (combo de 3) | Q = esquiva | 1 = Palma de Ferro | 2 = Foco Interior | 3 = Chute Giratório
+--     | 4 = ultimate (Rajada de Cem Punhos)
+-- Controle: R2 = ataque | B = esquiva | Y = Palma | R1 = Foco | L2 = Chute | L1 = ultimate
+-- Celular: botões "Atacar", "Esquiva", "Palma", "Foco", "Chute" e "Rajada" na tela
+-- As teclas das habilidades vêm de client/Hotkeys, na ordem das habilidades da classe.
 
 local CollectionService: CollectionService = game:GetService("CollectionService")
 local ContextActionService: ContextActionService = game:GetService("ContextActionService")
@@ -23,12 +24,12 @@ local Combat = require(Balance:WaitForChild("Combat"))
 local Classes = require(Balance:WaitForChild("Classes"))
 local Abilities = require(Balance:WaitForChild("Abilities"))
 
-local AbilitySlots = require(script.Parent.Parent:WaitForChild("AbilitySlots"))
+local Hotkeys = require(script.Parent.Parent:WaitForChild("Hotkeys"))
 local CombatFeedbackController = require(script.Parent.CombatFeedbackController)
 
 local localPlayer = Players.LocalPlayer
 
--- Posições dos botões no celular (perto do botão de pular, canto inferior direito). Habilidades: AbilitySlots.
+-- Posições dos botões no celular (perto do botão de pular, canto inferior direito). Habilidades: Hotkeys.
 local TOUCH_LAYOUT: { [string]: UDim2 } = {
 	Attack = UDim2.new(1, -190, 1, -120),
 	Dodge = UDim2.new(1, -120, 1, -200),
@@ -42,6 +43,7 @@ local comboIndex = 0
 local comboExpiresAt = 0
 local dodgeReadyAt = 0
 local abilityReadyAt: { [string]: number } = {}
+local channelUntil = 0 -- preso na Rajada: sem esquiva nem outras habilidades até aqui (o servidor também trava)
 
 local function now(): number
 	return workspace:GetServerTimeNow()
@@ -127,7 +129,7 @@ local function onDodge(_: string, state: Enum.UserInputState, _: InputObject): E
 	if not character or not humanoid or not root then
 		return Enum.ContextActionResult.Sink
 	end
-	if t < math.max(dodgeReadyAt, numberAttribute(Keys.PlayerAttr.DodgeReadyAt)) then
+	if t < math.max(dodgeReadyAt, numberAttribute(Keys.PlayerAttr.DodgeReadyAt), channelUntil) then
 		return Enum.ContextActionResult.Sink
 	end
 	if numberAttribute(Keys.PlayerAttr.Stamina) < Combat.dodge.staminaCost then
@@ -153,26 +155,37 @@ local function makeAbilityHandler(abilityId: string)
 		local def = Abilities[abilityId]
 		local _, _, root = getAliveCharacter()
 		local t = now()
-		if not def or not root or t < nextAttackAt then
+		if not def or not root or t < math.max(nextAttackAt, channelUntil) then
 			return Enum.ContextActionResult.Sink
 		end
 		if t < math.max(abilityReadyAt[abilityId] or 0, numberAttribute(Keys.abilityReadyAttr(abilityId))) then
 			return Enum.ContextActionResult.Sink
 		end
-		local resourceAttr = if def.resource == "Stamina" then Keys.PlayerAttr.Stamina else Keys.PlayerAttr.Mana
-		if numberAttribute(resourceAttr) < def.cost then
+		if numberAttribute(Keys.resourceAttr(def.resource)) < def.cost then
 			return Enum.ContextActionResult.Sink
 		end
 		abilityReadyAt[abilityId] = t + def.cooldown
 		nextAttackAt = t + def.recovery
 		comboExpiresAt = 0
 
-		if def.kind == "Strike" then
+		if def.kind == "Strike" and def.shape == "Circle" then
+			Remotes.get("AbilityRequest"):FireServer(abilityId)
+			CombatFeedbackController.playSpin(root, def.range)
+		elseif def.kind == "Strike" then
 			local range = def.range + Combat.rangeTolerance
 			local direction = aimDirection(root, range)
 			face(root, direction)
 			Remotes.get("AbilityRequest"):FireServer(abilityId)
 			CombatFeedbackController.playSwing(root, direction, def.range, def.width, true)
+		elseif def.kind == "Barrage" then
+			local duration = def.hits * def.hitInterval
+			channelUntil = t + duration
+			nextAttackAt = t + duration + def.recovery
+			local range = def.range + Combat.rangeTolerance
+			local direction = aimDirection(root, range)
+			face(root, direction)
+			Remotes.get("AbilityRequest"):FireServer(abilityId)
+			CombatFeedbackController.playBarrage(root, direction, def.range, def.width, def.hits, def.hitInterval)
 		else
 			-- Efeito em si mesmo: a cura (número verde) e a aura vêm do servidor.
 			Remotes.get("AbilityRequest"):FireServer(abilityId)
@@ -193,17 +206,24 @@ function InputController.start()
 		ContextActionService:SetPosition(action, position)
 	end
 
-	-- Uma ação por habilidade da classe (o nome da ação é o id da habilidade).
+	-- Uma ação por habilidade da classe e uma para a ultimate (o nome da ação é o id da habilidade).
+	local function bindAbility(abilityId: string, slot: Hotkeys.Slot)
+		local def = Abilities[abilityId]
+		if not def then
+			return
+		end
+		ContextActionService:BindAction(abilityId, makeAbilityHandler(abilityId), true, slot.key, slot.pad)
+		ContextActionService:SetTitle(abilityId, def.shortName)
+		ContextActionService:SetPosition(abilityId, slot.touch)
+	end
 	local classDef = Classes.byId[Classes.defaultClassId]
 	for index, abilityId in classDef.abilities do
-		local slot = AbilitySlots[index]
-		local def = Abilities[abilityId]
-		if slot and def then
-			ContextActionService:BindAction(abilityId, makeAbilityHandler(abilityId), true, slot.key, slot.pad)
-			ContextActionService:SetTitle(abilityId, def.shortName)
-			ContextActionService:SetPosition(abilityId, slot.touch)
+		local slot = Hotkeys.abilities[index]
+		if slot then
+			bindAbility(abilityId, slot)
 		end
 	end
+	bindAbility(classDef.ultimate, Hotkeys.ultimate)
 end
 
 return InputController

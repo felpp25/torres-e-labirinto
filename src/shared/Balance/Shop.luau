@@ -13,7 +13,6 @@ local HEALTH_POTION: Types.ConsumableDef = {
 	effect = "Heal",
 	amount = 0.4, -- fração da vida máxima
 	cooldown = 8, -- s entre usos (deste tipo)
-	hotkey = 1,
 }
 
 local STAMINA_POTION: Types.ConsumableDef = {
@@ -25,7 +24,6 @@ local STAMINA_POTION: Types.ConsumableDef = {
 	effect = "Stamina",
 	amount = 1, -- fração da stamina máxima
 	cooldown = 8,
-	hotkey = 2,
 }
 
 local MANA_POTION: Types.ConsumableDef = {
@@ -37,7 +35,6 @@ local MANA_POTION: Types.ConsumableDef = {
 	effect = "Mana",
 	amount = 1, -- fração da mana máxima
 	cooldown = 8,
-	hotkey = 3,
 }
 
 local ITEMS: { [string]: Types.ConsumableDef } = {
@@ -46,8 +43,8 @@ local ITEMS: { [string]: Types.ConsumableDef } = {
 	ManaPotion = MANA_POTION,
 }
 
--- Ordem de exibição na loja e nos atalhos.
-local ORDER: { string } = { "HealthPotion", "StaminaPotion", "ManaPotion" }
+-- Ordem de exibição na loja e na barra de ações (segue as teclas E, R, T; atalhos em client/Hotkeys).
+local ORDER: { string } = { "HealthPotion", "ManaPotion", "StaminaPotion" }
 
 return table.freeze({
 	items = table.freeze(ITEMS),

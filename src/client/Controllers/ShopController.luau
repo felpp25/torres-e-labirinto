@@ -1,6 +1,6 @@
 --!strict
 -- Painel da loja (GDD > Lobby e loja). Abre ao acionar o prompt "Loja" do balcão do lobby
--- (tecla F / L1 no controle / toque no celular) e fecha sozinho ao se afastar.
+-- (tecla F / direcional para cima no controle / toque no celular) e fecha sozinho ao se afastar.
 -- O cliente só PEDE (BuyItem / ResetAttributes); o servidor valida e responde por ShopResult.
 
 local Players: Players = game:GetService("Players")

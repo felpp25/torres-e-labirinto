@@ -62,6 +62,12 @@ local COMMANDS: { [string]: Command } = {
 		return true
 	end,
 
+	-- Carga da barra de ultimate (0 a 100).
+	SetUltimate = function(player: Player, value: number): boolean
+		CombatService.debugSetUltimate(player, value)
+		return true
+	end,
+
 	GiveGold = function(player: Player, amount: number): number
 		ProgressionService.addGold(player, amount)
 		return ProgressionService.getGold(player)
