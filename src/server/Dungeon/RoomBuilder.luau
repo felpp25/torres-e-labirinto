@@ -8,23 +8,42 @@ local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Dungeon = require(Shared.Balance.Dungeon)
 
+-- Arena do boss: a sala "Boss" (na borda da grade) se abre para fora e ganha uma sala extra colada nela.
+-- `center`/`halfX`/`halfZ` descrevem o retângulo inteiro (sala + extensão); `bossSpawn` = centro da extensão.
+export type Arena = {
+	center: Vector3,
+	halfX: number,
+	halfZ: number,
+	bossSpawn: Vector3,
+}
+
 export type BuiltFloor = {
 	folder: Folder,
 	roomCenters: { [Types.Room]: Vector3 }, -- centro do piso de cada sala, na altura do topo do piso
 	entrance: Types.Room,
-	puzzle: Types.Room,
+	goal: Types.Room, -- sala final: "Puzzle" ou "Boss"
+	arena: Arena?, -- só no andar do boss
 }
 
 -- "North" | "South" | "East" | "West". Declarado como string: o verificador de tipos alarga o laço sobre a
 -- lista de direções para string, e o tipo literal geraria erros falsos.
 type Direction = string
 
+local BOSS_FLOOR_COLOR = Color3.fromRGB(120, 60, 70)
 local FLOOR_COLORS: { [Types.RoomKind]: Color3 } = {
 	Entrance = Color3.fromRGB(95, 140, 95),
 	Combat = Color3.fromRGB(110, 110, 120),
 	DeadEnd = Color3.fromRGB(125, 105, 85),
 	Puzzle = Color3.fromRGB(85, 110, 150),
+	Boss = BOSS_FLOOR_COLOR,
 }
+local OFFSETS: { [string]: Vector3 } = {
+	North = Vector3.new(0, 0, -1),
+	South = Vector3.new(0, 0, 1),
+	East = Vector3.new(1, 0, 0),
+	West = Vector3.new(-1, 0, 0),
+}
+local OPPOSITE: { [string]: string } = { North = "South", South = "North", East = "West", West = "East" }
 local WALL_COLOR = Color3.fromRGB(70, 70, 80)
 
 local RoomBuilder = {}
@@ -91,8 +110,32 @@ function RoomBuilder.build(layout: Types.FloorLayout, origin: Vector3, parent: I
 
 	local roomCenters: { [Types.Room]: Vector3 } = {}
 	local entrance: Types.Room? = nil
-	local puzzle: Types.Room? = nil
+	local goal: Types.Room? = nil
+	local arena: Arena? = nil
 	local floorTop = origin.Y + Dungeon.floorThickness / 2
+	local floorSize = Vector3.new(Dungeon.roomSize, Dungeon.floorThickness, Dungeon.roomSize)
+
+	local function buildFloorTile(center: Vector3, color: Color3, roomFolder: Instance)
+		makePart(
+			"Floor",
+			floorSize,
+			CFrame.new(center - Vector3.new(0, Dungeon.floorThickness / 2, 0)),
+			color,
+			roomFolder
+		)
+	end
+
+	-- Lado da sala do boss que dá para FORA da grade (o gerador garante que existe ao menos um).
+	local function outwardDirection(room: Types.Room): string?
+		for _, direction in { "North", "South", "East", "West" } do
+			local offset = OFFSETS[direction]
+			local nx, ny = room.x + offset.X, room.y + offset.Z
+			if nx < 0 or nx >= layout.width or ny < 0 or ny >= layout.height then
+				return direction
+			end
+		end
+		return nil
+	end
 
 	for _, room in layout.rooms do
 		local roomFolder = Instance.new("Folder")
@@ -101,33 +144,47 @@ function RoomBuilder.build(layout: Types.FloorLayout, origin: Vector3, parent: I
 
 		local center = Vector3.new(origin.X + room.x * Dungeon.roomSize, floorTop, origin.Z + room.y * Dungeon.roomSize)
 		roomCenters[room] = center
-		local floorSize = Vector3.new(Dungeon.roomSize, Dungeon.floorThickness, Dungeon.roomSize)
-		makePart(
-			"Floor",
-			floorSize,
-			CFrame.new(center - Vector3.new(0, Dungeon.floorThickness / 2, 0)),
-			FLOOR_COLORS[room.kind],
-			roomFolder
-		)
+		buildFloorTile(center, FLOOR_COLORS[room.kind], roomFolder)
 
+		local arenaDirection = if room.kind == "Boss" then outwardDirection(room) else nil
 		for _, direction in { "North", "South", "East", "West" } do
 			local hasNeighbor = byKey[neighborKey(room, direction)] ~= nil
 			-- Parede compartilhada: quem cria é a sala do Leste/Sul (a vizinha cuida do Norte/Oeste dela).
-			if not (hasNeighbor and (direction == "North" or direction == "West")) then
+			-- Na sala do boss, o lado que dá para fora fica aberto: é a passagem para a extensão da arena.
+			if direction ~= arenaDirection and not (hasNeighbor and (direction == "North" or direction == "West")) then
 				buildWall(center, direction, room.doors[direction], roomFolder)
 			end
 		end
 
 		if room.kind == "Entrance" then
 			entrance = room
-		elseif room.kind == "Puzzle" then
-			puzzle = room
+		elseif room.kind == "Puzzle" or room.kind == "Boss" then
+			goal = room
+		end
+
+		if arenaDirection then
+			-- Extensão da arena: uma sala inteira colada do lado de fora, com paredes nos 3 lados externos.
+			local outward = OFFSETS[arenaDirection]
+			local extensionCenter = center + outward * Dungeon.roomSize
+			buildFloorTile(extensionCenter, BOSS_FLOOR_COLOR, roomFolder)
+			for _, direction in { "North", "South", "East", "West" } do
+				if direction ~= OPPOSITE[arenaDirection] then
+					buildWall(extensionCenter, direction, false, roomFolder)
+				end
+			end
+			local alongX = arenaDirection == "East" or arenaDirection == "West"
+			arena = {
+				center = (center + extensionCenter) / 2,
+				halfX = if alongX then Dungeon.roomSize else Dungeon.roomSize / 2,
+				halfZ = if alongX then Dungeon.roomSize / 2 else Dungeon.roomSize,
+				bossSpawn = extensionCenter,
+			}
 		end
 	end
 
-	assert(entrance and puzzle, "layout sem entrada ou sem puzzle")
+	assert(entrance and goal, "layout sem entrada ou sem sala final")
 	folder.Parent = parent
-	return { folder = folder, roomCenters = roomCenters, entrance = entrance, puzzle = puzzle }
+	return { folder = folder, roomCenters = roomCenters, entrance = entrance, goal = goal, arena = arena }
 end
 
 return table.freeze(RoomBuilder)

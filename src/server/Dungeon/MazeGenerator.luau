@@ -7,6 +7,8 @@
 -- 2. caminho principal (Entrada -> ... -> Puzzle) por busca em profundidade com retrocesso na grade;
 -- 3. pendura os corredores laterais em salas do meio do caminho; a última sala de cada um é um beco.
 -- Só existem portas entre salas ligadas (o andar é uma árvore): o caminho até o puzzle é garantido.
+-- Andar do boss: a sala final é "Boss" (no lugar de "Puzzle") e fica sempre na BORDA da grade, para a arena
+-- poder crescer para fora da grade sem invadir outras salas.
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -69,7 +71,13 @@ local function connect(a: Types.Room, b: Types.Room)
 	error("connect: salas não são vizinhas")
 end
 
-local function tryGenerate(rng: Random, seed: number, floorNumber: number, config: Config): Types.FloorLayout?
+local function tryGenerate(
+	rng: Random,
+	seed: number,
+	floorNumber: number,
+	config: Config,
+	isBossFloor: boolean
+): Types.FloorLayout?
 	local width, height = config.gridWidth, config.gridHeight
 	local function inBounds(x: number, y: number): boolean
 		return x >= 0 and x < width and y >= 0 and y < height
@@ -116,12 +124,18 @@ local function tryGenerate(rng: Random, seed: number, floorNumber: number, confi
 	if not dfs(rng:NextInteger(0, width - 1), rng:NextInteger(0, height - 1)) then
 		return nil
 	end
+	local goal = path[#path]
+	local goalOnBorder = goal.x == 0 or goal.x == width - 1 or goal.y == 0 or goal.y == height - 1
+	if isBossFloor and not goalOnBorder then
+		return nil -- tenta de novo: a arena do boss precisa de um lado livre para fora da grade
+	end
+	local goalKind: Types.RoomKind = if isBossFloor then "Boss" else "Puzzle"
 
 	local rooms: { Types.Room } = {}
 	local byKey: { [number]: Types.Room } = {}
 	local mainRooms: { Types.Room } = {}
 	for i, cell in path do
-		local kind: Types.RoomKind = if i == 1 then "Entrance" elseif i == #path then "Puzzle" else "Combat"
+		local kind: Types.RoomKind = if i == 1 then "Entrance" elseif i == #path then goalKind else "Combat"
 		local room = newRoom(cell.x, cell.y, kind)
 		table.insert(rooms, room)
 		table.insert(mainRooms, room)
@@ -191,10 +205,15 @@ local function tryGenerate(rng: Random, seed: number, floorNumber: number, confi
 end
 
 -- Gera o layout. Tenta de novo (com o mesmo gerador, então continua determinístico) se uma tentativa falhar.
-function MazeGenerator.generate(seed: number, floorNumber: number, config: Config): Types.FloorLayout
+function MazeGenerator.generate(
+	seed: number,
+	floorNumber: number,
+	config: Config,
+	isBossFloor: boolean
+): Types.FloorLayout
 	local rng = Random.new(seed)
 	for _ = 1, MAX_ATTEMPTS do
-		local layout = tryGenerate(rng, seed, floorNumber, config)
+		local layout = tryGenerate(rng, seed, floorNumber, config, isBossFloor)
 		if layout then
 			return layout
 		end
@@ -229,9 +248,15 @@ function MazeGenerator.validate(layout: Types.FloorLayout, config: Config): (boo
 		if room.kind == "Entrance" then
 			entrances += 1
 			entrance = room
-		elseif room.kind == "Puzzle" then
-			puzzles += 1
+		elseif room.kind == "Puzzle" or room.kind == "Boss" then
+			puzzles += 1 -- sala final do andar (puzzle ou arena do boss)
 			puzzle = room
+			if room.kind == "Boss" then
+				local onBorder = room.x == 0 or room.x == layout.width - 1 or room.y == 0 or room.y == layout.height - 1
+				if not onBorder then
+					table.insert(problems, "a sala do boss não está na borda da grade")
+				end
+			end
 		elseif room.kind == "DeadEnd" then
 			deadEnds += 1
 			if doorCount(room) ~= 1 then
@@ -247,7 +272,7 @@ function MazeGenerator.validate(layout: Types.FloorLayout, config: Config): (boo
 		table.insert(problems, `{count} salas (esperado {config.minRooms} a {config.maxRooms})`)
 	end
 	if entrances ~= 1 or puzzles ~= 1 then
-		table.insert(problems, `{entrances} entradas e {puzzles} puzzles (esperado 1 e 1)`)
+		table.insert(problems, `{entrances} entradas e {puzzles} salas finais (esperado 1 e 1)`)
 	end
 	if deadEnds < config.minDeadEnds or deadEnds > config.maxDeadEnds then
 		table.insert(problems, `{deadEnds} becos (esperado {config.minDeadEnds} a {config.maxDeadEnds})`)

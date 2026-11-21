@@ -31,6 +31,11 @@ Keys.WorldAttr = table.freeze({
 	ExitOpen = "ExitOpen",
 	Lives = "Lives", -- vidas do grupo na run atual
 	RunNumber = "RunNumber", -- aumenta a cada game over (o HUD mostra o aviso)
+	IsBossFloor = "IsBossFloor", -- o andar atual é o do boss
+	BossName = "BossName",
+	BossHealth = "BossHealth",
+	BossMaxHealth = "BossMaxHealth", -- 0 = nenhum boss ativo (o HUD esconde a barra)
+	TowersCompleted = "TowersCompleted", -- aumenta ao derrotar o boss (o HUD mostra "TORRE CONCLUÍDA")
 })
 
 function Keys.abilityReadyAttr(abilityId: string): string

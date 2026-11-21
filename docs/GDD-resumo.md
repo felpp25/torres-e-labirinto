@@ -11,7 +11,8 @@
   O que se perde no game over é a tentativa (a torre recomeça do andar 1) e o prêmio do boss.
 - **Recompensas: mobs dão pouco, o boss dá o grosso** (XP, Gold e drops). Meta a definir quando o boss existir
   (ex.: ~30% do XP da run nos mobs e ~70% no boss). Evita farm de mobs e faz do boss o objetivo da run.
-  *Protótipo (sem boss):* os mobs ainda dão a recompensa atual; rebalancear junto com o boss.
+  *Protótipo:* mobs 8 XP e 1-3 Gold; boss 1500 XP e 300 Gold por jogador. Uma torre completa leva do nível 1 a
+  perto do 10 (teto atual).
 - *Protótipo:* uma torre só, andares infinitos, progresso global só na memória do servidor (sem DataStore) e sem
   exigência de nível. Teto de nível 10 (vai subir quando houver mais torres).
 
@@ -43,7 +44,14 @@
   (solo: uma por vez; grupo: cada um pisa uma). Todas ativas = a saída (escada) abre; pisar nela = checkpoint.
 - *Protótipo:* a sala de Entrada é zona segura para ACORDAR mobs (um mob dormindo não acorda vendo alguém lá
   dentro; um mob já acordado continua perseguindo). Evita emboscada no instante em que o andar começa.
-- *Protótipo:* andares infinitos com dificuldade crescente (o limite de 5 andares + boss vem depois).
+- **Boss:** no último andar da torre (andar 5), a sala do puzzle é substituída por uma **arena** (2 salas de
+  comprimento, na borda do labirinto) com o boss. Vencer o boss conclui a torre.
+- **Cada boss é único** (tema, habilidades e moveset próprios). Os ataques são dados (Balance/Bosses): a IA é
+  genérica e executa a lista de cada boss.
+- *Protótipo:* boss "Guardião da Torre": golpe pesado à frente + pisão em círculo, ambos com aviso no chão;
+  1200 de vida (+50% por jogador extra), Defesa 10, imune a empurrão; dá 1500 XP e 300 Gold a cada jogador.
+- **Torre concluída:** aviso "TORRE CONCLUÍDA" e uma run nova começa no andar 1. *Futuro:* voltar a um **lobby**
+  onde os jogadores escolhem a torre (e outras funções a definir).
 - **Dificuldade por andar:** +1 mob por sala de combate **a cada 2 andares** e +15% de vida e dano nos mobs
   a cada andar (valores iniciais, ajustáveis).
 

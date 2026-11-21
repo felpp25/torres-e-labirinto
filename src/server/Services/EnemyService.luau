@@ -19,6 +19,7 @@ local Combat = require(Shared.Balance.Combat)
 local Progression = require(Shared.Balance.Progression)
 
 local EnemyFactory = require(script.Parent.Parent.Enemies.EnemyFactory)
+local Telegraph = require(script.Parent.Parent.Enemies.Telegraph)
 local CombatService = require(script.Parent.CombatService)
 local ProgressionService = require(script.Parent.ProgressionService)
 
@@ -37,9 +38,7 @@ type Enemy = {
 	aggroed: boolean, -- já viu um jogador (a partir daí persegue mesmo sem linha de visão)
 }
 
-local TELEGRAPH_COLOR = Color3.fromRGB(255, 40, 40)
 local WAYPOINT_REACHED_DISTANCE = 2.5
-local INDICATOR_TRANSPARENCY = 0.55
 
 local EnemyService = {}
 
@@ -148,46 +147,13 @@ end
 
 local function setTelegraphColor(enemy: Enemy, active: boolean)
 	for part, color in enemy.originalColors do
-		part.Color = if active then TELEGRAPH_COLOR else color
+		part.Color = if active then Telegraph.COLOR else color
 	end
-end
-
--- Faixa vermelha no chão exatamente onde o golpe vai acertar.
-local function makeIndicator(hitCFrame: CFrame, size: Vector3, groundY: number): Part
-	local indicator = Instance.new("Part")
-	indicator.Name = "TelegraphIndicator"
-	indicator.Anchored = true
-	indicator.CanCollide = false
-	indicator.CanQuery = false
-	indicator.CanTouch = false
-	indicator.CastShadow = false
-	indicator.Material = Enum.Material.Neon
-	indicator.Color = TELEGRAPH_COLOR
-	indicator.Transparency = INDICATOR_TRANSPARENCY
-	indicator.Size = Vector3.new(size.X, 0.2, size.Z)
-	local position = hitCFrame.Position
-	indicator.CFrame = CFrame.new(position.X, groundY + 0.1, position.Z) * hitCFrame.Rotation
-	indicator.Parent = workspace
-	return indicator
 end
 
 local function hitPlayersInBox(enemy: Enemy, hitCFrame: CFrame, size: Vector3)
-	local characters: { Instance } = {}
-	for player in aliveCharacterRoots() do
-		table.insert(characters, player.Character :: Model)
-	end
-	local params = OverlapParams.new()
-	params.FilterType = Enum.RaycastFilterType.Include
-	params.FilterDescendantsInstances = characters
-
-	local hitPlayers: { [Player]: boolean } = {}
-	for _, part in workspace:GetPartBoundsInBox(hitCFrame, size, params) do
-		local character = part:FindFirstAncestorOfClass("Model")
-		local player = character and Players:GetPlayerFromCharacter(character)
-		if player and not hitPlayers[player] then
-			hitPlayers[player] = true
-			CombatService.damagePlayer(player, enemy.def.damage * enemy.damageMultiplier)
-		end
+	for _, player in Telegraph.playersInBox(hitCFrame, size) do
+		CombatService.damagePlayer(player, enemy.def.damage * enemy.damageMultiplier)
 	end
 end
 
@@ -204,7 +170,7 @@ local function attack(enemy: Enemy, target: BasePart)
 	local groundY = origin.Y - enemy.root.Size.Y / 2 - enemy.humanoid.HipHeight
 
 	setTelegraphColor(enemy, true)
-	local indicator = makeIndicator(hitCFrame, size, groundY)
+	local indicator = Telegraph.rect(hitCFrame, size, groundY)
 	task.wait(enemy.def.telegraphTime)
 	indicator:Destroy()
 

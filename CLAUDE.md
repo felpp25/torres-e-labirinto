@@ -42,6 +42,9 @@ src/
     Formulas.luau   fórmulas puras (dano, defesa, crítico, XP...): servidor decide, cliente só mostra
     Remotes.luau    RemoteEvents com nome tipado (servidor cria; cliente espera)
   server/Main.server.luau   bootstrap: init() de todos os serviços, depois start()
+  server/Services/          um serviço por sistema (combate, inimigos, boss, andares, puzzle, run, vida...)
+  server/Dungeon/           MazeGenerator (layout puro por seed) e RoomBuilder (peças)
+  server/Enemies/           EnemyFactory (modelo greybox) e Telegraph (avisos de ataque e quem é atingido)
   client/Main.client.luau   bootstrap dos controllers (mesmo padrão)
 default.project.json  mapeamento acima (Rojo)
 ```
@@ -107,6 +110,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - Antes de dar Play depois de mudar arquivos (inclusive depois do `stylua src`, que reescreve arquivos), confira
   que o Rojo já sincronizou: `execute_luau` no datamodel `Edit` procurando um trecho novo no `.Source` do script.
   Um Play iniciado antes da sincronização roda a versão antiga (aconteceu no M4: HUD "sumido").
+- No datamodel `Edit`, `require` fica em CACHE: depois de mudar um módulo já carregado num teste anterior, o
+  `require` devolve a versão VELHA. Para testar a nova: `local c = mod:Clone(); c.Parent = mod.Parent;
+  local M = require(c); c:Destroy()`.
 - `execute_luau` NÃO compartilha os módulos do jogo: `require` de um serviço ali devolve uma cópia nova (estado
   vazio). Para testar, provoque o efeito pelo próprio jogo (ex.: `Humanoid.Health = 0` num mob dispara a
   recompensa real) e leia o resultado por Attributes/instâncias.

@@ -14,6 +14,7 @@ local Types = require(Shared.Types)
 local Keys = require(Shared.Keys)
 local Run = require(Shared.Balance.Run)
 
+local BossService = require(script.Parent.BossService)
 local DungeonService = require(script.Parent.DungeonService)
 local EnemyService = require(script.Parent.EnemyService)
 local LifeService = require(script.Parent.LifeService)
@@ -26,6 +27,7 @@ local RunSessionService = {}
 local rng = Random.new()
 local lives = Run.startingLives
 local runNumber = 1
+local towersCompleted = 0
 local hearts: { Part } = {}
 
 local function publish()
@@ -34,6 +36,20 @@ local function publish()
 end
 
 -- Quem renasce já começa com vida, stamina e mana cheias (personagem novo).
+-- Boss derrotado: torre concluída. O HUD mostra "TORRE CONCLUÍDA" e, depois de um tempo, uma run nova começa
+-- no andar 1 (labirintos novos, vidas cheias; mortos renascem). Futuro: voltar ao lobby para escolher a torre.
+local function onTowerCompleted()
+	towersCompleted += 1
+	workspace:SetAttribute(Keys.WorldAttr.TowersCompleted, towersCompleted)
+	print(`[Run] TORRE CONCLUÍDA (run {runNumber}); nova run em {Run.towerCompleteDelay}s`)
+	task.delay(Run.towerCompleteDelay, function()
+		runNumber += 1
+		lives = Run.startingLives
+		publish()
+		DungeonService.advanceTo(1)
+	end)
+end
+
 local function gameOver()
 	print(`[Run] GAME OVER na run {runNumber}: a torre recomeça do andar 1 (XP e Gold ficam)`)
 	runNumber += 1
@@ -127,6 +143,8 @@ end
 
 function RunSessionService.init()
 	EnemyService.setDeathHandler(onMobDied)
+	BossService.setDefeatedHandler(onTowerCompleted)
+	workspace:SetAttribute(Keys.WorldAttr.TowersCompleted, towersCompleted)
 end
 
 function RunSessionService.start()

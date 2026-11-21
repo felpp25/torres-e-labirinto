@@ -62,6 +62,9 @@ local lastLives: number? = nil
 local lastRunNumber: number? = nil
 local statsLabel: TextLabel? = nil
 local floorLabel: TextLabel? = nil
+local bossFrame: Frame? = nil
+local bossBar: Bar? = nil
+local bossNameLabel: TextLabel? = nil
 local dodgeIcon: CooldownIcon? = nil
 local abilityIcon: CooldownIcon? = nil
 local screenGui: ScreenGui? = nil
@@ -201,6 +204,28 @@ local function build()
 
 	dodgeIcon = makeCooldownIcon(gui, -72, "Esquiva", "Q")
 	abilityIcon = makeCooldownIcon(gui, 8, "Palma", "E")
+
+	-- Barra do chefe: topo central, escondida até existir um chefe vivo.
+	local boss = Instance.new("Frame")
+	boss.Name = "BossBar"
+	boss.BackgroundColor3 = COLORS.panel
+	boss.BackgroundTransparency = 0.25
+	boss.AnchorPoint = Vector2.new(0.5, 0)
+	boss.Position = UDim2.new(0.5, 0, 0, 8)
+	boss.Size = UDim2.fromOffset(420, 52)
+	boss.Visible = false
+	boss.Parent = gui
+	corner(boss, 10)
+	local name = makeText(boss, "", UDim2.new(1, -16, 0, 18), UDim2.fromOffset(8, 4), 15)
+	name.TextXAlignment = Enum.TextXAlignment.Center
+	bossNameLabel = name
+	local bar = makeBar(boss, 26, 18, COLORS.health, true)
+	-- makeBar deixa espaço à esquerda para o círculo de nível do painel; aqui a barra ocupa a largura toda.
+	local back = bar.fill.Parent :: Frame
+	back.Position = UDim2.fromOffset(8, 26)
+	back.Size = UDim2.new(1, -16, 0, 18)
+	bossBar = bar
+	bossFrame = boss
 end
 
 local function update()
@@ -235,8 +260,12 @@ local function update()
 			local active = workspace:GetAttribute(Keys.WorldAttr.PlatesActive)
 			local total = workspace:GetAttribute(Keys.WorldAttr.PlatesTotal)
 			local exitOpen = workspace:GetAttribute(Keys.WorldAttr.ExitOpen) == true
-			local puzzle = if exitOpen then "Saída aberta!" else `Placas {active or 0}/{total or 0}`
-			floorLabel.Text = `Andar {floorNumber}  ·  {puzzle}`
+			local isBossFloor = workspace:GetAttribute(Keys.WorldAttr.IsBossFloor) == true
+			local goal = if isBossFloor
+				then "Chefe"
+				elseif exitOpen then "Saída aberta!"
+				else `Placas {active or 0}/{total or 0}`
+			floorLabel.Text = `Andar {floorNumber}  ·  {goal}`
 		else
 			floorLabel.Text = "Lobby"
 		end
@@ -344,7 +373,46 @@ end
 local function onFloorChanged()
 	local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)
 	if typeof(floorNumber) == "number" then
-		showToast(`ANDAR {floorNumber}`, "Ative as placas na sala azul para abrir a saída", COLORS.text, 0.32)
+		local isBossFloor = workspace:GetAttribute(Keys.WorldAttr.IsBossFloor) == true
+		local hint = if isBossFloor
+			then "Último andar: o chefe espera na arena vermelha"
+			else "Ative as placas na sala azul para abrir a saída"
+		showToast(`ANDAR {floorNumber}`, hint, if isBossFloor then COLORS.health else COLORS.text, 0.32)
+	end
+end
+
+local lastTowersCompleted: number? = nil
+local function onTowersCompletedChanged()
+	local count = workspace:GetAttribute(Keys.WorldAttr.TowersCompleted)
+	if typeof(count) ~= "number" then
+		return
+	end
+	local previous = lastTowersCompleted
+	lastTowersCompleted = count
+	if previous ~= nil and count > previous then
+		showToast(
+			"TORRE CONCLUÍDA!",
+			"Recompensa do chefe recebida. Uma nova torre começa em instantes.",
+			COLORS.gold,
+			0.22
+		)
+	end
+end
+
+-- Barra de vida do chefe no topo central (só aparece com um chefe vivo).
+local function updateBossBar()
+	local frame = bossFrame
+	if not frame then
+		return
+	end
+	local maxHealth = workspace:GetAttribute(Keys.WorldAttr.BossMaxHealth)
+	local health = workspace:GetAttribute(Keys.WorldAttr.BossHealth)
+	local active = typeof(maxHealth) == "number" and maxHealth > 0 and typeof(health) == "number" and health > 0
+	frame.Visible = active
+	if active and bossBar and bossNameLabel then
+		local name = workspace:GetAttribute(Keys.WorldAttr.BossName)
+		bossNameLabel.Text = if typeof(name) == "string" then name else "Chefe"
+		setBar(bossBar, health :: number, maxHealth :: number)
 	end
 end
 
@@ -387,7 +455,10 @@ function HudController.start()
 	workspace:GetAttributeChangedSignal(Keys.WorldAttr.Lives):Connect(onLivesChanged)
 	onRunChanged()
 	task.spawn(onLivesChanged)
+	workspace:GetAttributeChangedSignal(Keys.WorldAttr.TowersCompleted):Connect(onTowersCompletedChanged)
+	onTowersCompletedChanged()
 	RunService.Heartbeat:Connect(update)
+	RunService.Heartbeat:Connect(updateBossBar)
 end
 
 return HudController

@@ -75,8 +75,35 @@ export type MobDef = {
 	color: Color3,
 }
 
+-- Um ataque de boss. Cada boss tem a própria lista (tema e moveset únicos); a IA só executa o que está descrito.
+-- "Front": área retangular à frente do boss. "Circle": área circular ao redor dele.
+export type BossAttackShape = "Front" | "Circle"
+
+export type BossAttackDef = {
+	id: string,
+	shape: BossAttackShape,
+	telegraphTime: number, -- aviso no chão antes do golpe (s)
+	damage: number,
+	range: number, -- Front: profundidade da área; Circle: raio (studs)
+	width: number, -- Front: largura da área (Circle ignora)
+	triggerRange: number, -- o boss escolhe este ataque se o alvo estiver até esta distância
+	recovery: number, -- s parado depois do golpe (janela para o jogador revidar)
+}
+
+export type BossDef = {
+	id: string,
+	displayName: string,
+	body: MobDef, -- corpo (tamanho, cor, vida base, velocidade); os campos de ataque de mob são ignorados
+	healthPerExtraPlayer: number, -- +X da vida base por jogador além do primeiro (coop)
+	attacks: { BossAttackDef },
+	attackCooldown: number, -- s entre o fim da recuperação de um ataque e o próximo
+	xp: number, -- para CADA jogador da run, ao derrotar
+	gold: number,
+}
+
 -- Uma sala na grade do labirinto (gerada pelo MazeGenerator).
-export type RoomKind = "Entrance" | "Combat" | "Puzzle" | "DeadEnd"
+-- "Puzzle" = sala final dos andares normais; "Boss" = sala final do último andar da torre (vira a arena).
+export type RoomKind = "Entrance" | "Combat" | "Puzzle" | "DeadEnd" | "Boss"
 
 export type Room = {
 	x: number,

@@ -147,7 +147,8 @@ end
 -- Só mudar a velocidade não funciona: o Humanoid freia na hora (a Palma movia o alvo ~1 stud).
 local function applyKnockback(enemy: Model, direction: Vector3, strength: number)
 	local root = enemy.PrimaryPart
-	if strength <= 0 or not root then
+	-- Bosses não são empurrados (Attribute "KnockbackImmune" no modelo).
+	if strength <= 0 or not root or enemy:GetAttribute("KnockbackImmune") == true then
 		return
 	end
 	local ignore: { Instance } = { enemy }

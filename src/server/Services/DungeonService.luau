@@ -13,6 +13,7 @@ local Formulas = require(Shared.Formulas)
 local Keys = require(Shared.Keys)
 local Dungeon = require(Shared.Balance.Dungeon)
 local Mobs = require(Shared.Balance.Mobs)
+local Bosses = require(Shared.Balance.Bosses)
 local Run = require(Shared.Balance.Run)
 
 local MazeGenerator = require(script.Parent.Parent.Dungeon.MazeGenerator)
@@ -22,6 +23,7 @@ local EnemyService = require(script.Parent.EnemyService)
 local LifeService = require(script.Parent.LifeService)
 local ProgressionService = require(script.Parent.ProgressionService)
 local PuzzleService = require(script.Parent.PuzzleService)
+local BossService = require(script.Parent.BossService)
 
 local SPAWN_HEIGHT = 4 -- studs acima do piso
 local PLAYER_SPAWN_SPACING = 4
@@ -99,7 +101,8 @@ function DungeonService.startFloor(floorNumber: number, seed: number?)
 
 	local floorSeed = seed or seedRng:NextInteger(1, 2 ^ 31 - 2)
 	currentSeed = floorSeed
-	local layout = MazeGenerator.generate(floorSeed, floorNumber, Dungeon)
+	local isBossFloor = floorNumber >= Dungeon.floorsPerTower
+	local layout = MazeGenerator.generate(floorSeed, floorNumber, Dungeon, isBossFloor)
 	local ok, problems = MazeGenerator.validate(layout, Dungeon)
 	if not ok then
 		warn(`[Andar] seed {floorSeed} violou regras: {table.concat(problems, "; ")}`)
@@ -108,11 +111,22 @@ function DungeonService.startFloor(floorNumber: number, seed: number?)
 	local built = RoomBuilder.build(layout, Dungeon.floorOrigin, getContainer())
 	current = built
 	currentFloor = floorNumber
+	-- IsBossFloor antes de FloorNumber: o HUD lê os dois quando o andar muda.
+	workspace:SetAttribute(Keys.WorldAttr.IsBossFloor, isBossFloor)
 	workspace:SetAttribute(Keys.WorldAttr.FloorNumber, floorNumber)
 	-- Gerador próprio do conteúdo, derivado da seed (separado do do layout): mesmos mobs e placas ao refazer.
 	local contentRng = Random.new(floorSeed + 1)
 	local mobCount = spawnMobs(built, layout, floorNumber, contentRng)
-	PuzzleService.setup(built.roomCenters[built.puzzle], built.folder, contentRng)
+	local arena = built.arena
+	if isBossFloor and arena then
+		PuzzleService.clear()
+		local bossDef = Bosses.byId[Bosses.towerBossId]
+		assert(bossDef, `boss desconhecido: {Bosses.towerBossId}`)
+		BossService.spawn(bossDef, arena, arena.center.Y, built.folder)
+	else
+		BossService.clear()
+		PuzzleService.setup(built.roomCenters[built.goal], built.folder, contentRng)
+	end
 
 	local deadEnds = 0
 	for _, room in layout.rooms do
@@ -134,11 +148,10 @@ function DungeonService.getCurrentFloor(): number
 	return currentFloor
 end
 
--- Checkpoint (GDD > Morte e checkpoint): um jogador vivo passou pela saída aberta.
--- Próximo andar (mais difícil); os mortos do grupo renascem na entrada; vida, mana e stamina cheias para todos.
-local function onCheckpoint(player: Player)
-	print(`[Andar] {currentFloor} concluído por {player.Name}`)
-	DungeonService.startFloor(currentFloor + 1)
+-- Vai para o andar `floorNumber` (novo): os mortos do grupo renascem na entrada e todos ficam com vida,
+-- mana e stamina cheias. Usado no checkpoint e ao começar uma torre nova depois do boss.
+function DungeonService.advanceTo(floorNumber: number)
+	DungeonService.startFloor(floorNumber)
 	LifeService.reviveDead(nil) -- nasce pelo spawn provider: entrada do andar novo
 	for _, member in Players:GetPlayers() do
 		if LifeService.isAlive(member) then
@@ -146,6 +159,12 @@ local function onCheckpoint(player: Player)
 			CombatService.restoreResources(member)
 		end
 	end
+end
+
+-- Checkpoint (GDD > Morte e checkpoint): um jogador vivo passou pela saída aberta -> próximo andar.
+local function onCheckpoint(player: Player)
+	print(`[Andar] {currentFloor} concluído por {player.Name}`)
+	DungeonService.advanceTo(currentFloor + 1)
 end
 
 -- Está dentro da sala de Entrada do andar atual? (zona segura para acordar mobs)

@@ -184,6 +184,14 @@ function PuzzleService.setup(center: Vector3, parent: Instance, rng: Random)
 	publish(puzzle)
 end
 
+-- Andar sem puzzle (andar do boss): nada para verificar e o HUD mostra 0/0.
+function PuzzleService.clear()
+	current = nil
+	workspace:SetAttribute(Keys.WorldAttr.PlatesActive, 0)
+	workspace:SetAttribute(Keys.WorldAttr.PlatesTotal, 0)
+	workspace:SetAttribute(Keys.WorldAttr.ExitOpen, false)
+end
+
 -- O DungeonService decide o que acontece no checkpoint (sem dependência circular entre os serviços).
 function PuzzleService.setExitHandler(handler: (player: Player) -> ())
 	onExitReached = handler

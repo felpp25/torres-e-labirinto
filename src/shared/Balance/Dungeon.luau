@@ -11,6 +11,9 @@ local Dungeon = table.freeze({
 	floorThickness = 1,
 	doorWidth = 10,
 
+	-- Torre: N andares; o último tem a arena do boss no lugar da sala do puzzle (GDD > Visão geral)
+	floorsPerTower = 5,
+
 	-- Regras do GDD: 8 a 12 salas, caminho garantido até o puzzle, 1 ou 2 becos sem saída
 	minRooms = 8,
 	maxRooms = 12,

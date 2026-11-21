@@ -17,9 +17,10 @@ local Mobs: { [string]: Types.MobDef } = table.freeze({
 		hitWidth = 6,
 		telegraphTime = 0.6,
 		attackCooldown = 1.5,
-		xp = 20,
-		goldMin = 3,
-		goldMax = 6,
+		-- Mobs dão pouco; o grosso fica com o boss (GDD > Progressão global e torres).
+		xp = 8,
+		goldMin = 1,
+		goldMax = 3,
 		size = Vector3.new(4, 5, 4),
 		color = Color3.fromRGB(150, 70, 60),
 	} :: Types.MobDef),

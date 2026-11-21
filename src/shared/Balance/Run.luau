@@ -10,6 +10,10 @@ local Run = table.freeze({
 	-- ANDAR ATUAL (mesmo labirinto; mobs e placas voltam ao estado inicial).
 	allDeadRestartDelay = 3,
 
+	-- Boss derrotado: "TORRE CONCLUÍDA" fica na tela por este tempo antes de a nova run começar no andar 1.
+	-- (Futuro: em vez disso, voltar ao lobby para escolher a próxima torre.)
+	towerCompleteDelay = 8,
+
 	-- Vidas do GRUPO por run. Sem vidas: game over (perde o que ganhou na run; torre recomeça com labirinto novo).
 	startingLives = 3,
 	maxLives = 3,
