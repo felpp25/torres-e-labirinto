@@ -193,14 +193,18 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
   - **Teclas (decisão do designer):** 1, 2, 3 = habilidades; 4 = ultimate; E, R, T = poções.
   - **Reset de atributos:** devolve todos os pontos para redistribuir; preço cresce com o nível.
   - **Vender equipamento** (aba Vender): peças do baú (as equipadas não aparecem), Comum 10 e Raro 50 Gold; peça
-    Rara pede um segundo clique para confirmar.
+    Rara pede um segundo clique para confirmar. **Peça fortalecida não é vendida** (decisão do designer): ela nem
+    aparece na lista.
+- **Forja** (bigorna no lobby, atrás da loja): fortalecimento hoje; gemas depois (ver "Equipamentos > Forja").
 - *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
 
-## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapa 1 construída)
+## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapas 1 e 2 construídas)
 
 *Implementado (etapa 1):* catálogo da Torre 1, baú da conta (50), 7 slots, equipar/trocar no lobby (painel
 Personagem > Equipamento), atributos e Poder do equipamento no combate, item garantido do chefe, drop dos mobs, aviso
-de item novo e venda na loja. Fortalecimento, gemas e Forja ainda não existem.
+de item novo e venda na loja.
+*Implementado (etapa 2):* Forja no lobby com o fortalecimento +1 a +10 (sem itens de bênção, adiados). Gemas ainda
+não existem.
 
 ### O que o equipamento dá
 - **Pontos nos 7 atributos** (os mesmos do personagem), somados aos pontos distribuídos. As fórmulas não mudam e a
@@ -321,6 +325,10 @@ de item novo e venda na loja. Fortalecimento, gemas e Forja ainda não existem.
 
 ### Fortalecimento (+1 a +10)
 - Cada nível dá **+10% dos atributos base da peça** (e do Poder, na arma): +10 = o dobro.
+  - **Pontos quebrados ficam com decimais** (decisão do designer): Calças do Combatente (+1 FOR, +1 VIT) no +5 =
+    +1,5 FOR, +1,5 VIT; Luvas Comuns no +1 = Poder +5,5%. Todo + aparece na tela (uma casa decimal).
+  - Descartado: arredondar por peça (peças de 1 ponto não ganhariam nada de +1 a +4; o conjunto Combatente Comum
+    no +3 daria FOR 9 / VIT 4 em vez de 9,1 / 5,2) e arredondar o total (alguns + não mudariam nada visível).
 - **Custo em Gold:** `base da torre do item × 2^(nível − 1)`. Item da Torre 1: base 100 (+1 = 100, +2 = 200, +5 = 1.600,
   +10 = 51.200). Cada torre nova define a sua base, proporcional ao Gold que ela rende: o fortalecimento custa o
   mesmo esforço na torre de origem do item e acompanha a economia sozinho.
@@ -329,11 +337,30 @@ de item novo e venda na loja. Fortalecimento, gemas e Forja ainda não existem.
 - **Chance de sucesso:** +1 a +3 = 100%; +4 = 90%; +5 = 80%; +6 = 70%; +7 = 60%; +8 = 50%; +9 = 40%; +10 = 30%.
 - **Falha:** até +7 só perde o Gold. Falhar a tentativa de **+8, +9 ou +10 tira 1 nível** (ex.: +7 tentando +8 → +6;
   +9 tentando +10 → +8).
-- **Itens de bênção** somam % à chance de sucesso.
+- **Itens de bênção** somam % à chance de sucesso. **Adiados (decisão do designer):** o fortalecimento saiu sem
+  bênção; quanto ela soma e de onde vem se decide quando existirem as torres 2+ e a renda delas. Na Torre 1 o
+  realista é chegar até +7, onde a bênção quase não muda nada (42 → 40 runs por peça).
+  - Contas da análise (por peça, solo, ~450 Gold e 18 min por run; sem bênção: +8 = 122 runs, +10 = 1.379):
+
+| Opção analisada | +8 | +10 | Bênçãos gastas até o +10 |
+|---|---|---|---|
+| Sem bênção | 122 runs | 1.379 runs (~414 h) | — |
+| Drop do chefão, +10%, 1 por tentativa | 105 | 832 (−40%) | ~13 (qualquer chance > ~2% por chefão já sobra) |
+| Drop do chefão, +10%, até 3 por tentativa | 83 | 438 (−68%) | ~19 |
+| Loja, +10%, 1 por tentativa, 1.000 Gold | 108 | 861 | ~18 |
+
+  - Ponto de atenção da loja: preço fixo vira troco nas torres que rendem mais Gold (aí todo mundo usa sempre).
 - **A Sorte NÃO afeta o fortalecimento** (exceção à regra da Sorte global): com itens da conta, todo mundo
   fortaleceria no personagem mais sortudo.
 - **Ritmo de referência** (média com falhas, sem bênção, na torre de origem): +5 ≈ 8 runs, +7 ≈ 42 runs,
-  +10 ≈ 1.400 runs. O +10 é meta de longo prazo; os 3 últimos níveis são ~97% do custo.
+  +10 ≈ 1.400 runs, **por peça** (o conjunto de 7 peças no +7 ≈ 290 runs). O +10 é meta de longo prazo; os 3
+  últimos níveis são ~97% do custo.
+- **Peça fortalecida não é vendida** na loja (decisão do designer).
+- *Implementado:* janela da **Forja** (bigorna no lobby, tecla F / toque): à esquerda todas as peças da conta (as
+  equipadas primeiro, marcadas com "E"); à direita a peça escolhida com o que dá agora e no próximo nível, a chance, o
+  custo e o que acontece se falhar. As tentativas de +8 a +10 (as que podem tirar um nível) pedem um segundo clique.
+  O "+N" aparece no canto da peça na Forja e no painel Personagem. O servidor sorteia e cobra; o Gold gasto e o novo
+  nível são salvos poucos segundos depois da última tentativa.
 
 ### Gemas
 - **1 gema por peça.** Níveis **1 a 5** = **1 a 5 pontos** no atributo da gema (gema nível 1 = 1 ponto).
@@ -402,12 +429,16 @@ de item novo e venda na loja. Fortalecimento, gemas e Forja ainda não existem.
 ### Forja (no lobby)
 - **Funções do início:** **incrustar gemas** (~500 Gold), **fundir gemas**, **fortalecimento** e **extração de
   gemas** (com Removedor).
+- *Implementado:* bigorna atrás da loja (mesmo lado), com a aba **Fortalecer**; as abas das gemas entram na etapa 3.
+  Fica longe o bastante da loja para as duas janelas não abrirem juntas.
 - *Futuro:* fabricação (receitas e fragmentos) e **encantamento** (boost de atributo no equipamento).
 
 ### A definir
 - Como se obtém o Berserker; em que torres caem as armas intermediárias e avançadas (fora o Soco Inglês do
   protótipo).
-- Itens de bênção: quanto somam e como se obtêm.
+- Itens de bênção: quanto somam e como se obtêm (adiado; análise em "Fortalecimento").
+- O que o jogador faz com uma peça fortalecida que não quer mais: ela não pode ser vendida e ocupa espaço no baú
+  (descartar? transferir o fortalecimento para outra peça?).
 - Gemas, para quando as torres 5 a 10 forem construídas:
   - um **teto para a Sorte** nos achados (hoje um único personagem com muita Sorte multiplica os drops do grupo
     inteiro; ex.: Sorte 300 = chances ×7);
@@ -421,7 +452,7 @@ de item novo e venda na loja. Fortalecimento, gemas e Forja ainda não existem.
 ### Ordem de construção
 1. ~~Baú da conta, 7 slots, equipar e drop do boss (atributos somando).~~ **Feito** (mais o drop dos mobs, a venda
    na loja e o painel Personagem).
-2. Forja no lobby + fortalecimento.
+2. ~~Forja no lobby + fortalecimento.~~ **Feito** (sem itens de bênção, adiados).
 3. Gemas: nível 1 e removedores na loja; incrustar, fundir e extrair na Forja (a fusão só tem gemas para fundir
    quando existirem as torres 5+; até lá, testar com um comando do DevService).
 4. Depois: fabricação (depende dos modos Avançado e Pesadelo) e encantamento.

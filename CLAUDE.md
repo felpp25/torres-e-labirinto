@@ -39,13 +39,13 @@ src/
   shared/   -> ReplicatedStorage/Shared        (módulos usados pelos dois lados)
     Types.luau      tipos compartilhados
     Balance/        TODOS os números de balanceamento (combate, classes, habilidades, mobs, progressão, andares,
-                    equipamentos: Balance/Gear)
+                    equipamentos: Balance/Gear, forja/fortalecimento: Balance/Forge)
     Formulas.luau   fórmulas puras (dano, defesa, crítico, XP...): servidor decide, cliente só mostra
     Remotes.luau    RemoteEvents com nome tipado (servidor cria; cliente espera)
     GearInfo.luau / GearSnapshot.luau  textos das peças e o formato do Attribute GearData (equipamento do jogador)
   server/Main.server.luau   bootstrap: init() de todos os serviços, depois start()
   server/Services/          um serviço por sistema (combate, inimigos, boss, andares, puzzle, run, vida,
-                            equipamento = GearService...)
+                            equipamento = GearService, forja = ForgeService...)
   server/Dungeon/           MazeGenerator (layout puro por seed) e RoomBuilder (peças)
   server/Enemies/           EnemyFactory (modelo greybox) e Telegraph (avisos de ataque e quem é atingido)
   client/Main.client.luau   bootstrap dos controllers (mesmo padrão)
@@ -116,7 +116,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - No datamodel `Edit`, `require` fica em CACHE: depois de mudar um módulo já carregado num teste anterior, o
   `require` devolve a versão VELHA. Para testar a nova: `local c = mod:Clone(); c.Parent = mod.Parent;
   local M = require(c); c:Destroy()`.
-- **Fluxo do jogo:** o jogador nasce no LOBBY (perto da origem; loja à esquerda, portal da torre à direita). Para
+- **Fluxo do jogo:** o jogador nasce no LOBBY (perto da origem; loja à esquerda com a forja atrás dela, portal da
+  torre à direita). Para
   testar a torre pelo MCP: levar o personagem até `workspace.Lobby.TowerPortal` (a run começa) ou usar
   `Players:GetPlayers()[1]:GetAttribute("InRun")` para saber onde ele está. Game over / torre concluída = lobby.
 - **Salvamento (DataService):** no Studio usa o DataStore `PlayerData_Studio` (separado do jogo publicado,
@@ -126,6 +127,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   - Formato **v4**: peças de equipamento da conta (`gear`) + 7 slots por personagem (`equipped`); a migração deu a
     arma inicial equipada (Lutador: Luvas de Couro). **Não rode commits anteriores ao v4** (antes de `ea69b36`)
     contra o `PlayerData_Studio`: o código antigo apagaria o equipamento ao carregar.
+  - Formato **v5**: fortalecimento de cada peça (`enhance`, 0 a 10). Um servidor v4 que encontra dados v5 recusa
+    carregar (joga "sem salvar") e não apaga nada.
   - **Todo campo novo salvo aumenta `PlayerSchema.VERSION`** (mesmo opcional), e também todo valor novo num campo
     validado (ex.: raridade "Epic"). O servidor que acha dados de versão maior recusa carregar (joga "sem salvar")
     em vez de apagar o que não conhece.
@@ -143,8 +146,13 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   Equipamento: `"ListGear"`, `"GiveGear"(player, defId, "Rare")`, `"FillChest"(player, n, defId?, raridade?)`,
   `"Equip"(player, id)`, `"Unequip"(player, slot)`. Drops: `"SampleDrops"`, `"SampleLoot"`, `"RollBossLoot"`,
   `"ForceMobDrop"`, `"GoToFloor"(n)` (numa run ativa), `"RejoinRun"`, `"BossEligible"`.
+  Forja: `"Enhance"(player, id, forçar?)` (tentativa real, cobra Gold; `true`/`false` fixa o sorteio) e
+  `"SetEnhance"(player, id, nível)` (direto, sem custo).
   **Testes que mexem no personagem: `"SnapshotProfile"(player)` no início e `"RestoreProfile"(player)` +
   `"SaveNow"` no fim** (devolve Gold, itens, equipamento e atributos; o personagem de teste é o save do usuário).
+  O snapshot vive só na sessão de Play em que foi feito: teste que PARA e reinicia o Play (ex.: conferir o que foi
+  salvo) faz antes um backup com `"ReadStored"` e no fim `"RestoreFromJson"(player, json)` + `"SaveNow"`. Gravar o
+  DataStore direto pelo datamodel `Edit` não funciona (ler sim; gravar dá "Access forbidden").
   Fora do Studio o serviço não faz nada. Novos comandos de teste entram em `COMMANDS` no DevService.
 - `execute_luau` NÃO compartilha os módulos do jogo: `require` de um serviço ali devolve uma cópia nova (estado
   vazio). Para testar, provoque o efeito pelo próprio jogo (ex.: `Humanoid.Health = 0` num mob dispara a
@@ -159,6 +167,10 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - Interface: a janela de chat do Roblox (CoreGui) fica no canto inferior esquerdo e ENGOLE cliques da nossa UI ali
   (medido: botão sem `Activated`). Janelas grandes escondem o chat enquanto abertas (`client/ChatBlocker`). Crie
   ScreenGuis com `ZIndexBehavior = Sibling` (com Global, o fundo de uma janela de ZIndex maior cobre os próprios filhos).
+- Balcões do lobby (loja, forja): cada janela fecha a `alcance + 6` studs do seu balcão. Balcão novo precisa ficar
+  longe o bastante para duas janelas não abrirem juntas (medido: loja e forja a 22 studs abriam juntas; hoje 36).
+- Botão com "Confirmar?" (janela de 3 s): no teste pelo MCP, os dois cliques vão na MESMA chamada do
+  `user_mouse_input`; uma captura de tela entre eles passa dos 3 s e o segundo clique só pede confirmação de novo.
 - Cliques do `user_mouse_input`: prefira `instance_path` (ex.: `LocalPlayer.PlayerGui.ShopGui.Panel.SellTab`). As
   coordenadas x/y não batem com as da `screen_capture` (medido: o clique caiu ~46 px abaixo, na linha seguinte).
 - Luau (verificador de tipos): local SEM anotação alarga união de literais para `string` (ex.: `local slot =
