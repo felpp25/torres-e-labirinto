@@ -94,6 +94,9 @@ export type UnequipOutcome = "Unequipped" | "Empty" | "WeaponLocked" | "ChestFul
 export type SellOutcome = "Sold" | "NotFound" | "InUse" | "Enhanced" | "HasGem"
 -- Destruir (arrastar para fora da mochila): a fortalecida pode; equipada e com gema, não.
 export type DestroyOutcome = "Destroyed" | "NotFound" | "InUse" | "HasGem"
+-- Transferir o fortalecimento (troca de níveis). "Blocked" = a regra de Formulas.transferCheck não deixa (o
+-- GearService diz o motivo).
+export type TransferOutcome = "Transferred" | "NotFound" | "SamePiece" | "Blocked"
 -- Gemas (o GemService transforma em mensagens; o Gold é conferido e cobrado lá).
 export type StoreOutcome = "Stored" | "ChestFull" | "StackFull"
 export type TakeOutcome = "Taken" | "NotEnough"
@@ -458,6 +461,26 @@ end
 
 -- Destrói uma peça do BAÚ (arrastada para fora da mochila; decisão do designer). A fortalecida pode (é o jeito de se
 -- livrar dela, já que não é vendida); equipada, com gema (extraia antes) ou inerte não. Devolve a peça removida.
+-- Troca o fortalecimento das peças `fromId` e `toId` (decisão do designer: os níveis trocam de lugar; nada se
+-- perde). Peças de qualquer personagem da conta ou do baú; a gema de cada uma fica onde está. O Gold é do GearService.
+function PlayerSchema.transferEnhance(profile: Profile, fromId: number, toId: number): TransferOutcome
+	if fromId == toId then
+		return "SamePiece"
+	end
+	local from = PlayerSchema.findGear(profile, fromId)
+	local to = PlayerSchema.findGear(profile, toId)
+	local defFrom = if from then Gear.byId[from.defId] else nil
+	local defTo = if to then Gear.byId[to.defId] else nil
+	if not from or not to or not defFrom or not defTo then
+		return "NotFound"
+	end
+	if Formulas.transferCheck(defFrom, from.enhance, defTo, to.enhance) ~= "Ok" then
+		return "Blocked"
+	end
+	from.enhance, to.enhance = to.enhance, from.enhance
+	return "Transferred"
+end
+
 function PlayerSchema.destroyGear(profile: Profile, id: number): (DestroyOutcome, Types.OwnedGear?)
 	local index = indexOfGear(profile, id)
 	if index == nil then

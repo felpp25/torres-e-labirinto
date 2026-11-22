@@ -3,11 +3,13 @@
 -- (tecla F / direcional para cima no controle / toque) e fecha sozinha ao se afastar. Abas:
 -- - "Fortalecer": à esquerda todas as peças da conta (as equipadas primeiro, marcadas com "E"), com o "+N" e a gema
 --   no canto; à direita a peça escolhida, o que ela dá agora e no próximo nível, a chance, o custo e o risco.
+-- - "Transferir": as mesmas peças à esquerda; à direita as peças que podem trocar o fortalecimento com a escolhida
+--   (mesmo tipo, outro nível, torre igual ou mais baixa), a prévia das duas depois da troca e o custo (Gold).
 -- - "Gemas": as mesmas peças à esquerda; à direita a gema da peça: incrustar uma gema do baú (Gold) ou extrair a
 --   que está nela (gasta um Removedor do nível da gema; a gema volta inteira para o baú).
 -- - "Fundir": à esquerda as gemas do baú; à direita a fusão de 3 iguais em 1 do nível seguinte (Gold).
--- O cliente só PEDE (EnhanceGear, SocketGem, ExtractGem, FuseGems); o servidor confere tudo, sorteia, cobra e
--- responde por ForgeResult. Os números mostrados vêm das mesmas fórmulas e tabelas do servidor (Shared).
+-- O cliente só PEDE (EnhanceGear, TransferEnhance, SocketGem, ExtractGem, FuseGems); o servidor confere tudo,
+-- sorteia, cobra e responde por ForgeResult. Os números mostrados vêm das mesmas fórmulas e tabelas do servidor.
 
 local Players: Players = game:GetService("Players")
 local ProximityPromptService: ProximityPromptService = game:GetService("ProximityPromptService")
@@ -78,7 +80,7 @@ local COLORS = {
 	gemText = Color3.fromRGB(20, 20, 28),
 }
 
-type Tab = "Enhance" | "Gems" | "Fuse"
+type Tab = "Enhance" | "Gems" | "Fuse" | "Transfer"
 
 -- Peça escolhida em destaque (abas Fortalecer e Gemas): célula grande, nome e a linha raridade/slot.
 type PieceHeader = {
@@ -135,6 +137,16 @@ local fuseOwned: TextLabel? = nil
 local recipeLabel: TextLabel? = nil
 local fuseCostLabel: TextLabel? = nil
 local fuseButton: TextButton? = nil
+-- Aba Transferir
+local transferHeader: PieceHeader? = nil
+local transferChoose: TextLabel? = nil
+local transferGrid: ScrollingFrame? = nil
+local transferStrokes: { [number]: UIStroke } = {}
+local afterLabel: TextLabel? = nil
+local afterTo: TextLabel? = nil
+local afterFrom: TextLabel? = nil
+local transferCostLabel: TextLabel? = nil
+local transferButton: TextButton? = nil
 
 -- Estado
 local snapshot: Types.GearSnapshot = GearSnapshot.empty()
@@ -142,6 +154,7 @@ local currentTab: Tab = "Enhance"
 local selectedId: number? = nil -- peça (abas Fortalecer e Gemas)
 local selectedGem: Types.Gem? = nil -- gema do baú escolhida para incrustar (aba Gemas)
 local selectedStack: Types.Gem? = nil -- gemas do baú escolhidas para fundir (aba Fundir)
+local transferTargetId: number? = nil -- peça que troca o fortalecimento com a escolhida (aba Transferir)
 local confirmUntil = 0
 
 local function numberAttr(name: string): number
@@ -323,6 +336,28 @@ local function orderedEntries(): { Types.GearEntry }
 	return list
 end
 
+-- Peças que podem trocar o fortalecimento com a escolhida (mesma regra do servidor: Formulas.transferCheck).
+local function transferTargets(): { Types.GearEntry }
+	local source, sourceDef = selectedEntry()
+	local list: { Types.GearEntry } = {}
+	if not source or not sourceDef then
+		return list
+	end
+	for _, entry in orderedEntries() do
+		local def = Gear.byId[entry.defId]
+		if entry.id ~= source.id and Formulas.transferCheck(sourceDef, source.enhance, def, entry.enhance) == "Ok" then
+			table.insert(list, entry)
+		end
+	end
+	return list
+end
+
+local function transferTarget(): (Types.GearEntry?, Types.GearDef?)
+	local entry = if transferTargetId ~= nil then GearSnapshot.find(snapshot, transferTargetId) else nil
+	local def = if entry then Gear.byId[entry.defId] else nil
+	return entry, def
+end
+
 -- Cabe mais 1 gema nesta pilha do baú, liberando `freed` espaços antes? (Mesma regra do servidor; só para o botão.)
 local function gemFits(attribute: Types.GemAttribute, level: number, freed: number): boolean
 	local have = GearSnapshot.gemCount(snapshot, attribute, level)
@@ -414,6 +449,33 @@ local function fuseAction(): (string, Color3, string?)
 		return "Fundir", COLORS.disabled, "Baú cheio: a gema nova não teria onde ficar"
 	end
 	return "Fundir", COLORS.button, nil
+end
+
+local function transferAction(): (string, Color3, string?)
+	local source, sourceDef = selectedEntry()
+	if not source or not sourceDef then
+		return "Transferir", COLORS.disabled, "Escolha uma peça à esquerda"
+	end
+	local target, targetDef = transferTarget()
+	if not target or not targetDef then
+		return "Transferir", COLORS.disabled, "Escolha a peça que troca com ela"
+	end
+	local check: Formulas.TransferCheck = Formulas.transferCheck(sourceDef, source.enhance, targetDef, target.enhance)
+	local blocked = GearInfo.transferBlockedReason(check)
+	if blocked then
+		return "Transferir", COLORS.disabled, blocked
+	end
+	if inRun() then
+		return "Transferir", COLORS.disabled, "Transferência só no lobby"
+	end
+	local cost = Formulas.transferCost(sourceDef, source.enhance, targetDef, target.enhance)
+	if numberAttr(Keys.PlayerAttr.Gold) < cost then
+		return "Transferir", COLORS.disabled, `Gold insuficiente (custa {cost})`
+	end
+	if os.clock() < confirmUntil then
+		return "Confirmar?", COLORS.confirm, nil
+	end
+	return "Transferir", COLORS.button, nil
 end
 
 local function paintButton(button: TextButton?, action: () -> (string, Color3, string?))
@@ -584,6 +646,52 @@ local function refreshFuse()
 	paintButton(fuseButton, fuseAction)
 end
 
+-- "Gibão do Combatente +7 (Raro): +2,2 FOR, +1,1 VIT" (como a peça fica com este fortalecimento).
+local function pieceAfter(entry: Types.GearEntry, def: Types.GearDef, enhance: number): string
+	local rarity: Types.Rarity = entry.rarity
+	return `{GearInfo.fullName(def, rarity, enhance)}: {GearInfo.describe(def, rarity, enhance)}`
+end
+
+local function refreshTransfer()
+	refreshPieceHeader(transferHeader)
+	local choose, after, toLine, fromLine, cost = transferChoose, afterLabel, afterTo, afterFrom, transferCostLabel
+	if not choose or not after or not toLine or not fromLine or not cost then
+		return
+	end
+	local source, sourceDef = selectedEntry()
+	local target, targetDef = transferTarget()
+	if not source then
+		choose.Text = ""
+	elseif #transferTargets() == 0 then
+		choose.Text =
+			"Nenhuma peça para trocar: precisa ser do mesmo tipo, com outro nível, da mesma torre ou mais baixa"
+	else
+		choose.Text = "Trocar o fortalecimento com:"
+	end
+	if source and sourceDef and target and targetDef then
+		after.Text = "Depois da troca:"
+		toLine.Text = pieceAfter(target, targetDef, source.enhance)
+		fromLine.Text = pieceAfter(source, sourceDef, target.enhance)
+		cost.Text = `Custo: {Formulas.transferCost(sourceDef, source.enhance, targetDef, target.enhance)} Gold`
+	else
+		after.Text = ""
+		toLine.Text = ""
+		fromLine.Text = ""
+		cost.Text = ""
+	end
+	for id, stroke in transferStrokes do
+		local entry = GearSnapshot.find(snapshot, id)
+		if transferTargetId == id then
+			stroke.Color = COLORS.selected
+			stroke.Thickness = 3
+		elseif entry then
+			stroke.Color = GearInfo.rarityColor(entry.rarity)
+			stroke.Thickness = 2
+		end
+	end
+	paintButton(transferButton, transferAction)
+end
+
 local function refresh()
 	local frame = window
 	if not frame or not frame.Visible then
@@ -609,6 +717,8 @@ local function refresh()
 		refreshEnhance()
 	elseif currentTab == "Gems" then
 		refreshGems()
+	elseif currentTab == "Transfer" then
+		refreshTransfer()
 	else
 		refreshFuse()
 	end
@@ -624,6 +734,57 @@ local function clearGrid(grid: ScrollingFrame)
 	end
 end
 
+-- Célula de uma peça: sigla do slot, "+N" no canto, a gema e o "E" de equipada. Devolve a borda.
+local function makePieceCell(parent: Instance, entry: Types.GearEntry, order: number, onClick: () -> ()): UIStroke
+	local def = Gear.byId[entry.defId]
+	local cell = Instance.new("TextButton")
+	cell.Name = `Item_{entry.id}`
+	cell.LayoutOrder = order
+	cell.Text = ""
+	cell.BackgroundColor3 = COLORS.cell
+	cell.Parent = parent
+	makeCorner(cell, 6)
+	local stroke = makeStroke(cell, GearInfo.rarityColor(entry.rarity))
+	local label = makeText(cell, SLOT_SHORT[def.slot], UDim2.fromScale(1, 1), UDim2.new(), 13)
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	makeBadge(cell, 11).Text = GearInfo.enhanceLabel(entry.enhance)
+	setGemMark(makeGemMark(cell, 14), entry.gem)
+	if entry.inUse then
+		local mark = makeText(cell, "E", UDim2.fromOffset(14, 14), UDim2.new(0, 3, 1, -15), 11)
+		mark.Name = "InUse"
+		mark.TextColor3 = COLORS.inUse
+	end
+	cell.Activated:Connect(onClick)
+	return stroke
+end
+
+-- Aba Transferir: as peças que podem trocar o fortalecimento com a escolhida à esquerda.
+local function rebuildTransferGrid()
+	local list = transferGrid
+	if not list then
+		return
+	end
+	clearGrid(list)
+	table.clear(transferStrokes)
+	local targets = transferTargets()
+	local stillThere = false
+	for index, entry in targets do
+		local id = entry.id
+		stillThere = stillThere or id == transferTargetId
+		transferStrokes[id] = makePieceCell(list, entry, index, function()
+			if transferTargetId ~= id then
+				confirmUntil = 0
+			end
+			transferTargetId = id
+			showMessage("", true)
+			refresh()
+		end)
+	end
+	if not stillThere then
+		transferTargetId = nil -- a peça de destino não serve mais (vendida, mesmo nível...)
+	end
+end
+
 local function rebuildPieceGrid()
 	local list = pieceGrid
 	if not list then
@@ -632,32 +793,16 @@ local function rebuildPieceGrid()
 	clearGrid(list)
 	table.clear(pieceStrokes)
 	for index, entry in orderedEntries() do
-		local def = Gear.byId[entry.defId]
-		local cell = Instance.new("TextButton")
-		cell.Name = `Item_{entry.id}`
-		cell.LayoutOrder = index
-		cell.Text = ""
-		cell.BackgroundColor3 = COLORS.cell
-		cell.Parent = list
-		makeCorner(cell, 6)
-		pieceStrokes[entry.id] = makeStroke(cell, GearInfo.rarityColor(entry.rarity))
-		local label = makeText(cell, SLOT_SHORT[def.slot], UDim2.fromScale(1, 1), UDim2.new(), 13)
-		label.TextXAlignment = Enum.TextXAlignment.Center
-		makeBadge(cell, 11).Text = GearInfo.enhanceLabel(entry.enhance)
-		setGemMark(makeGemMark(cell, 14), entry.gem)
-		if entry.inUse then
-			local mark = makeText(cell, "E", UDim2.fromOffset(14, 14), UDim2.new(0, 3, 1, -15), 11)
-			mark.Name = "InUse"
-			mark.TextColor3 = COLORS.inUse
-		end
 		local id = entry.id
-		cell.Activated:Connect(function()
+		pieceStrokes[id] = makePieceCell(list, entry, index, function()
 			if selectedId ~= id then
 				confirmUntil = 0
 				selectedGem = nil
+				transferTargetId = nil
 			end
 			selectedId = id
 			showMessage("", true)
+			rebuildTransferGrid()
 			refresh()
 		end)
 	end
@@ -759,6 +904,29 @@ local function onFuseClicked()
 	end
 end
 
+-- Troca o fortalecimento das duas peças. Sempre pede um segundo clique (custa Gold; desfazer custa de novo).
+local function onTransferClicked()
+	local _, _, blocked = transferAction()
+	if blocked then
+		showMessage(blocked, false)
+		return
+	end
+	local source, _ = selectedEntry()
+	local target, _ = transferTarget()
+	if not source or not target then
+		return
+	end
+	if os.clock() >= confirmUntil then
+		confirmUntil = os.clock() + CONFIRM_WINDOW
+		showMessage("", true)
+		refresh()
+		return
+	end
+	confirmUntil = 0
+	Remotes.get("TransferEnhance"):FireServer(source.id, target.id)
+	refresh()
+end
+
 local function selectTab(tab: Tab)
 	currentTab = tab
 	confirmUntil = 0
@@ -795,6 +963,7 @@ local function setOpen(open: boolean)
 	if open then
 		clearMessages()
 		rebuildPieceGrid()
+		rebuildTransferGrid()
 		rebuildStacks()
 	end
 	refresh()
@@ -1031,6 +1200,48 @@ local function buildFuseSide(frame: Frame)
 	)
 end
 
+local function buildTransferSide(frame: Frame)
+	local side = makeRightSide(frame, "TransferSide", "Transfer")
+	transferHeader = buildPieceHeader(side)
+
+	-- Duas linhas quando não há peça compatível (a grade logo abaixo fica vazia nesse caso).
+	local choose = makeText(side, "", UDim2.new(1, -28, 0, 30), UDim2.fromOffset(14, 108), 12)
+	choose.Name = "Choose"
+	choose.TextColor3 = COLORS.dim
+	choose.TextWrapped = true
+	choose.TextYAlignment = Enum.TextYAlignment.Top
+	transferChoose = choose
+	-- Uma linha de peças à vista (rola se houver mais).
+	transferGrid = makeGrid(side, "Targets", UDim2.new(1, -28, 0, CELL_SIZE + 4), UDim2.fromOffset(14, 126))
+
+	local after = makeText(side, "", UDim2.new(1, -28, 0, 14), UDim2.fromOffset(14, 180), 12)
+	after.Name = "After"
+	after.TextColor3 = COLORS.dim
+	afterLabel = after
+	local function previewLine(lineName: string, y: number, color: Color3): TextLabel
+		local text = makeText(side, "", UDim2.new(1, -28, 0, 30), UDim2.fromOffset(14, y), 12)
+		text.Name = lineName
+		text.TextColor3 = color
+		text.TextWrapped = true
+		text.TextYAlignment = Enum.TextYAlignment.Top
+		return text
+	end
+	afterTo = previewLine("AfterTarget", 196, COLORS.ok)
+	afterFrom = previewLine("AfterSource", 228, COLORS.text)
+	local cost = makeText(side, "", UDim2.new(1, -28, 0, 18), UDim2.fromOffset(14, 262), 15)
+	cost.Name = "Cost"
+	cost.TextColor3 = COLORS.gold
+	transferCostLabel = cost
+
+	local button = makeButton(side, "Transferir", UDim2.new(1, -28, 0, 40), UDim2.fromOffset(14, 284), COLORS.button)
+	button.Name = "TransferButton"
+	button.TextSize = 18
+	button.Activated:Connect(onTransferClicked)
+	transferButton = button
+	makeMessage(side, "Transfer", 328, 2)
+	makeFooter(side, "Mesmo tipo de peça  ·  só para torre igual ou menor", 1)
+end
+
 local function build()
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "ForgeGui"
@@ -1068,14 +1279,15 @@ local function build()
 	title.TextColor3 = COLORS.forge
 	local tabs: { { tab: Tab, name: string, text: string } } = {
 		{ tab = "Enhance", name = "EnhanceTab", text = "Fortalecer" },
+		{ tab = "Transfer", name = "TransferTab", text = "Transferir" },
 		{ tab = "Gems", name = "GemsTab", text = "Gemas" },
 		{ tab = "Fuse", name = "FuseTab", text = "Fundir" },
 	}
 	for index, info in tabs do
-		local x = 90 + (index - 1) * 116
-		local button = makeButton(frame, info.text, UDim2.fromOffset(110, 30), UDim2.fromOffset(x, 9), COLORS.tabIdle)
+		local x = 90 + (index - 1) * 102
+		local button = makeButton(frame, info.text, UDim2.fromOffset(96, 30), UDim2.fromOffset(x, 9), COLORS.tabIdle)
 		button.Name = info.name
-		button.TextSize = 15
+		button.TextSize = 14
 		local tab: Tab = info.tab -- anotado: sem isso o verificador alarga para `string`
 		button.Activated:Connect(function()
 			selectTab(tab)
@@ -1096,6 +1308,7 @@ local function build()
 	buildEnhanceSide(frame)
 	buildGemSide(frame)
 	buildFuseSide(frame)
+	buildTransferSide(frame)
 end
 
 local function onForgeResult(payload: unknown)
@@ -1111,6 +1324,11 @@ local function onForgeResult(payload: unknown)
 	showMessage(message, ok)
 	if data.rolled == true then -- houve sorteio: pisca a peça em verde (sucesso) ou vermelho (falha)
 		flash(if ok then COLORS.ok else COLORS.fail)
+	end
+	if ok and currentTab == "Transfer" then
+		-- Trocou: tira a escolha do destino (senão a prévia mostraria a troca de volta).
+		transferTargetId = nil
+		rebuildTransferGrid()
 	end
 	refresh()
 end
@@ -1132,6 +1350,7 @@ local function onGearDataChanged()
 	selectedStack = stillInChest(selectedStack)
 	if window and window.Visible then
 		rebuildPieceGrid()
+		rebuildTransferGrid()
 		rebuildStacks()
 	end
 	refresh()

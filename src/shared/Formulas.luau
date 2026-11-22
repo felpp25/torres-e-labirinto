@@ -223,6 +223,42 @@ function Formulas.enhanceResult(current: number, success: boolean): number
 	return current
 end
 
+-- ===== Transferir o fortalecimento (decisões do designer): as duas peças TROCAM os níveis =====
+
+export type TransferCheck = "Ok" | "WrongSlot" | "NothingToMove" | "SameLevel" | "HigherTower"
+
+-- Pode trocar o fortalecimento da peça A (+enhanceA) com o da peça B (+enhanceB)? Só peças do mesmo tipo (slot), e
+-- um nível só vai para peça da MESMA torre ou de uma mais baixa: subir seria um atalho (fortalecer uma peça barata
+-- da Torre 1 com o Gold de uma torre alta e passar o + para a peça cara).
+function Formulas.transferCheck(
+	defA: Types.GearDef,
+	enhanceA: number,
+	defB: Types.GearDef,
+	enhanceB: number
+): TransferCheck
+	if defA.slot ~= defB.slot then
+		return "WrongSlot"
+	end
+	if enhanceA == 0 and enhanceB == 0 then
+		return "NothingToMove"
+	end
+	if enhanceA == enhanceB then
+		return "SameLevel"
+	end
+	if (enhanceA > 0 and defB.tower > defA.tower) or (enhanceB > 0 and defA.tower > defB.tower) then
+		return "HigherTower"
+	end
+	return "Ok"
+end
+
+-- Gold da troca: 1 tentativa do MAIOR nível trocado, na base da torre da peça que tem esse nível.
+function Formulas.transferCost(defA: Types.GearDef, enhanceA: number, defB: Types.GearDef, enhanceB: number): number
+	if enhanceA >= enhanceB then
+		return Formulas.enhanceCost(defA, enhanceA)
+	end
+	return Formulas.enhanceCost(defB, enhanceB)
+end
+
 function Formulas.isScaling(classDef: Types.ClassDef, attribute: Types.AttributeName): boolean
 	return table.find(classDef.scalingAttributes, attribute) ~= nil
 end

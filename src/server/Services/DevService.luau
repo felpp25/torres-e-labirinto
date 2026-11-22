@@ -27,7 +27,8 @@
 --   dá peça), "GoToFloor"(n) (pula para o andar n numa run ativa), "RejoinRun"(player) (sai e volta à run: devolve
 --   se ficou com direito ao boss), "BossEligible"(player)
 --   Forja: "Enhance"(player, id, forçar?) (uma tentativa REAL, cobra Gold; forçar = true/false fixa o sorteio;
---   ignora a distância e o anti-spam), "SetEnhance"(player, id, nível) (define direto, sem custo)
+--   ignora a distância e o anti-spam), "SetEnhance"(player, id, nível) (define direto, sem custo),
+--   "TransferEnhance"(player, deId, paraId) (troca real dos níveis, cobra Gold; ignora a distância)
 --   Gemas (regras REAIS do GemService; ignoram distância e anti-spam; devolvem "ok: ..." / "recusado: ..."):
 --   "BuyGem"(player, "Strength") e "BuyRemover"(player, nível) (cobram Gold), "SocketGem"(player, id, atributo,
 --   nível), "ExtractGem"(player, id), "FuseGems"(player, atributo, nível). Sem custo: "GiveGems"(player, atributo,
@@ -336,6 +337,10 @@ local COMMANDS: { [string]: Command } = {
 
 	SetEnhance = function(player: Player, id: number, enhance: number): boolean
 		return GearService.debugSetEnhance(player, id, enhance)
+	end,
+
+	TransferEnhance = function(player: Player, fromId: number, toId: number): string
+		return outcomeText(GearService.tryTransfer(player, fromId, toId))
 	end,
 
 	BuyGem = function(player: Player, attribute: string): string

@@ -354,6 +354,42 @@ function GearService.tryEnhance(player: Player, id: number, forced: boolean?): (
 	return "Fail", `Falhou: continua +{piece.enhance} (o Gold foi gasto)`
 end
 
+-- Transferir o fortalecimento: as peças `fromId` e `toId` trocam os níveis (decisões do designer: mesmo tipo de peça,
+-- só para a mesma torre ou uma mais baixa; custa 1 tentativa do maior nível trocado). A Forja confere a distância.
+function GearService.tryTransfer(player: Player, fromId: number, toId: number): (boolean, string)
+	local profile = ProgressionService.getLoadedProfile(player)
+	if not profile then
+		return false, "Aguarde, carregando seus dados"
+	end
+	if inRun(player) then
+		return false, "Transferência só no lobby"
+	end
+	local from = PlayerSchema.findGear(profile, fromId)
+	local to = PlayerSchema.findGear(profile, toId)
+	local defFrom = if from then PlayerSchema.defOf(from) else nil
+	local defTo = if to then PlayerSchema.defOf(to) else nil
+	if not from or not to or not defFrom or not defTo or fromId == toId then
+		return false, "Item não encontrado"
+	end
+	local check: Formulas.TransferCheck = Formulas.transferCheck(defFrom, from.enhance, defTo, to.enhance)
+	local blocked = GearInfo.transferBlockedReason(check)
+	if blocked then
+		return false, blocked
+	end
+	local cost = Formulas.transferCost(defFrom, from.enhance, defTo, to.enhance)
+	if ProgressionService.getGold(player) < cost then
+		return false, `Gold insuficiente (custa {cost})`
+	end
+	local before = `{nameOf(from)} e {nameOf(to)}`
+	if PlayerSchema.transferEnhance(profile, fromId, toId) ~= "Transferred" then
+		return false, "Não foi possível transferir"
+	end
+	ProgressionService.trySpendGold(player, cost)
+	afterChange(player)
+	print(`[Forja] {player.Name}: troca de fortalecimento {before} -> {nameOf(from)} e {nameOf(to)}, {cost} Gold`)
+	return true, `Trocado: {nameOf(to)} e {nameOf(from)}`
+end
+
 -- SÓ TESTES no Studio (DevService): define o fortalecimento direto, sem custo nem sorteio.
 function GearService.debugSetEnhance(player: Player, id: number, enhance: number): boolean
 	local profile = ProgressionService.getLoadedProfile(player)

@@ -1,7 +1,8 @@
 --!strict
--- Forja do lobby (GDD > Equipamentos > Forja): fortalecimento (+1 a +10) e gemas (incrustar, extrair, fundir).
--- Depois: fabricação e encantamento.
--- O cliente só PEDE (EnhanceGear, SocketGem, ExtractGem, FuseGems). Aqui: tipos dos argumentos, anti-spam e
+-- Forja do lobby (GDD > Equipamentos > Forja): fortalecimento (+1 a +10), transferir o fortalecimento entre duas
+-- peças e gemas (incrustar, extrair, fundir). Depois: fabricação e encantamento.
+-- O cliente só PEDE (EnhanceGear, TransferEnhance, SocketGem, ExtractGem, FuseGems). Aqui: tipos dos argumentos,
+-- anti-spam e
 -- distância da bigorna; a regra (peça da conta, nível máximo, Gold, sorteio, baú, Removedor) fica no GearService
 -- (fortalecimento) e no GemService (gemas). A resposta volta pelo Remote ForgeResult.
 -- O que mudou é salvo alguns segundos depois do último pedido que deu certo (um save por rajada de cliques, não um
@@ -110,8 +111,20 @@ local function onFuseGems(player: Player, rawAttribute: unknown, rawLevel: unkno
 	finishGem(player, ok, message)
 end
 
+-- Troca o fortalecimento de duas peças (sem sorteio: responde e salva como as operações de gema).
+local function onTransferEnhance(player: Player, rawFrom: unknown, rawTo: unknown)
+	local fromId = Formulas.parseGearId(rawFrom)
+	local toId = Formulas.parseGearId(rawTo)
+	if fromId == nil or toId == nil or not allowRequest(player) then
+		return
+	end
+	local ok, message = GearService.tryTransfer(player, fromId, toId)
+	finishGem(player, ok, message)
+end
+
 function ForgeService.init()
 	Remotes.get("EnhanceGear").OnServerEvent:Connect(onEnhanceGear)
+	Remotes.get("TransferEnhance").OnServerEvent:Connect(onTransferEnhance)
 	Remotes.get("SocketGem").OnServerEvent:Connect(onSocketGem)
 	Remotes.get("ExtractGem").OnServerEvent:Connect(onExtractGem)
 	Remotes.get("FuseGems").OnServerEvent:Connect(onFuseGems)

@@ -118,6 +118,20 @@ function GearInfo.removerName(level: number): string
 	return `Removedor Nv{level}`
 end
 
+-- Por que a troca de fortalecimento entre duas peças não pode (Formulas.transferCheck). Nil = pode.
+function GearInfo.transferBlockedReason(check: Formulas.TransferCheck): string?
+	if check == "WrongSlot" then
+		return "Só entre peças do mesmo tipo"
+	elseif check == "NothingToMove" then
+		return "Nenhuma das duas peças está fortalecida"
+	elseif check == "SameLevel" then
+		return "As duas peças têm o mesmo fortalecimento"
+	elseif check == "HigherTower" then
+		return "O fortalecimento não passa para peça de torre mais alta"
+	end
+	return nil
+end
+
 -- Por que gemas deste nível não fundem (só para os níveis sem fusão em Balance/Gems).
 function GearInfo.fuseBlockedReason(level: number): string
 	if level == Gems.shopLevel then

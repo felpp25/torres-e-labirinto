@@ -24,6 +24,8 @@
 --                                                                  resposta em ShopResult)
 --   EnhanceGear     cliente -> servidor  (gearId: number)          quero tentar fortalecer esta peça (perto da forja)
 --   ForgeResult     servidor -> 1 cliente (ForgeResultPayload)     resultado da forja (sucesso, falha ou recusa)
+--   TransferEnhance cliente -> servidor  (fromId, toId: number)    quero trocar o fortalecimento destas duas peças
+--                                                                  (perto da forja; resposta em ForgeResult)
 --   BuyGem          cliente -> servidor  (attribute: string)       quero comprar 1 gema Nv1 deste atributo (perto da
 --                                                                  loja; resposta em ShopResult)
 --   BuyRemover      cliente -> servidor  (level: number)           quero comprar 1 Removedor deste nível (idem)
@@ -73,6 +75,7 @@ export type RemoteName =
 	| "DestroyGear"
 	| "DestroyGems"
 	| "DestroyRemovers"
+	| "TransferEnhance"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -124,6 +127,7 @@ local REMOTE_NAMES: { RemoteName } = {
 	"DestroyGear",
 	"DestroyGems",
 	"DestroyRemovers",
+	"TransferEnhance",
 }
 
 export type GearResultPayload = {
