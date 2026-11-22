@@ -350,6 +350,21 @@ não existem.
 | Loja, +10%, 1 por tentativa, 1.000 Gold | 108 | 861 | ~18 |
 
   - Ponto de atenção da loja: preço fixo vira troco nas torres que rendem mais Gold (aí todo mundo usa sempre).
+- **Pedra de fortalecimento: adiada junto com a bênção** (decisão do designer). Os três papéis possíveis foram
+  analisados (por peça, solo, mesmas hipóteses da bênção); nenhum muda o tempo até o +7, onde a Torre 1 chega:
+
+| Papel analisado | +5 | +7 | +8 | +10 |
+|---|---|---|---|---|
+| Hoje (só Gold) | 8 runs | 42 | 122 | 1.379 |
+| Obrigatória: 1 pedra + Gold por tentativa, 1 pedra por run | 8 | 42 | 122 | 1.379 |
+| Obrigatória e rara (1 pedra a cada 4 runs) | 21 | 42 | 122 | 1.379 |
+| Proteção: falhar do +8 ao +10 não tira nível (~8 pedras até o +10) | 8 | 42 | 99 | 620 |
+| Chance: +10% por pedra, 1 por tentativa (= a bênção; ~21 pedras até o +10) | 7 | 36 | 97 | 819 |
+
+  - **Obrigatória:** o Gold continua sendo o limite (uma peça até o +7 gasta ~8,5 tentativas; o conjunto, ~59). Só
+    muda o tempo se for rara, e aí atrasa o começo. O ganho seria outro: um drop útil em toda run e não dar para
+    fortalecer só com Gold (importa se o Gold um dia puder ser comprado ou trocado).
+  - **Proteção e chance:** só fazem diferença do +8 em diante; decidir com a renda das torres 2+.
 - **A Sorte NÃO afeta o fortalecimento** (exceção à regra da Sorte global): com itens da conta, todo mundo
   fortaleceria no personagem mais sortudo.
 - **Ritmo de referência** (média com falhas, sem bênção, na torre de origem): +5 ≈ 8 runs, +7 ≈ 42 runs,
@@ -436,7 +451,8 @@ não existem.
 ### A definir
 - Como se obtém o Berserker; em que torres caem as armas intermediárias e avançadas (fora o Soco Inglês do
   protótipo).
-- Itens de bênção: quanto somam e como se obtêm (adiado; análise em "Fortalecimento").
+- Itens de bênção e pedra de fortalecimento: se entram, quanto somam e como se obtêm (adiados; análise em
+  "Fortalecimento").
 - O que o jogador faz com uma peça fortalecida que não quer mais: ela não pode ser vendida e ocupa espaço no baú
   (descartar? transferir o fortalecimento para outra peça?).
 - Gemas, para quando as torres 5 a 10 forem construídas:
