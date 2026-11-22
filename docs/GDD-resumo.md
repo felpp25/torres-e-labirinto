@@ -192,10 +192,11 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     T = Stamina**; botões na tela no celular), com recarga e limite de quantas guardar.
   - **Teclas (decisão do designer):** 1, 2, 3 = habilidades; 4 = ultimate; E, R, T = poções.
   - **Reset de atributos:** devolve todos os pontos para redistribuir; preço cresce com o nível.
-  - **Vender equipamento** (aba Vender): peças do baú (as equipadas não aparecem), Comum 10 e Raro 50 Gold; peça
-    Rara pede um segundo clique para confirmar. **Peça fortalecida não é vendida** (decisão do designer): ela nem
-    aparece na lista. **Peça com gema também não** (decisão do designer): extraia a gema antes. Gemas e Removedores
-    sobrando também são vendidos aqui, **a 10% do preço** (ver "Gemas").
+  - **Vender equipamento** (aba Vender): peças do baú (as equipadas não aparecem), Comum 10 e Raro 50 Gold, **mais
+    1/3 das tentativas de fortalecimento** na peça fortalecida (ver "Fortalecimento"; ex.: Gibão Comum +7 = 4.243).
+    Peça Rara ou fortalecida pede um segundo clique para confirmar. **Peça com gema não é vendida** (decisão do
+    designer): extraia a gema antes. Gemas e Removedores sobrando também são vendidos aqui, **a 10% do preço** (ver
+    "Gemas").
   - **Gemas** (aba Gemas): gema Nv1 de cada um dos 6 atributos (1.000 Gold) e o Removedor Nv1 (100 Gold).
 - **Forja** (bigorna no lobby, atrás da loja): fortalecimento e gemas (ver "Equipamentos > Forja").
 - *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
@@ -321,7 +322,7 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   do drop).
 - **Item sobrando:** vende na loja (Comum 10 Gold, Raro 50 Gold) ou **destrói arrastando para fora da mochila**
   (decisão do designer). Destruir pede confirmação, vale também dentro da torre (para abrir espaço antes do chefe) e
-  aceita a peça fortalecida (que não é vendida); a peça com gema não (extraia antes). Uma pilha de gemas ou
+  aceita a peça fortalecida (o aviso diz quanto ela vale na loja); a peça com gema não (extraia antes). Uma pilha de gemas ou
   Removedores some inteira (é o que libera o espaço do baú). *Implementado:* "fora" = fora da janela Personagem
   inteira (soltar em cima do personagem não destrói nada); no celular, segurar a célula um instante antes de arrastar
   (arrastar logo de cara rola a mochila).
@@ -380,9 +381,29 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 - **Ritmo de referência** (média com falhas, sem bênção, na torre de origem): +5 ≈ 8 runs, +7 ≈ 42 runs,
   +10 ≈ 1.400 runs, **por peça** (o conjunto de 7 peças no +7 ≈ 290 runs). O +10 é meta de longo prazo; os 3
   últimos níveis são ~97% do custo.
-- **Peça fortalecida não é vendida** na loja (decisão do designer). Para se livrar dela, o jogador **transfere** o
-  fortalecimento para outra peça (aí ela fica +0 e pode ser vendida) ou a **destrói** (arrasta para fora da mochila;
-  o fortalecimento se perde junto).
+- **Venda da peça fortalecida** (decisões do designer; antes ela não era vendida): a loja paga o preço base (Comum
+  10, Raro 50) **+ 1/3 da soma dos preços das tentativas** até o nível dela, na base da torre da peça. É o que gastou
+  quem nunca falhou: a venda **nunca devolve mais do que o jogador gastou**, então fortalecer para vender sempre dá
+  prejuízo. Sem item, direto na loja, com confirmação. O valor acompanha a base de cada torre sozinho.
+
+| Nível | Soma na venda (Torre 1) | Runs | % do gasto médio |
+|---|---|---|---|
+| +1 | 33 | 0,1 | 33% |
+| +3 | 233 | 0,5 | 33% |
+| +5 | 1.033 | 2,3 | 29% |
+| +7 | 4.233 | 9,4 | 22% |
+| +8 | 8.500 | 19 | 15% |
+| +10 | 34.100 | 76 | 5% |
+
+  - Transferir continua melhor quando há outra peça para receber o nível (o +7 custa 6.400 e mantém tudo; vender
+    devolve 4.233). A venda é para a peça que sobrou.
+  - O preço da peça +0 (drops) continua Comum 10 / Raro 50: vendendo tudo, ~30 Gold por run (7% da renda).
+  - Descartados: **item de recuperar** (drop que destrói a peça e devolve 1/3; a loja comprar direto faz o mesmo sem
+    mais um item); **10 runs fixos** (uma peça +1 de 100 Gold devolveria ~4.500: o item viraria um drop de Gold);
+    **1/3 do gasto médio** (+7 = 6.276, mas no +9/+10 14% a 20% dos jogadores receberiam mais do que gastaram);
+    **1/2 das tentativas** (+7 = 6.350, quase o custo de transferir); **subir o +0** para 25/100 ou 50/200 (14% ou 29%
+    da renda; fortalecer ficaria até ~20% mais rápido para todos).
+  - *Implementado:* aba Vender da loja (a peça fortalecida aparece com o "+N" e o preço) e aviso de destruir.
 - **Transferir o fortalecimento** (na Forja; decisões do designer):
   - As duas peças **trocam os níveis**: o Gibão Comum +7 com um Gibão Raro +0 vira Comum +0 e Raro +7. Nada se perde
     e serve também entre duas peças já fortalecidas. A gema de cada uma fica onde está.
@@ -397,6 +418,20 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
     20% do custo de refazer; grátis; qualquer tipo de peça; qualquer torre.
   - *Implementado:* aba **Transferir** da Forja: a peça escolhida à esquerda, à direita as peças compatíveis, como as
     duas ficam depois da troca e o custo; sempre pede um segundo clique.
+- **Item de subir de torre** (decisões do designer; **entra com a Torre 2**): item raro ou de evento, gasto na
+  transferência, que libera passar o fortalecimento para uma peça de **torre mais alta**. Responde ao "o que fazer
+  com o Gold investido quando o jogador muda de torre".
+  - A peça que recebe fica **no máximo +7**. Se a origem passa disso (ex.: +9), o destino fica +7, a origem fica com o
+    nível que o destino tinha e o resto se perde (a tela avisa antes; a alternativa é vender a peça). O +7 é o teto
+    realista de cada torre; os +8 a +10 (97% do custo do +10) ficam na torre em que foram feitos.
+  - **Gold igual ao da transferência de hoje:** 1 tentativa do maior nível, na base da torre de origem (+7 da Torre 1 =
+    6.400: 7 a 9,5 runs da Torre 2, 1 a 3 runs da Torre 5). Quem limita é o item raro. Cada uso vale ~42 runs da torre
+    nova (o +7 feito do zero lá).
+  - Brecha aceita: levar um +7 da Torre 1 para a Torre 5 e vender lá rende ~6 runs da Torre 5 (renda ×2 por torre),
+    bem menos que usar o item de verdade (42).
+  - Descartados: só aceitar origem até +7; cobrar 1 tentativa na base da torre nova (~14 runs dela em qualquer salto);
+    só o item, sem Gold; custo de fortalecer igual em todas as torres (na Torre 5 o +7 sairia por 3 a 8 runs e o
+    fortalecimento deixaria de segurar o Gold).
 - *Implementado:* janela da **Forja** (bigorna no lobby, tecla F / toque): à esquerda todas as peças da conta (as
   equipadas primeiro, marcadas com "E"); à direita a peça escolhida com o que dá agora e no próximo nível, a chance, o
   custo e o que acontece se falhar. As tentativas de +8 a +10 (as que podem tirar um nível) pedem um segundo clique.
@@ -503,6 +538,8 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   protótipo).
 - Itens de bênção e pedra de fortalecimento: se entram, quanto somam e como se obtêm (adiados; análise em
   "Fortalecimento").
+- Item de subir de torre (com a renda da Torre 2): nome, de onde vem (drop raro, evento; compra com Robux foi
+  cogitada) e a chance de drop. Um conjunto de 7 peças pede 7 itens por troca de torre.
 - Gemas, para quando as torres 5 a 10 forem construídas:
   - um **teto para a Sorte** nos achados (hoje um único personagem com muita Sorte multiplica os drops do grupo
     inteiro; ex.: Sorte 300 = chances ×7);
@@ -519,7 +556,8 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 2. ~~Forja no lobby + fortalecimento.~~ **Feito** (sem itens de bênção, adiados).
 3. ~~Gemas: nível 1 e removedores na loja; incrustar, fundir e extrair na Forja.~~ **Feito** (a fusão só tem gemas
    para fundir quando existirem as torres 5+; até lá, testar com o DevService: "GiveGems").
-4. Depois: fabricação (depende dos modos Avançado e Pesadelo) e encantamento.
+4. Com a Torre 2: o item de subir de torre (ver "Fortalecimento").
+5. Depois: fabricação (depende dos modos Avançado e Pesadelo) e encantamento.
 
 ## Dificuldades (futuro)
 

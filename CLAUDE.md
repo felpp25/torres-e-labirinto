@@ -155,7 +155,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   Gemas (regras reais, sem distância): `"BuyGem"(player, "Strength")`, `"BuyRemover"(player, nível)`,
   `"SocketGem"(player, id, atributo, nível)`, `"ExtractGem"(player, id)`, `"FuseGems"(player, atributo, nível)`; sem
   custo: `"GiveGems"(player, atributo, nível, n)` (qualquer nível: as Nv2+ ainda não caem) e
-  `"GiveRemovers"(player, nível, n)`. Sobras: `"SellGem"(player, atributo, nível)`, `"SellRemover"(player, nível)`.
+  `"GiveRemovers"(player, nível, n)`. Venda (sem distância): `"SellGear"(player, id)` (a fortalecida vale a base +
+  1/3 das tentativas), `"SellGem"(player, atributo, nível)`, `"SellRemover"(player, nível)`.
   Destruir (o que o arrastar para fora da mochila pede): `"DestroyGear"(player, id)`, `"DestroyGems"(player,
   atributo, nível)` e `"DestroyRemovers"(player, nível)` (pilha inteira).
   **Testes que mexem no personagem: `"SnapshotProfile"(player)` no início e `"RestoreProfile"(player)` +
