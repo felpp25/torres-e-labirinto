@@ -2,6 +2,7 @@
 -- Equipamento (GDD > Equipamentos): baú da conta, equipar e trocar peças (SÓ no lobby), dar peças novas, os
 -- sorteios de drop (quem recebe e com que Sorte é decisão do RunSessionService), a venda (ShopService) e o
 -- fortalecimento (ForgeService). Loja e Forja conferem a distância do balcão; o resto é conferido aqui.
+-- As gemas ficam no GemService (usa o publish daqui: o GearData leva peças, gemas e Removedores).
 -- As regras (slot certo, classe da arma, baú de 50, arma nunca vazia...) são funções puras do PlayerSchema; aqui
 -- ficam o que depende do jogo: lobby, anti-spam, mensagens, recalcular atributos e avisar o cliente.
 -- O cliente só PEDE (EquipGear / UnequipGear); tudo é validado. Ele recebe o estado pelo Attribute GearData
@@ -19,6 +20,7 @@ local GearInfo = require(Shared.GearInfo)
 local GearSnapshot = require(Shared.GearSnapshot)
 local Gear = require(Shared.Balance.Gear)
 local Forge = require(Shared.Balance.Forge)
+local Gems = require(Shared.Balance.Gems)
 
 local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local ProgressionService = require(script.Parent.ProgressionService)
@@ -53,7 +55,7 @@ local function nameOf(piece: Types.OwnedGear?): string
 	return "peça"
 end
 
--- Envia ao cliente o estado do equipamento (só quando muda).
+-- Envia ao cliente o estado do equipamento, das gemas e dos Removedores (só quando muda).
 function GearService.publish(player: Player)
 	local profile, data = ProgressionService.getLoadedProfile(player)
 	if not profile or not data then
@@ -63,16 +65,40 @@ function GearService.publish(player: Player)
 	local entries: { Types.GearEntry } = {}
 	for _, piece in profile.gear do
 		if PlayerSchema.defOf(piece) ~= nil then -- peça inerte não aparece
+			local gem = piece.gem
 			table.insert(entries, {
 				id = piece.id,
 				defId = piece.defId,
 				rarity = piece.rarity,
 				enhance = piece.enhance,
+				gem = if gem then { attribute = gem.attribute, level = gem.level } else nil,
 				inUse = used[piece.id] == true,
 			})
 		end
 	end
-	local snapshot: Types.GearSnapshot = { gear = entries, equipped = table.clone(data.equipped) }
+	-- Pilhas na ordem fixa (atributo, depois nível): o cliente mostra nesta ordem.
+	local gemStacks: { Types.GemStack } = {}
+	for _, attribute: Types.GemAttribute in Gems.attributes do
+		for level = 1, Gems.maxLevel do
+			local count = PlayerSchema.gemCount(profile, attribute, level)
+			if count > 0 then
+				table.insert(gemStacks, { attribute = attribute, level = level, count = count })
+			end
+		end
+	end
+	local removerStacks: { Types.RemoverStack } = {}
+	for level = 1, Gems.maxLevel do
+		local count = PlayerSchema.removerCount(profile, level)
+		if count > 0 then
+			table.insert(removerStacks, { level = level, count = count })
+		end
+	end
+	local snapshot: Types.GearSnapshot = {
+		gear = entries,
+		equipped = table.clone(data.equipped),
+		gems = gemStacks,
+		removers = removerStacks,
+	}
 	local encoded = GearSnapshot.encode(snapshot)
 	if lastPublished[player] ~= encoded then
 		lastPublished[player] = encoded
@@ -259,6 +285,8 @@ function GearService.trySell(player: Player, id: number): (boolean, string)
 		return false, "Item em uso: tire antes de vender"
 	elseif outcome == "Enhanced" then
 		return false, "Peça fortalecida não pode ser vendida"
+	elseif outcome == "HasGem" then
+		return false, "Peça com gema: extraia a gema na Forja antes de vender"
 	end
 	return false, "Item não encontrado"
 end

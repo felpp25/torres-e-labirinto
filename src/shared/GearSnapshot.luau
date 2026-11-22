@@ -1,7 +1,8 @@
 --!strict
--- Formato do Attribute "GearData" do Player (JSON): as peças da conta e os slots do personagem ativo.
+-- Formato do Attribute "GearData" do Player (JSON): as peças da conta, os slots do personagem ativo e as pilhas
+-- de gemas e Removedores do baú.
 -- O servidor monta e codifica (GearService); o cliente decodifica e VALIDA tudo (mesmo vindo do servidor) antes de
--- mostrar. Peça inválida é ignorada; dado ausente vira o snapshot vazio.
+-- mostrar. Peça ou pilha inválida é ignorada; dado ausente vira o snapshot vazio.
 
 local HttpService: HttpService = game:GetService("HttpService")
 
@@ -9,11 +10,20 @@ local Types = require(script.Parent.Types)
 local Formulas = require(script.Parent.Formulas)
 local Gear = require(script.Parent.Balance.Gear)
 local Forge = require(script.Parent.Balance.Forge)
+local Gems = require(script.Parent.Balance.Gems)
 
 local GearSnapshot = {}
 
 function GearSnapshot.empty(): Types.GearSnapshot
-	return { gear = {}, equipped = {} }
+	return { gear = {}, equipped = {}, gems = {}, removers = {} }
+end
+
+-- Quantidade de uma pilha vinda de fora: inteiro de 1 ao máximo da pilha. Nil se inválida.
+local function parseCount(value: unknown): number?
+	if typeof(value) ~= "number" or value ~= value or value % 1 ~= 0 then
+		return nil
+	end
+	return if value >= 1 and value <= Gems.stackMax then value else nil
 end
 
 function GearSnapshot.encode(snapshot: Types.GearSnapshot): string
@@ -42,6 +52,7 @@ function GearSnapshot.decode(raw: unknown): Types.GearSnapshot
 				local defId = entry.defId
 				local inUse = entry.inUse
 				local enhance = entry.enhance
+				local gem = Formulas.parseGem(entry.gem)
 				if
 					id ~= nil
 					and rarity ~= nil
@@ -52,13 +63,47 @@ function GearSnapshot.decode(raw: unknown): Types.GearSnapshot
 					and enhance % 1 == 0
 					and enhance >= 0
 					and enhance <= Forge.maxEnhance
+					and (entry.gem == nil or gem ~= nil)
 					and not known[id]
 				then
 					known[id] = true
 					table.insert(
 						snapshot.gear,
-						{ id = id, defId = defId, rarity = rarity, enhance = enhance, inUse = inUse }
+						{ id = id, defId = defId, rarity = rarity, enhance = enhance, gem = gem, inUse = inUse }
 					)
+				end
+			end
+		end
+	end
+	-- Pilhas do baú: cada tipo (atributo + nível) uma vez só.
+	if typeof(data.gems) == "table" then
+		local seen: { [string]: boolean } = {}
+		local list = data.gems :: { unknown }
+		for i = 1, #list do
+			local item = list[i]
+			local gem = Formulas.parseGem(item)
+			local count = if typeof(item) == "table" then parseCount((item :: { [string]: unknown }).count) else nil
+			if gem and count then
+				local key = `{gem.attribute}:{gem.level}`
+				if not seen[key] then
+					seen[key] = true
+					table.insert(snapshot.gems, { attribute = gem.attribute, level = gem.level, count = count })
+				end
+			end
+		end
+	end
+	if typeof(data.removers) == "table" then
+		local seen: { [number]: boolean } = {}
+		local list = data.removers :: { unknown }
+		for i = 1, #list do
+			local item = list[i]
+			if typeof(item) == "table" then
+				local stack = item :: { [string]: unknown }
+				local level = Formulas.parseGemLevel(stack.level)
+				local count = parseCount(stack.count)
+				if level and count and not seen[level] then
+					seen[level] = true
+					table.insert(snapshot.removers, { level = level, count = count })
 				end
 			end
 		end
@@ -109,15 +154,42 @@ function GearSnapshot.sortEntries(entries: { Types.GearEntry })
 	end)
 end
 
--- Peças no baú (nenhum personagem usa).
+-- Espaços ocupados no baú: peças que nenhum personagem usa + 1 por pilha de gema ou de Removedor.
 function GearSnapshot.chestCount(snapshot: Types.GearSnapshot): number
-	local count = 0
+	local count = #snapshot.gems + #snapshot.removers
 	for _, entry in snapshot.gear do
 		if not entry.inUse then
 			count += 1
 		end
 	end
 	return count
+end
+
+function GearSnapshot.gemCount(snapshot: Types.GearSnapshot, attribute: Types.GemAttribute, level: number): number
+	for _, stack in snapshot.gems do
+		if stack.attribute == attribute and stack.level == level then
+			return stack.count
+		end
+	end
+	return 0
+end
+
+function GearSnapshot.removerCount(snapshot: Types.GearSnapshot, level: number): number
+	for _, stack in snapshot.removers do
+		if stack.level == level then
+			return stack.count
+		end
+	end
+	return 0
+end
+
+-- Cabe mais 1 nesta pilha (que hoje tem `current`)? Mesma regra do servidor (PlayerSchema): pilha nova ocupa 1
+-- espaço do baú. Só para deixar o botão cinza; quem decide é o servidor.
+function GearSnapshot.canStoreOne(snapshot: Types.GearSnapshot, current: number): boolean
+	if current + 1 > Gems.stackMax then
+		return false
+	end
+	return current > 0 or GearSnapshot.chestCount(snapshot) < Gear.chestCapacity
 end
 
 return table.freeze(GearSnapshot)

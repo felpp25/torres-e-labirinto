@@ -28,6 +28,10 @@
 --   se ficou com direito ao boss), "BossEligible"(player)
 --   Forja: "Enhance"(player, id, forçar?) (uma tentativa REAL, cobra Gold; forçar = true/false fixa o sorteio;
 --   ignora a distância e o anti-spam), "SetEnhance"(player, id, nível) (define direto, sem custo)
+--   Gemas (regras REAIS do GemService; ignoram distância e anti-spam; devolvem "ok: ..." / "recusado: ..."):
+--   "BuyGem"(player, "Strength") e "BuyRemover"(player, nível) (cobram Gold), "SocketGem"(player, id, atributo,
+--   nível), "ExtractGem"(player, id), "FuseGems"(player, atributo, nível). Sem custo: "GiveGems"(player, atributo,
+--   nível, n) (qualquer nível: as Nv2+ ainda não caem) e "GiveRemovers"(player, nível, n).
 
 local DataStoreService: DataStoreService = game:GetService("DataStoreService")
 local HttpService: HttpService = game:GetService("HttpService")
@@ -41,6 +45,7 @@ local CombatService = require(script.Parent.CombatService)
 local DataService = require(script.Parent.DataService)
 local DungeonService = require(script.Parent.DungeonService)
 local GearService = require(script.Parent.GearService)
+local GemService = require(script.Parent.GemService)
 local ProgressionService = require(script.Parent.ProgressionService)
 local RunSessionService = require(script.Parent.RunSessionService)
 
@@ -69,6 +74,8 @@ local function restoreInPlace(player: Player, saved: PlayerSchema.Profile): bool
 	profile.gold = copy.gold
 	profile.inventory = copy.inventory
 	profile.gear = copy.gear
+	profile.gems = copy.gems
+	profile.removers = copy.removers
 	-- O contador nunca volta: os ids dados durante o teste não são reutilizados depois.
 	profile.nextGearId = math.max(profile.nextGearId, copy.nextGearId)
 	for index, savedCharacter in copy.characters do
@@ -88,6 +95,17 @@ end
 
 local function parseRarityOrCommon(value: unknown): Types.Rarity
 	return Formulas.parseRarity(value) or "Common"
+end
+
+local function gemArgs(attribute: unknown, level: unknown): (Types.GemAttribute, number)
+	local parsedAttribute: Types.GemAttribute? = Formulas.parseGemAttribute(attribute)
+	local parsedLevel = Formulas.parseGemLevel(level)
+	assert(parsedAttribute and parsedLevel, `DevTools: gema inválida ({attribute}, {level})`)
+	return parsedAttribute, parsedLevel
+end
+
+local function outcomeText(ok: boolean, message: string): string
+	return `{if ok then "ok" else "recusado"}: {message}`
 end
 
 local COMMANDS: { [string]: Command } = {
@@ -211,6 +229,7 @@ local COMMANDS: { [string]: Command } = {
 				defId = piece.defId,
 				rarity = piece.rarity,
 				enhance = piece.enhance,
+				gem = piece.gem,
 				owner = owner,
 				slot = slot,
 				known = PlayerSchema.defOf(piece) ~= nil,
@@ -221,6 +240,8 @@ local COMMANDS: { [string]: Command } = {
 			nextGearId = profile.nextGearId,
 			gear = list,
 			equipped = profile.characters[profile.activeSlot].equipped,
+			gems = profile.gems,
+			removers = profile.removers,
 		})
 	end,
 
@@ -312,6 +333,40 @@ local COMMANDS: { [string]: Command } = {
 
 	SetEnhance = function(player: Player, id: number, enhance: number): boolean
 		return GearService.debugSetEnhance(player, id, enhance)
+	end,
+
+	BuyGem = function(player: Player, attribute: string): string
+		local parsed: Types.GemAttribute, _ = gemArgs(attribute, 1)
+		return outcomeText(GemService.tryBuyGem(player, parsed))
+	end,
+
+	BuyRemover = function(player: Player, level: number): string
+		local _, parsed = gemArgs("Strength", level)
+		return outcomeText(GemService.tryBuyRemover(player, parsed))
+	end,
+
+	SocketGem = function(player: Player, id: number, attribute: string, level: number): string
+		local parsedAttribute: Types.GemAttribute, parsedLevel = gemArgs(attribute, level)
+		return outcomeText(GemService.trySocket(player, id, parsedAttribute, parsedLevel))
+	end,
+
+	ExtractGem = function(player: Player, id: number): string
+		return outcomeText(GemService.tryExtract(player, id))
+	end,
+
+	FuseGems = function(player: Player, attribute: string, level: number): string
+		local parsedAttribute: Types.GemAttribute, parsedLevel = gemArgs(attribute, level)
+		return outcomeText(GemService.tryFuse(player, parsedAttribute, parsedLevel))
+	end,
+
+	GiveGems = function(player: Player, attribute: string, level: number, amount: number?): string
+		local parsedAttribute: Types.GemAttribute, parsedLevel = gemArgs(attribute, level)
+		return GemService.debugGiveGems(player, parsedAttribute, parsedLevel, amount or 1) or "perfil não carregado"
+	end,
+
+	GiveRemovers = function(player: Player, level: number, amount: number?): string
+		local _, parsedLevel = gemArgs("Strength", level)
+		return GemService.debugGiveRemovers(player, parsedLevel, amount or 1) or "perfil não carregado"
 	end,
 }
 

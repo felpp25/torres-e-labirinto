@@ -1,9 +1,10 @@
 --!strict
 -- Painel da loja (GDD > Lobby e loja). Abre ao acionar o prompt "Loja" do balcão do lobby
 -- (tecla F / direcional para cima no controle / toque no celular) e fecha sozinho ao se afastar.
--- Abas: Comprar (poções e reset de atributos) e Vender (peças de equipamento do baú; as equipadas e as
--- fortalecidas não aparecem: peça fortalecida não é vendida, decisão do designer).
--- O cliente só PEDE (BuyItem / ResetAttributes / SellGear); o servidor valida e responde por ShopResult.
+-- Abas: Comprar (poções e reset de atributos), Vender (peças de equipamento do baú; as equipadas, as fortalecidas e
+-- as com gema não aparecem: decisões do designer) e Gemas (gema Nv1 de cada atributo e Removedor; ficam no baú).
+-- O cliente só PEDE (BuyItem / ResetAttributes / SellGear / BuyGem / BuyRemover); o servidor valida e responde por
+-- ShopResult.
 
 local Players: Players = game:GetService("Players")
 local ProximityPromptService: ProximityPromptService = game:GetService("ProximityPromptService")
@@ -19,6 +20,7 @@ local GearInfo = require(Shared:WaitForChild("GearInfo"))
 local GearSnapshot = require(Shared:WaitForChild("GearSnapshot"))
 local Shop = require(Balance:WaitForChild("Shop"))
 local Gear = require(Balance:WaitForChild("Gear"))
+local Gems = require(Balance:WaitForChild("Gems"))
 
 local ChatBlocker = require(script.Parent.Parent:WaitForChild("ChatBlocker"))
 
@@ -30,7 +32,8 @@ local CONFIRM_WINDOW = 3 -- s: o reset e a venda de peça Rara pedem um segundo 
 local FONT = Enum.Font.GothamBold
 local ROW_HEIGHT = 64
 local SELL_ROW_HEIGHT = 46
-local PANEL_WIDTH = 420
+local GEM_ROW_HEIGHT = 46
+local PANEL_WIDTH = 460
 local HEADER_HEIGHT = 52
 local PANEL_HEIGHT = HEADER_HEIGHT + #Shop.order * ROW_HEIGHT + ROW_HEIGHT + 40
 
@@ -49,8 +52,10 @@ local COLORS = {
 	tabIdle = Color3.fromRGB(50, 50, 62),
 }
 
-type Tab = "Buy" | "Sell"
+type Tab = "Buy" | "Sell" | "Gems"
 type ItemRow = { owned: TextLabel, buy: TextButton }
+-- Linha da aba Gemas: quanto tem no baú e se cabe mais um (pilha nova ocupa 1 espaço do baú).
+type GemRow = { owned: TextLabel, buy: TextButton, count: () -> number, price: number }
 
 local ShopController = {}
 
@@ -66,6 +71,8 @@ local currentTab: Tab = "Buy"
 local sellList: ScrollingFrame? = nil
 local sellButtons: { [number]: TextButton } = {}
 local sellConfirmUntil: { [number]: number } = {}
+local gemRows: { GemRow } = {}
+local gemHint: TextLabel? = nil
 local snapshot: Types.GearSnapshot = GearSnapshot.empty()
 
 local function numberAttr(name: string): number
@@ -144,9 +151,19 @@ local function refresh()
 	for id, button in sellButtons do
 		button.Text = if t < (sellConfirmUntil[id] or 0) then "Confirmar?" else "Vender"
 	end
+	for _, row in gemRows do
+		local count = row.count()
+		row.owned.Text = `No baú: {count}`
+		local canBuy = gold >= row.price and GearSnapshot.canStoreOne(snapshot, count)
+		row.buy.BackgroundColor3 = if canBuy then COLORS.buy else COLORS.disabled
+	end
+	if gemHint then
+		gemHint.Text = `Ficam no baú: cada tipo ocupa 1 espaço ({GearSnapshot.chestCount(snapshot)}/`
+			.. `{Gear.chestCapacity})  ·  incruste na Forja ({Gems.socketCost} Gold)`
+	end
 end
 
--- Lista de venda: só peças do baú sem fortalecimento, por slot, Rara primeiro, nome e id.
+-- Lista de venda: só peças do baú sem fortalecimento e sem gema, por slot, Rara primeiro, nome e id.
 local function rebuildSellRows()
 	local list = sellList
 	if not list then
@@ -161,7 +178,7 @@ local function rebuildSellRows()
 
 	local chest: { Types.GearEntry } = {}
 	for _, entry in snapshot.gear do
-		if not entry.inUse and entry.enhance == 0 then
+		if not entry.inUse and entry.enhance == 0 and entry.gem == nil then
 			table.insert(chest, entry)
 		end
 	end
@@ -303,7 +320,7 @@ end
 local function buildSellPage(page: Frame)
 	local hint = makeText(
 		page,
-		"Equipadas e fortalecidas não aparecem aqui (equipamento: tecla C)",
+		"Equipadas, fortalecidas e com gema não aparecem aqui (equipamento: tecla C)",
 		UDim2.new(1, -28, 0, 14),
 		UDim2.fromOffset(14, HEADER_HEIGHT),
 		11
@@ -325,6 +342,97 @@ local function buildSellPage(page: Frame)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = list
 	sellList = list
+end
+
+-- Aba Gemas: uma linha por atributo (gema do nível da loja) e uma por Removedor à venda.
+local function buildGemsPage(page: Frame)
+	local hint = makeText(page, "", UDim2.new(1, -28, 0, 14), UDim2.fromOffset(14, HEADER_HEIGHT), 11)
+	hint.Name = "Hint"
+	hint.TextColor3 = COLORS.dim
+	gemHint = hint
+	local list = Instance.new("ScrollingFrame")
+	list.Name = "GemList"
+	list.Position = UDim2.fromOffset(10, HEADER_HEIGHT + 20)
+	list.Size = UDim2.new(1, -20, 0, PANEL_HEIGHT - HEADER_HEIGHT - 20 - 40)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 6
+	list.CanvasSize = UDim2.new()
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ScrollingDirection = Enum.ScrollingDirection.Y
+	list.Parent = page
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 4)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = list
+
+	local function makeRow(
+		order: number,
+		name: string,
+		title: string,
+		titleColor: Color3,
+		detail: string,
+		price: number,
+		count: () -> number,
+		onBuy: () -> ()
+	)
+		local row = Instance.new("Frame")
+		row.Name = name
+		row.LayoutOrder = order
+		row.Size = UDim2.new(1, -8, 0, GEM_ROW_HEIGHT - 4)
+		row.BackgroundColor3 = COLORS.row
+		row.Parent = list
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = row
+		local titleLabel = makeText(row, title, UDim2.new(1, -230, 0, 18), UDim2.fromOffset(10, 3), 14)
+		titleLabel.TextColor3 = titleColor
+		local detailLabel = makeText(row, detail, UDim2.new(1, -230, 0, 14), UDim2.fromOffset(10, 22), 11)
+		detailLabel.TextColor3 = COLORS.dim
+		detailLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		local owned = makeText(row, "", UDim2.fromOffset(96, 14), UDim2.new(1, -212, 0, 14), 11)
+		owned.TextColor3 = COLORS.dim
+		owned.TextXAlignment = Enum.TextXAlignment.Right
+		local buy = makeButton(row, `{price} Gold`, UDim2.fromOffset(100, 30), UDim2.new(1, -106, 0, 6), COLORS.buy)
+		buy.Name = "Buy"
+		buy.TextSize = 14
+		buy.Activated:Connect(onBuy)
+		table.insert(gemRows, { owned = owned, buy = buy, count = count, price = price })
+	end
+
+	local level = Gems.shopLevel
+	for index, attribute: Types.GemAttribute in Gems.attributes do
+		makeRow(
+			index,
+			`Gem_{attribute}`,
+			GearInfo.gemName(attribute, level),
+			GearInfo.gemColor(attribute),
+			`{GearInfo.gemEffect(attribute, level)} numa peça`,
+			Gems.shopPrice,
+			function(): number
+				return GearSnapshot.gemCount(snapshot, attribute, level)
+			end,
+			function()
+				Remotes.get("BuyGem"):FireServer(attribute)
+			end
+		)
+	end
+	for removerLevel = 1, Gems.removerShopMaxLevel do
+		makeRow(
+			#Gems.attributes + removerLevel,
+			`Remover_{removerLevel}`,
+			GearInfo.removerName(removerLevel),
+			COLORS.text,
+			`Tira uma gema Nv{removerLevel} da peça (na Forja)`,
+			Gems.removerPrice[removerLevel],
+			function(): number
+				return GearSnapshot.removerCount(snapshot, removerLevel)
+			end,
+			function()
+				Remotes.get("BuyRemover"):FireServer(removerLevel)
+			end
+		)
+	end
 end
 
 local function build()
@@ -361,18 +469,24 @@ local function build()
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateScale)
 	updateScale()
 
-	local buyTab = makeButton(frame, "Comprar", UDim2.fromOffset(110, 32), UDim2.fromOffset(10, 8), COLORS.tabActive)
+	local buyTab = makeButton(frame, "Comprar", UDim2.fromOffset(100, 32), UDim2.fromOffset(10, 8), COLORS.tabActive)
 	buyTab.Name = "BuyTab"
 	buyTab.Activated:Connect(function()
 		selectTab("Buy")
 	end)
-	local sellTab = makeButton(frame, "Vender", UDim2.fromOffset(110, 32), UDim2.fromOffset(126, 8), COLORS.tabIdle)
+	local sellTab = makeButton(frame, "Vender", UDim2.fromOffset(100, 32), UDim2.fromOffset(116, 8), COLORS.tabIdle)
 	sellTab.Name = "SellTab"
 	sellTab.Activated:Connect(function()
 		selectTab("Sell")
 	end)
+	local gemsTab = makeButton(frame, "Gemas", UDim2.fromOffset(100, 32), UDim2.fromOffset(222, 8), COLORS.tabIdle)
+	gemsTab.Name = "GemsTab"
+	gemsTab.Activated:Connect(function()
+		selectTab("Gems")
+	end)
 	tabButtons.Buy = buyTab
 	tabButtons.Sell = sellTab
+	tabButtons.Gems = gemsTab
 
 	local gold = makeText(frame, "Gold: 0", UDim2.fromOffset(120, 32), UDim2.new(1, -170, 0, 8), 16)
 	gold.TextColor3 = COLORS.gold
@@ -394,10 +508,14 @@ local function build()
 	local buyPage = makePage("BuyPage")
 	local sellPage = makePage("SellPage")
 	sellPage.Visible = false
+	local gemsPage = makePage("GemsPage")
+	gemsPage.Visible = false
 	pages.Buy = buyPage
 	pages.Sell = sellPage
+	pages.Gems = gemsPage
 	buildBuyPage(buyPage)
 	buildSellPage(sellPage)
+	buildGemsPage(gemsPage)
 
 	local message = makeText(
 		frame,
@@ -429,6 +547,7 @@ local function onGearDataChanged()
 	if panel and panel.Visible and currentTab == "Sell" then
 		rebuildSellRows()
 	end
+	refresh() -- aba Gemas: quantidades no baú
 end
 
 function ShopController.init()

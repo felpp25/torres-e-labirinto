@@ -24,7 +24,15 @@
 --                                                                  resposta em ShopResult)
 --   EnhanceGear     cliente -> servidor  (gearId: number)          quero tentar fortalecer esta peça (perto da forja)
 --   ForgeResult     servidor -> 1 cliente (ForgeResultPayload)     resultado da forja (sucesso, falha ou recusa)
--- O equipamento em si (peças da conta e slots) chega pelo Attribute "GearData" do Player (Shared/GearSnapshot).
+--   BuyGem          cliente -> servidor  (attribute: string)       quero comprar 1 gema Nv1 deste atributo (perto da
+--                                                                  loja; resposta em ShopResult)
+--   BuyRemover      cliente -> servidor  (level: number)           quero comprar 1 Removedor deste nível (idem)
+--   SocketGem       cliente -> servidor  (gearId, attribute, level) quero encaixar esta gema do baú nesta peça (perto
+--                                                                  da forja; resposta em ForgeResult)
+--   ExtractGem      cliente -> servidor  (gearId: number)          quero tirar a gema desta peça (gasta Removedor)
+--   FuseGems        cliente -> servidor  (attribute, level)        quero fundir 3 gemas iguais em 1 do nível seguinte
+-- O equipamento em si (peças da conta, slots, gemas e Removedores do baú) chega pelo Attribute "GearData" do Player
+-- (Shared/GearSnapshot).
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService: RunService = game:GetService("RunService")
@@ -49,6 +57,11 @@ export type RemoteName =
 	| "SellGear"
 	| "EnhanceGear"
 	| "ForgeResult"
+	| "BuyGem"
+	| "BuyRemover"
+	| "SocketGem"
+	| "ExtractGem"
+	| "FuseGems"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -90,6 +103,11 @@ local REMOTE_NAMES: { RemoteName } = {
 	"SellGear",
 	"EnhanceGear",
 	"ForgeResult",
+	"BuyGem",
+	"BuyRemover",
+	"SocketGem",
+	"ExtractGem",
+	"FuseGems",
 }
 
 export type GearResultPayload = {
@@ -111,8 +129,8 @@ export type ShopResultPayload = {
 }
 
 export type ForgeResultPayload = {
-	ok: boolean, -- true = o fortalecimento deu certo; false = falhou ou foi recusado
-	rolled: boolean, -- true = houve sorteio (Gold gasto: sucesso ou falha); false = recusado, nada mudou
+	ok: boolean, -- true = deu certo (fortalecimento, incrustar, extrair, fundir); false = falhou ou foi recusado
+	rolled: boolean, -- true = houve sorteio do fortalecimento (Gold gasto: sucesso ou falha); gemas: sempre false
 	message: string, -- ex.: "Sucesso! Gibão do Combatente +5" / "Falhou: caiu para +6" / "Gold insuficiente"
 }
 local FOLDER_NAME = "Remotes"

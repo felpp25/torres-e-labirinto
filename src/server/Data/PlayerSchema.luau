@@ -7,8 +7,10 @@
 --   inventory      itens da CONTA (ex.: poções): { [itemId] = quantidade }
 --   activeSlot     personagem em uso
 --   characters     lista de personagens; cada um com classe, nível, XP, atributos, pontos livres e equipamento
---   gear           TODAS as peças de equipamento da conta (baú + equipadas): { id, defId, rarity, enhance }
+--   gear           TODAS as peças de equipamento da conta (baú + equipadas): { id, defId, rarity, enhance, gem? }
 --   nextGearId     próximo id de peça (só cresce; um id nunca é reutilizado)
+--   gems           gemas soltas no baú da conta: { ["Strength:1"] = quantidade } (atributo:nível)
+--   removers       Removedores no baú da conta: { ["1"] = quantidade } (nível; chave texto, ver removerKey)
 --   session        trava de sessão (qual servidor está com os dados e desde quando); nil = livre
 -- Decisões do designer: vários personagens por conta; Gold GLOBAL da conta (trocar de personagem no lobby para
 -- atender o grupo sem recomeçar a economia); run em andamento NÃO é salva.
@@ -16,6 +18,7 @@
 -- Equipamento (GDD > Equipamentos > Dono): as peças são da CONTA; cada personagem tem 7 slots que apontam para ids
 -- de `gear` (character.equipped). O baú = peças que nenhum personagem equipa (50 espaços; equipadas não contam).
 -- O save guarda só referências: pontos, Poder, nome e preço vêm do catálogo (Shared/Balance/Gear).
+-- Gemas e Removedores também ficam no baú (decisão do designer): cada pilha (tipo + nível) ocupa 1 espaço.
 -- character.attributes guarda SÓ os pontos distribuídos; o equipamento nunca entra ali (o reset devolveria pontos).
 -- Peça com defId fora do catálogo (ex.: id renomeado por engano) fica guardada, mas "inerte": não aparece, não dá
 -- pontos e não conta no baú. Se o id voltar ao catálogo, ela volta. Nada é apagado em silêncio.
@@ -30,6 +33,8 @@
 --      classe tem arma inicial ganha a arma Comum equipada (Lutador: Luvas de Couro).
 --   5  Fortalecimento da peça (enhance, 0 a 10). Migração: todas as peças ficam +0.
 --      Peça fortalecida não é vendida na loja (decisão do designer).
+--   6  Gemas: a gema encaixada na peça (gem) e as pilhas de gemas e Removedores do baú (gems, removers).
+--      Migração: sem gemas. Peça com gema não é vendida (decisão do designer: extraia antes).
 --
 -- REGRA: todo campo NOVO salvo (mesmo opcional, ex.: a gema da peça) e todo VALOR novo num campo
 -- que o reconcile valida (ex.: raridade "Epic", classe ou slot novos) aumenta VERSION. O servidor que encontra dados
@@ -47,6 +52,7 @@ local Progression = require(Shared.Balance.Progression)
 local Shop = require(Shared.Balance.Shop)
 local Gear = require(Shared.Balance.Gear)
 local Forge = require(Shared.Balance.Forge)
+local Gems = require(Shared.Balance.Gems)
 
 export type Character = {
 	classId: string,
@@ -70,6 +76,8 @@ export type Profile = {
 	characters: { Character },
 	gear: { Types.OwnedGear }, -- lista densa, na ordem em que as peças chegaram
 	nextGearId: number,
+	gems: { [string]: number }, -- PlayerSchema.gemKey(atributo, nível) -> quantidade (só pilhas não vazias)
+	removers: { [string]: number }, -- PlayerSchema.removerKey(nível) -> quantidade (só pilhas não vazias)
 	session: Session?,
 }
 
@@ -83,11 +91,16 @@ export type EquipOutcome =
 	| "ChestFull"
 	| "OtherCharacterWeapon"
 export type UnequipOutcome = "Unequipped" | "Empty" | "WeaponLocked" | "ChestFull"
-export type SellOutcome = "Sold" | "NotFound" | "InUse" | "Enhanced"
+export type SellOutcome = "Sold" | "NotFound" | "InUse" | "Enhanced" | "HasGem"
+-- Gemas (o GemService transforma em mensagens; o Gold é conferido e cobrado lá).
+export type StoreOutcome = "Stored" | "ChestFull" | "StackFull"
+export type SocketOutcome = "Socketed" | "NotFound" | "HasGem" | "NoGem"
+export type ExtractOutcome = "Extracted" | "NotFound" | "Empty" | "NoRemover" | "ChestFull" | "StackFull"
+export type FuseOutcome = "Fused" | "CannotFuse" | "NotEnough" | "ChestFull" | "StackFull"
 
 local PlayerSchema = {}
 
-PlayerSchema.VERSION = 5
+PlayerSchema.VERSION = 6
 
 local WEAPON_SLOT: Types.EquipSlot = "Weapon"
 local MAX_DEF_ID_LENGTH = 64 -- defId salvo maior que isto é lixo (os ids do catálogo são curtos)
@@ -113,8 +126,20 @@ local function baseProfile(): Profile
 		characters = { PlayerSchema.newCharacter(Classes.defaultClassId) },
 		gear = {},
 		nextGearId = 1,
+		gems = {},
+		removers = {},
 		session = nil,
 	}
+end
+
+-- Chaves das pilhas no save. Texto também nos Removedores: uma tabela com chaves numéricas 1..n viraria lista no
+-- JSON do DataStore (e um buraco na lista mudaria o formato).
+function PlayerSchema.gemKey(attribute: Types.GemAttribute, level: number): string
+	return `{attribute}:{level}`
+end
+
+function PlayerSchema.removerKey(level: number): string
+	return tostring(level)
 end
 
 -- ===== Equipamento: consultas e alterações (puras, sem yield e sem Random: valem dentro do UpdateAsync) =====
@@ -161,7 +186,8 @@ function PlayerSchema.equippedIds(profile: Profile): { [number]: boolean }
 	return used
 end
 
--- Peças no baú: as que existem no catálogo e que nenhum personagem equipa.
+-- Espaços ocupados no baú: as peças do catálogo que nenhum personagem equipa + 1 por pilha de gema ou de
+-- Removedor (decisão do designer: gemas e Removedores ficam no baú de 50; cada tipo empilha).
 function PlayerSchema.chestCount(profile: Profile): number
 	local used = PlayerSchema.equippedIds(profile)
 	local count = 0
@@ -170,7 +196,141 @@ function PlayerSchema.chestCount(profile: Profile): number
 			count += 1
 		end
 	end
+	for _, amount in profile.gems do
+		if amount > 0 then
+			count += 1
+		end
+	end
+	for _, amount in profile.removers do
+		if amount > 0 then
+			count += 1
+		end
+	end
 	return count
+end
+
+-- ===== Gemas e Removedores no baú (puras; o GemService confere e cobra o Gold) =====
+
+function PlayerSchema.gemCount(profile: Profile, attribute: Types.GemAttribute, level: number): number
+	return profile.gems[PlayerSchema.gemKey(attribute, level)] or 0
+end
+
+function PlayerSchema.removerCount(profile: Profile, level: number): number
+	return profile.removers[PlayerSchema.removerKey(level)] or 0
+end
+
+-- Soma `delta` numa pilha; pilha zerada some (libera o espaço do baú).
+local function changeStack(stacks: { [string]: number }, key: string, delta: number)
+	local amount = (stacks[key] or 0) + delta
+	if amount > 0 then
+		stacks[key] = amount
+	else
+		stacks[key] = nil
+	end
+end
+
+-- Cabe mais `amount` numa pilha que hoje tem `current`? Pilha nova ocupa 1 espaço do baú; `freed` = espaços que a
+-- mesma operação libera antes (ex.: a extração gasta o último Removedor de uma pilha).
+local function canStore(profile: Profile, current: number, amount: number, freed: number): StoreOutcome
+	if current + amount > Gems.stackMax then
+		return "StackFull"
+	end
+	if current == 0 and PlayerSchema.chestCount(profile) - freed + 1 > Gear.chestCapacity then
+		return "ChestFull"
+	end
+	return "Stored"
+end
+
+-- Guarda gemas no baú (compra na loja, testes). Não guarda nada se não couber.
+function PlayerSchema.storeGems(
+	profile: Profile,
+	attribute: Types.GemAttribute,
+	level: number,
+	amount: number
+): StoreOutcome
+	local outcome: StoreOutcome = canStore(profile, PlayerSchema.gemCount(profile, attribute, level), amount, 0)
+	if outcome == "Stored" then
+		changeStack(profile.gems, PlayerSchema.gemKey(attribute, level), amount)
+	end
+	return outcome
+end
+
+function PlayerSchema.storeRemovers(profile: Profile, level: number, amount: number): StoreOutcome
+	local outcome: StoreOutcome = canStore(profile, PlayerSchema.removerCount(profile, level), amount, 0)
+	if outcome == "Stored" then
+		changeStack(profile.removers, PlayerSchema.removerKey(level), amount)
+	end
+	return outcome
+end
+
+-- Encaixa uma gema do baú na peça `id` (equipada ou não). 1 gema por peça: para trocar, extraia antes.
+function PlayerSchema.socketGem(
+	profile: Profile,
+	id: number,
+	attribute: Types.GemAttribute,
+	level: number
+): SocketOutcome
+	local piece = PlayerSchema.findGear(profile, id)
+	if piece == nil or Gear.byId[piece.defId] == nil then
+		return "NotFound"
+	end
+	if piece.gem ~= nil then
+		return "HasGem"
+	end
+	if PlayerSchema.gemCount(profile, attribute, level) <= 0 then
+		return "NoGem"
+	end
+	changeStack(profile.gems, PlayerSchema.gemKey(attribute, level), -1)
+	piece.gem = { attribute = attribute, level = level }
+	return "Socketed"
+end
+
+-- Tira a gema da peça `id`: gasta 1 Removedor do nível da gema, que volta INTEIRA para o baú. Devolve a gema.
+function PlayerSchema.extractGem(profile: Profile, id: number): (ExtractOutcome, Types.Gem?)
+	local piece = PlayerSchema.findGear(profile, id)
+	if piece == nil or Gear.byId[piece.defId] == nil then
+		return "NotFound", nil
+	end
+	local gem = piece.gem
+	if gem == nil then
+		return "Empty", nil
+	end
+	local removers = PlayerSchema.removerCount(profile, gem.level)
+	if removers <= 0 then
+		return "NoRemover", nil
+	end
+	local freed = if removers == 1 then 1 else 0
+	local outcome = canStore(profile, PlayerSchema.gemCount(profile, gem.attribute, gem.level), 1, freed)
+	if outcome == "ChestFull" then
+		return "ChestFull", nil
+	elseif outcome == "StackFull" then
+		return "StackFull", nil
+	end
+	changeStack(profile.removers, PlayerSchema.removerKey(gem.level), -1)
+	changeStack(profile.gems, PlayerSchema.gemKey(gem.attribute, gem.level), 1)
+	piece.gem = nil
+	return "Extracted", gem
+end
+
+-- Funde 3 gemas iguais do baú em 1 do nível seguinte (mesmo atributo). Só os níveis com custo em Balance/Gems.
+function PlayerSchema.fuseGems(profile: Profile, attribute: Types.GemAttribute, level: number): FuseOutcome
+	if Gems.fuseCost[level] == nil then
+		return "CannotFuse"
+	end
+	local have = PlayerSchema.gemCount(profile, attribute, level)
+	if have < Gems.fuseCount then
+		return "NotEnough"
+	end
+	local freed = if have == Gems.fuseCount then 1 else 0
+	local outcome = canStore(profile, PlayerSchema.gemCount(profile, attribute, level + 1), 1, freed)
+	if outcome == "ChestFull" then
+		return "ChestFull"
+	elseif outcome == "StackFull" then
+		return "StackFull"
+	end
+	changeStack(profile.gems, PlayerSchema.gemKey(attribute, level), -Gems.fuseCount)
+	changeStack(profile.gems, PlayerSchema.gemKey(attribute, level + 1), 1)
+	return "Fused"
 end
 
 -- Cria uma peça nova na conta (vai para o baú). Quem chama decide o que fazer com o baú cheio (GearService).
@@ -247,7 +407,8 @@ function PlayerSchema.unequip(profile: Profile, charIndex: number, slot: Types.E
 	return "Unequipped"
 end
 
--- Tira uma peça do BAÚ da conta (venda). Peça equipada, fortalecida ou inerte não sai. Devolve a peça removida.
+-- Tira uma peça do BAÚ da conta (venda). Peça equipada, fortalecida, com gema ou inerte não sai (decisões do
+-- designer: a fortalecida não é vendida; a gema é extraída antes, com Removedor). Devolve a peça removida.
 function PlayerSchema.sell(profile: Profile, id: number): (SellOutcome, Types.OwnedGear?)
 	local index = indexOfGear(profile, id)
 	if index == nil then
@@ -262,6 +423,9 @@ function PlayerSchema.sell(profile: Profile, id: number): (SellOutcome, Types.Ow
 	end
 	if piece.enhance > 0 then
 		return "Enhanced", nil
+	end
+	if piece.gem ~= nil then
+		return "HasGem", nil
 	end
 	table.remove(profile.gear, index)
 	return "Sold", piece
@@ -311,6 +475,7 @@ local function reconcileGear(data: { [string]: unknown }, profile: Profile, rawC
 	local byId: { [number]: Types.OwnedGear } = {}
 	local maxId = 0
 	local dropped = 0
+	local droppedGems = 0
 	if typeof(data.gear) == "table" then
 		local rawGear = data.gear :: { unknown }
 		for i = 1, #rawGear do
@@ -328,9 +493,15 @@ local function reconcileGear(data: { [string]: unknown }, profile: Profile, rawC
 				end
 			end
 			if id ~= nil and rarity ~= nil and defId ~= nil and byId[id] == nil then
+				local p = rawPiece :: { [string]: unknown }
 				-- Fortalecimento (v5+): ausente (migração da v4) ou inválido = +0.
-				local enhance = wholeNumber((rawPiece :: { [string]: unknown }).enhance, 0, Forge.maxEnhance, 0)
-				local piece: Types.OwnedGear = { id = id, defId = defId, rarity = rarity, enhance = enhance }
+				local enhance = wholeNumber(p.enhance, 0, Forge.maxEnhance, 0)
+				-- Gema encaixada (v6+): ausente = sem gema; inválida (lixo) é descartada com aviso.
+				local gem = Formulas.parseGem(p.gem)
+				if p.gem ~= nil and gem == nil then
+					droppedGems += 1
+				end
+				local piece: Types.OwnedGear = { id = id, defId = defId, rarity = rarity, enhance = enhance, gem = gem }
 				table.insert(profile.gear, piece)
 				byId[id] = piece
 				maxId = math.max(maxId, id)
@@ -341,6 +512,9 @@ local function reconcileGear(data: { [string]: unknown }, profile: Profile, rawC
 	end
 	if dropped > 0 then
 		warn(`[Save] {dropped} peça(s) de equipamento inválida(s) descartada(s) ao carregar`)
+	end
+	if droppedGems > 0 then
+		warn(`[Save] {droppedGems} gema(s) encaixada(s) inválida(s) descartada(s) ao carregar`)
 	end
 	profile.nextGearId = math.max(Formulas.parseGearId(data.nextGearId) or 1, maxId + 1)
 
@@ -449,6 +623,31 @@ function PlayerSchema.reconcile(raw: unknown): Profile
 
 	-- Equipamento (v4+). Na migração da v3 (sem `gear`), cada personagem só recebe a arma inicial.
 	reconcileGear(data, profile, listRaw)
+
+	-- Gemas e Removedores do baú (v6+). Só tipos e níveis que existem, com a quantidade limitada à pilha. Na
+	-- migração da v5 (sem os campos), o baú fica sem gemas.
+	if typeof(data.gems) == "table" then
+		local rawGems = data.gems :: { [string]: unknown }
+		for _, attribute: Types.GemAttribute in Gems.attributes do
+			for level = 1, Gems.maxLevel do
+				local key = PlayerSchema.gemKey(attribute, level)
+				local count = wholeNumber(rawGems[key], 0, Gems.stackMax, 0)
+				if count > 0 then
+					profile.gems[key] = count
+				end
+			end
+		end
+	end
+	if typeof(data.removers) == "table" then
+		local rawRemovers = data.removers :: { [string]: unknown }
+		for level = 1, Gems.maxLevel do
+			local key = PlayerSchema.removerKey(level)
+			local count = wholeNumber(rawRemovers[key], 0, Gems.stackMax, 0)
+			if count > 0 then
+				profile.removers[key] = count
+			end
+		end
+	end
 
 	local session = data.session
 	if typeof(session) == "table" then

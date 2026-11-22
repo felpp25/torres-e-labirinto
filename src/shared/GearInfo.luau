@@ -5,6 +5,7 @@
 local Types = require(script.Parent.Types)
 local Formulas = require(script.Parent.Formulas)
 local AttributeInfo = require(script.Parent.AttributeInfo)
+local Gems = require(script.Parent.Balance.Gems)
 
 local GearInfo = {}
 
@@ -67,6 +68,64 @@ end
 -- Ex.: "Faixa do Combatente (Raro)" ou "Gibão do Combatente +5 (Comum)".
 function GearInfo.fullName(def: Types.GearDef, rarity: Types.Rarity, enhance: number?): string
 	return `{GearInfo.displayName(def, enhance)} ({GearInfo.rarityLabel(rarity)})`
+end
+
+-- ===== Gemas =====
+
+-- Cor de cada tipo de gema (para a célula e o nome). Provisório, até a arte.
+local GEM_COLORS: { [string]: Color3 } = {
+	Strength = Color3.fromRGB(235, 90, 80),
+	Vitality = Color3.fromRGB(110, 210, 110),
+	Intelligence = Color3.fromRGB(100, 150, 255),
+	Wisdom = Color3.fromRGB(180, 120, 240),
+	Dexterity = Color3.fromRGB(240, 210, 80),
+	Defense = Color3.fromRGB(140, 200, 210),
+}
+
+local function attributeInfo(attribute: Types.AttributeName): AttributeInfo.Info?
+	for _, info in AttributeInfo do
+		if info.key == attribute then
+			return info
+		end
+	end
+	return nil
+end
+
+-- Sigla do atributo da gema ("FOR").
+function GearInfo.gemShort(attribute: Types.GemAttribute): string
+	local info = attributeInfo(attribute)
+	return if info then info.short else attribute
+end
+
+function GearInfo.gemColor(attribute: Types.GemAttribute): Color3
+	return GEM_COLORS[attribute] or Color3.new(1, 1, 1)
+end
+
+-- "Gema de Força Nv1".
+function GearInfo.gemName(attribute: Types.GemAttribute, level: number): string
+	local info = attributeInfo(attribute)
+	return `Gema de {if info then info.long else attribute} Nv{level}`
+end
+
+-- "+1 FOR".
+function GearInfo.gemEffect(attribute: Types.GemAttribute, level: number): string
+	local points = Formulas.gemAttributes({ attribute = attribute, level = level })[attribute]
+	return `+{formatNumber(points)} {GearInfo.gemShort(attribute)}`
+end
+
+-- "Removedor Nv1".
+function GearInfo.removerName(level: number): string
+	return `Removedor Nv{level}`
+end
+
+-- Por que gemas deste nível não fundem (só para os níveis sem fusão em Balance/Gems).
+function GearInfo.fuseBlockedReason(level: number): string
+	if level == Gems.shopLevel then
+		return `A gema Nv{level} (da loja) não funde`
+	elseif level >= Gems.maxLevel then
+		return `Nv{Gems.maxLevel} é o nível máximo`
+	end
+	return `Não existe a fusão de Nv{level} para Nv{level + 1}`
 end
 
 -- Ex.: "+2 FOR, +1 VIT" ou "+1 FOR, +2 DES  ·  Poder +5%" (valores já com a raridade e o fortalecimento).

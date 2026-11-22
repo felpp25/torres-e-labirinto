@@ -1,11 +1,13 @@
 --!strict
 -- Janela da Forja (GDD > Forja; layout provisório, arte depois). Abre ao acionar o prompt da bigorna no lobby
--- (tecla F / direcional para cima no controle / toque) e fecha sozinha ao se afastar.
--- Aba "Fortalecer" (as abas de gemas entram na etapa 3):
--- - à esquerda: todas as peças da conta (as equipadas primeiro, marcadas com "E"), com o "+N" no canto;
--- - à direita: a peça escolhida, o que ela dá agora e no próximo nível, a chance, o custo e o risco da falha.
--- O cliente só PEDE (EnhanceGear); o servidor sorteia, cobra e responde por ForgeResult. Os números mostrados
--- aqui (chance, custo, prévia) vêm das mesmas fórmulas que o servidor usa (Shared/Formulas).
+-- (tecla F / direcional para cima no controle / toque) e fecha sozinha ao se afastar. Abas:
+-- - "Fortalecer": à esquerda todas as peças da conta (as equipadas primeiro, marcadas com "E"), com o "+N" e a gema
+--   no canto; à direita a peça escolhida, o que ela dá agora e no próximo nível, a chance, o custo e o risco.
+-- - "Gemas": as mesmas peças à esquerda; à direita a gema da peça: incrustar uma gema do baú (Gold) ou extrair a
+--   que está nela (gasta um Removedor do nível da gema; a gema volta inteira para o baú).
+-- - "Fundir": à esquerda as gemas do baú; à direita a fusão de 3 iguais em 1 do nível seguinte (Gold).
+-- O cliente só PEDE (EnhanceGear, SocketGem, ExtractGem, FuseGems); o servidor confere tudo, sorteia, cobra e
+-- responde por ForgeResult. Os números mostrados vêm das mesmas fórmulas e tabelas do servidor (Shared).
 
 local Players: Players = game:GetService("Players")
 local ProximityPromptService: ProximityPromptService = game:GetService("ProximityPromptService")
@@ -23,6 +25,7 @@ local GearInfo = require(Shared:WaitForChild("GearInfo"))
 local GearSnapshot = require(Shared:WaitForChild("GearSnapshot"))
 local Gear = require(Balance:WaitForChild("Gear"))
 local Forge = require(Balance:WaitForChild("Forge"))
+local Gems = require(Balance:WaitForChild("Gems"))
 
 local ChatBlocker = require(script.Parent.Parent:WaitForChild("ChatBlocker"))
 
@@ -36,6 +39,7 @@ local FONT = Enum.Font.GothamBold
 local WINDOW_WIDTH = 720
 local WINDOW_HEIGHT = 440
 local TITLE_HEIGHT = 48
+local SIDE_HEIGHT = WINDOW_HEIGHT - TITLE_HEIGHT - 10
 local LEFT_WIDTH = 330
 local CELL_SIZE = 46
 local CELL_GAP = 5
@@ -64,41 +68,96 @@ local COLORS = {
 	inUse = Color3.fromRGB(110, 220, 120),
 	selected = Color3.fromRGB(255, 255, 255),
 	button = Color3.fromRGB(205, 110, 40),
+	extract = Color3.fromRGB(180, 70, 70),
 	confirm = Color3.fromRGB(190, 70, 60),
 	disabled = Color3.fromRGB(70, 70, 80),
 	ok = Color3.fromRGB(110, 220, 120),
 	fail = Color3.fromRGB(240, 110, 110),
 	tabActive = Color3.fromRGB(70, 110, 200),
+	tabIdle = Color3.fromRGB(50, 50, 62),
+	gemText = Color3.fromRGB(20, 20, 28),
 }
+
+type Tab = "Enhance" | "Gems" | "Fuse"
+
+-- Peça escolhida em destaque (abas Fortalecer e Gemas): célula grande, nome e a linha raridade/slot.
+type PieceHeader = {
+	cell: Frame,
+	label: TextLabel,
+	badge: TextLabel,
+	gemMark: TextLabel,
+	stroke: UIStroke,
+	name: TextLabel,
+	slot: TextLabel,
+}
+
+-- Borda de uma célula de gema e a cor dela fora da seleção.
+type StackView = { stroke: UIStroke, color: Color3 }
 
 local ForgeController = {}
 
+-- Janela
 local window: Frame? = nil
 local goldLabel: TextLabel? = nil
-local grid: ScrollingFrame? = nil
-local cellStrokes: { [number]: UIStroke } = {}
-local bigCell: Frame? = nil
-local bigLabel: TextLabel? = nil
-local bigBadge: TextLabel? = nil
-local bigStroke: UIStroke? = nil
-local nameLabel: TextLabel? = nil
-local slotLabel: TextLabel? = nil
+local tabButtons: { [string]: TextButton } = {}
+local sides: { [string]: Frame } = {} -- lado direito de cada aba
+local messageLabels: { [string]: TextLabel } = {}
+local leftHeader: TextLabel? = nil
+local leftHint: TextLabel? = nil
+local pieceGrid: ScrollingFrame? = nil
+local stackGrid: ScrollingFrame? = nil
+local stackEmptyLabel: TextLabel? = nil
+local pieceStrokes: { [number]: UIStroke } = {}
+local stackViews: { [string]: StackView } = {} -- gemas do baú (aba Fundir)
+-- Aba Fortalecer
+local enhanceHeader: PieceHeader? = nil
 local nowLabel: TextLabel? = nil
 local nextLabel: TextLabel? = nil
 local chanceLabel: TextLabel? = nil
 local costLabel: TextLabel? = nil
 local riskLabel: TextLabel? = nil
 local enhanceButton: TextButton? = nil
-local messageLabel: TextLabel? = nil
+-- Aba Gemas
+local gemHeader: PieceHeader? = nil
+local gemLine: TextLabel? = nil
+local chooseLabel: TextLabel? = nil
+local choiceGrid: ScrollingFrame? = nil
+local choiceViews: { [string]: StackView } = {}
+local gemInfo: TextLabel? = nil
+local gemButton: TextButton? = nil
+-- Aba Fundir
+local fuseStroke: UIStroke? = nil
+local fuseCellLabel: TextLabel? = nil
+local fuseLevelLabel: TextLabel? = nil
+local fuseCountLabel: TextLabel? = nil
+local fuseName: TextLabel? = nil
+local fuseOwned: TextLabel? = nil
+local recipeLabel: TextLabel? = nil
+local fuseCostLabel: TextLabel? = nil
+local fuseButton: TextButton? = nil
 
+-- Estado
 local snapshot: Types.GearSnapshot = GearSnapshot.empty()
-local selectedId: number? = nil
+local currentTab: Tab = "Enhance"
+local selectedId: number? = nil -- peça (abas Fortalecer e Gemas)
+local selectedGem: Types.Gem? = nil -- gema do baú escolhida para incrustar (aba Gemas)
+local selectedStack: Types.Gem? = nil -- gemas do baú escolhidas para fundir (aba Fundir)
 local confirmUntil = 0
 
 local function numberAttr(name: string): number
 	local value = localPlayer:GetAttribute(name)
 	return if typeof(value) == "number" then value else 0
 end
+
+local function inRun(): boolean
+	return localPlayer:GetAttribute(Keys.InRunAttr) == true
+end
+
+local function gemKey(gem: Types.Gem): string
+	return `{gem.attribute}:{gem.level}`
+end
+
+-- ===== Peças de interface =====
 
 local function makeText(parent: Instance, text: string, size: UDim2, position: UDim2, textSize: number): TextLabel
 	local label = Instance.new("TextLabel")
@@ -152,6 +211,12 @@ local function makeStroke(parent: GuiObject, color: Color3): UIStroke
 	return stroke
 end
 
+local function makeCorner(parent: GuiObject, radius: number)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = parent
+end
+
 -- "+5" pequeno no canto superior direito da peça (some sem fortalecimento).
 local function makeBadge(parent: GuiObject, textSize: number): TextLabel
 	local badge = makeText(parent, "", UDim2.new(1, -4, 0, textSize + 2), UDim2.fromOffset(0, 2), textSize)
@@ -162,13 +227,70 @@ local function makeBadge(parent: GuiObject, textSize: number): TextLabel
 	return badge
 end
 
+-- Quadradinho da gema encaixada, no canto inferior direito da peça: cor do atributo e o nível. Some sem gema.
+local function makeGemMark(parent: GuiObject, size: number): TextLabel
+	local mark = Instance.new("TextLabel")
+	mark.Name = "Gem"
+	mark.AnchorPoint = Vector2.new(1, 1)
+	mark.Position = UDim2.new(1, -3, 1, -3)
+	mark.Size = UDim2.fromOffset(size, size)
+	mark.Text = ""
+	mark.TextColor3 = COLORS.gemText
+	mark.TextSize = size - 3
+	mark.Font = FONT
+	mark.Visible = false
+	mark.Parent = parent
+	makeCorner(mark, 3)
+	return mark
+end
+
+local function setGemMark(mark: TextLabel, gem: Types.Gem?)
+	mark.Visible = gem ~= nil
+	if gem then
+		mark.BackgroundColor3 = GearInfo.gemColor(gem.attribute)
+		mark.Text = tostring(gem.level)
+	end
+end
+
+-- Célula de uma pilha de gemas do baú: sigla do atributo, "Nv2" no canto e a quantidade embaixo.
+local function makeStackCell(parent: Instance, stack: Types.GemStack, order: number, onClick: () -> ()): StackView
+	local color = GearInfo.gemColor(stack.attribute)
+	local cell = Instance.new("TextButton")
+	cell.Name = `Gem_{stack.attribute}_{stack.level}`
+	cell.LayoutOrder = order
+	cell.Text = ""
+	cell.BackgroundColor3 = COLORS.cell
+	cell.Parent = parent
+	makeCorner(cell, 6)
+	local stroke = makeStroke(cell, color)
+	local label = makeText(cell, GearInfo.gemShort(stack.attribute), UDim2.fromScale(1, 1), UDim2.new(), 13)
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextColor3 = color
+	local level = makeBadge(cell, 10)
+	level.Text = `Nv{stack.level}`
+	level.TextColor3 = COLORS.text
+	local count = makeText(cell, `×{stack.count}`, UDim2.new(1, -4, 0, 12), UDim2.new(0, 0, 1, -14), 10)
+	count.TextXAlignment = Enum.TextXAlignment.Right
+	count.TextColor3 = COLORS.dim
+	cell.Activated:Connect(onClick)
+	return { stroke = stroke, color = color }
+end
+
 local function showMessage(text: string, ok: boolean)
-	local label = messageLabel
+	local label = messageLabels[currentTab]
 	if label then
 		label.Text = text
 		label.TextColor3 = if ok then COLORS.ok else COLORS.fail
 	end
 end
+
+local function clearMessages()
+	for _, label in messageLabels do
+		label.Text = ""
+	end
+end
+
+-- ===== Estado escolhido =====
 
 local function selectedEntry(): (Types.GearEntry?, Types.GearDef?)
 	local entry = if selectedId ~= nil then GearSnapshot.find(snapshot, selectedId) else nil
@@ -201,8 +323,18 @@ local function orderedEntries(): { Types.GearEntry }
 	return list
 end
 
--- O que o botão faz agora: texto, cor e motivo do bloqueio (nil = liberado).
-local function currentAction(): (string, Color3, string?)
+-- Cabe mais 1 gema nesta pilha do baú, liberando `freed` espaços antes? (Mesma regra do servidor; só para o botão.)
+local function gemFits(attribute: Types.GemAttribute, level: number, freed: number): boolean
+	local have = GearSnapshot.gemCount(snapshot, attribute, level)
+	if have >= Gems.stackMax then
+		return false
+	end
+	return have > 0 or GearSnapshot.chestCount(snapshot) - freed < Gear.chestCapacity
+end
+
+-- ===== O que cada botão faz agora: texto, cor e motivo do bloqueio (nil = liberado) =====
+
+local function enhanceAction(): (string, Color3, string?)
 	local entry, def = selectedEntry()
 	if not entry or not def then
 		return "Fortalecer", COLORS.disabled, "Escolha uma peça à esquerda"
@@ -212,7 +344,7 @@ local function currentAction(): (string, Color3, string?)
 	end
 	local target = entry.enhance + 1
 	local cost = Formulas.enhanceCost(def, target)
-	if localPlayer:GetAttribute(Keys.InRunAttr) == true then
+	if inRun() then
 		return "Fortalecer", COLORS.disabled, "Fortalecimento só no lobby"
 	end
 	if numberAttr(Keys.PlayerAttr.Gold) < cost then
@@ -224,26 +356,108 @@ local function currentAction(): (string, Color3, string?)
 	return "Fortalecer", COLORS.button, nil
 end
 
-local function refreshDetail()
-	local entry, def = selectedEntry()
-	local cellLabel, badge, stroke = bigLabel, bigBadge, bigStroke
-	if cellLabel and badge and stroke then
-		cellLabel.Text = if def then SLOT_SHORT[def.slot] else "?"
-		badge.Text = if entry then GearInfo.enhanceLabel(entry.enhance) else ""
-		stroke.Color = if entry then GearInfo.rarityColor(entry.rarity) else COLORS.disabled
+local function gemAction(): (string, Color3, string?)
+	local entry, _ = selectedEntry()
+	if not entry then
+		return "Incrustar", COLORS.disabled, "Escolha uma peça à esquerda"
 	end
-	local name, slot, now, nextText, chance, cost, risk =
-		nameLabel, slotLabel, nowLabel, nextLabel, chanceLabel, costLabel, riskLabel
-	if not name or not slot or not now or not nextText or not chance or not cost or not risk then
+	local gem = entry.gem
+	if gem then
+		if inRun() then
+			return "Extrair", COLORS.disabled, "Gemas só no lobby"
+		end
+		local removers = GearSnapshot.removerCount(snapshot, gem.level)
+		if removers <= 0 then
+			return "Extrair", COLORS.disabled, `Precisa de 1 {GearInfo.removerName(gem.level)} (compre na loja)`
+		end
+		if not gemFits(gem.attribute, gem.level, if removers == 1 then 1 else 0) then
+			return "Extrair", COLORS.disabled, "Baú cheio: a gema não teria onde ficar"
+		end
+		return "Extrair", COLORS.extract, nil
+	end
+	if inRun() then
+		return "Incrustar", COLORS.disabled, "Gemas só no lobby"
+	end
+	if #snapshot.gems == 0 then
+		return "Incrustar", COLORS.disabled, "Você não tem gemas: compre na loja"
+	end
+	local chosen = selectedGem
+	if not chosen then
+		return "Incrustar", COLORS.disabled, "Escolha uma gema do baú"
+	end
+	if numberAttr(Keys.PlayerAttr.Gold) < Gems.socketCost then
+		return "Incrustar", COLORS.disabled, `Gold insuficiente (custa {Gems.socketCost})`
+	end
+	return "Incrustar", COLORS.button, nil
+end
+
+local function fuseAction(): (string, Color3, string?)
+	local stack = selectedStack
+	if not stack then
+		return "Fundir", COLORS.disabled, "Escolha uma gema à esquerda"
+	end
+	local cost = Formulas.fuseCost(stack.level)
+	if cost == nil then
+		return "Fundir", COLORS.disabled, GearInfo.fuseBlockedReason(stack.level)
+	end
+	if inRun() then
+		return "Fundir", COLORS.disabled, "Gemas só no lobby"
+	end
+	local have = GearSnapshot.gemCount(snapshot, stack.attribute, stack.level)
+	if have < Gems.fuseCount then
+		return "Fundir", COLORS.disabled, `Precisa de {Gems.fuseCount} iguais (você tem {have})`
+	end
+	if numberAttr(Keys.PlayerAttr.Gold) < cost then
+		return "Fundir", COLORS.disabled, `Gold insuficiente (custa {cost})`
+	end
+	if not gemFits(stack.attribute, stack.level + 1, if have == Gems.fuseCount then 1 else 0) then
+		return "Fundir", COLORS.disabled, "Baú cheio: a gema nova não teria onde ficar"
+	end
+	return "Fundir", COLORS.button, nil
+end
+
+local function paintButton(button: TextButton?, action: () -> (string, Color3, string?))
+	if button then
+		local text, color, _ = action()
+		button.Text = text
+		button.BackgroundColor3 = color
+	end
+end
+
+-- ===== Atualizar a tela =====
+
+local function refreshPieceHeader(header: PieceHeader?)
+	if not header then
+		return
+	end
+	local entry, def = selectedEntry()
+	header.label.Text = if def then SLOT_SHORT[def.slot] else "?"
+	header.badge.Text = if entry then GearInfo.enhanceLabel(entry.enhance) else ""
+	header.stroke.Color = if entry then GearInfo.rarityColor(entry.rarity) else COLORS.disabled
+	setGemMark(header.gemMark, if entry then entry.gem else nil)
+	if entry and def then
+		local rarity: Types.Rarity = entry.rarity
+		-- Nome na cor da raridade; a raridade por extenso vai na linha de baixo (não cabia ao lado do nome).
+		header.name.Text = GearInfo.displayName(def, entry.enhance)
+		header.name.TextColor3 = GearInfo.rarityColor(rarity)
+		local equipped = if entry.inUse then "  ·  equipada" else ""
+		header.slot.Text = `{GearInfo.rarityLabel(rarity)}  ·  {GearInfo.slotLabel(def.slot)}{equipped}`
+	else
+		header.name.Text = "Escolha uma peça"
+		header.name.TextColor3 = COLORS.text
+		header.slot.Text = "Equipadas (E) ou da mochila"
+	end
+end
+
+local function refreshEnhance()
+	refreshPieceHeader(enhanceHeader)
+	local entry, def = selectedEntry()
+	local now, nextText, chance, cost, risk = nowLabel, nextLabel, chanceLabel, costLabel, riskLabel
+	if not now or not nextText or not chance or not cost or not risk then
 		return
 	end
 	if entry and def then
 		local rarity: Types.Rarity = entry.rarity
-		-- Nome na cor da raridade; a raridade por extenso vai na linha de baixo (não cabia ao lado do nome).
-		name.Text = GearInfo.displayName(def, entry.enhance)
-		name.TextColor3 = GearInfo.rarityColor(rarity)
-		local equipped = if entry.inUse then "  ·  equipada" else ""
-		slot.Text = `{GearInfo.rarityLabel(rarity)}  ·  {GearInfo.slotLabel(def.slot)}{equipped}`
 		now.Text = `Agora: {GearInfo.describe(def, rarity, entry.enhance)}`
 		if entry.enhance >= Forge.maxEnhance then
 			nextText.Text = "Nível máximo"
@@ -264,21 +478,110 @@ local function refreshDetail()
 			end
 		end
 	else
-		name.Text = "Escolha uma peça"
-		name.TextColor3 = COLORS.text
-		slot.Text = "Equipadas (E) ou da mochila"
 		now.Text = ""
 		nextText.Text = ""
 		chance.Text = ""
 		cost.Text = ""
 		risk.Text = ""
 	end
-	local button = enhanceButton
-	if button then
-		local text, color, _ = currentAction()
-		button.Text = text
-		button.BackgroundColor3 = color
+	paintButton(enhanceButton, enhanceAction)
+end
+
+local function paintStackViews(views: { [string]: StackView }, chosen: Types.Gem?)
+	local chosenKey = if chosen then gemKey(chosen) else nil
+	for key, view in views do
+		local isSelected = key == chosenKey
+		view.stroke.Color = if isSelected then COLORS.selected else view.color
+		view.stroke.Thickness = if isSelected then 3 else 2
 	end
+end
+
+local function refreshGems()
+	refreshPieceHeader(gemHeader)
+	local line, choose, choices, info = gemLine, chooseLabel, choiceGrid, gemInfo
+	if not line or not choose or not choices or not info then
+		return
+	end
+	local entry, _ = selectedEntry()
+	local gem = if entry then entry.gem else nil
+	if not entry then
+		line.Text = ""
+		info.Text = ""
+		choose.Visible = false
+		choices.Visible = false
+	elseif gem then
+		line.Text = `{GearInfo.gemName(gem.attribute, gem.level)} ({GearInfo.gemEffect(gem.attribute, gem.level)})`
+		line.TextColor3 = GearInfo.gemColor(gem.attribute)
+		choose.Visible = false
+		choices.Visible = false
+		local removers = GearSnapshot.removerCount(snapshot, gem.level)
+		info.Text = `Extrair gasta 1 {GearInfo.removerName(gem.level)} (você tem {removers}). A gema volta inteira`
+			.. " para o baú."
+	else
+		line.Text = "Sem gema"
+		line.TextColor3 = COLORS.dim
+		choose.Visible = true
+		choices.Visible = true
+		choose.Text = if #snapshot.gems > 0
+			then "Escolha a gema (do baú):"
+			else `Nenhuma gema no baú: compre na loja (Nv{Gems.shopLevel}, {Gems.shopPrice} Gold)`
+		local chosen = selectedGem
+		info.Text = if chosen
+			then `{GearInfo.gemName(chosen.attribute, chosen.level)}: {GearInfo.gemEffect(
+				chosen.attribute,
+				chosen.level
+			)}` .. `  ·  incrustar custa {Gems.socketCost} Gold`
+			else `Incrustar custa {Gems.socketCost} Gold`
+	end
+	paintStackViews(choiceViews, selectedGem)
+	paintButton(gemButton, gemAction)
+end
+
+local function refreshFuse()
+	local stroke, cellLabel, levelLabel, countLabel = fuseStroke, fuseCellLabel, fuseLevelLabel, fuseCountLabel
+	local name, owned, recipe, cost = fuseName, fuseOwned, recipeLabel, fuseCostLabel
+	if not stroke or not cellLabel or not levelLabel or not countLabel then
+		return
+	end
+	if not name or not owned or not recipe or not cost then
+		return
+	end
+	local stack = selectedStack
+	if stack then
+		local color = GearInfo.gemColor(stack.attribute)
+		local have = GearSnapshot.gemCount(snapshot, stack.attribute, stack.level)
+		stroke.Color = color
+		cellLabel.Text = GearInfo.gemShort(stack.attribute)
+		cellLabel.TextColor3 = color
+		levelLabel.Text = `Nv{stack.level}`
+		countLabel.Text = `×{have}`
+		name.Text = GearInfo.gemName(stack.attribute, stack.level)
+		name.TextColor3 = color
+		owned.Text = `No baú: {have}  ·  {GearInfo.gemEffect(stack.attribute, stack.level)} cada`
+		local price = Formulas.fuseCost(stack.level)
+		if price then
+			local result = stack.level + 1
+			recipe.Text = `{Gems.fuseCount} × Nv{stack.level} viram 1 {GearInfo.gemName(stack.attribute, result)}`
+				.. ` ({GearInfo.gemEffect(stack.attribute, result)})`
+			cost.Text = `Custo: {price} Gold`
+		else
+			recipe.Text = GearInfo.fuseBlockedReason(stack.level)
+			cost.Text = ""
+		end
+	else
+		stroke.Color = COLORS.disabled
+		cellLabel.Text = "?"
+		cellLabel.TextColor3 = COLORS.text
+		levelLabel.Text = ""
+		countLabel.Text = ""
+		name.Text = "Escolha uma gema"
+		name.TextColor3 = COLORS.text
+		owned.Text = "As gemas do baú estão à esquerda"
+		recipe.Text = ""
+		cost.Text = ""
+	end
+	paintStackViews(stackViews, selectedStack)
+	paintButton(fuseButton, fuseAction)
 end
 
 local function refresh()
@@ -289,7 +592,10 @@ local function refresh()
 	if goldLabel then
 		goldLabel.Text = `Gold: {numberAttr(Keys.PlayerAttr.Gold)}`
 	end
-	for id, stroke in cellStrokes do
+	for name, button in tabButtons do
+		button.BackgroundColor3 = if name == currentTab then COLORS.tabActive else COLORS.tabIdle
+	end
+	for id, stroke in pieceStrokes do
 		local entry = GearSnapshot.find(snapshot, id)
 		if selectedId == id then
 			stroke.Color = COLORS.selected
@@ -299,20 +605,32 @@ local function refresh()
 			stroke.Thickness = 2
 		end
 	end
-	refreshDetail()
+	if currentTab == "Enhance" then
+		refreshEnhance()
+	elseif currentTab == "Gems" then
+		refreshGems()
+	else
+		refreshFuse()
+	end
 end
 
-local function rebuildGrid()
-	local list = grid
-	if not list then
-		return
-	end
-	for _, child in list:GetChildren() do
+-- ===== Grades =====
+
+local function clearGrid(grid: ScrollingFrame)
+	for _, child in grid:GetChildren() do
 		if not child:IsA("UIGridLayout") then
 			child:Destroy()
 		end
 	end
-	table.clear(cellStrokes)
+end
+
+local function rebuildPieceGrid()
+	local list = pieceGrid
+	if not list then
+		return
+	end
+	clearGrid(list)
+	table.clear(pieceStrokes)
 	for index, entry in orderedEntries() do
 		local def = Gear.byId[entry.defId]
 		local cell = Instance.new("TextButton")
@@ -321,13 +639,12 @@ local function rebuildGrid()
 		cell.Text = ""
 		cell.BackgroundColor3 = COLORS.cell
 		cell.Parent = list
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 6)
-		corner.Parent = cell
-		cellStrokes[entry.id] = makeStroke(cell, GearInfo.rarityColor(entry.rarity))
+		makeCorner(cell, 6)
+		pieceStrokes[entry.id] = makeStroke(cell, GearInfo.rarityColor(entry.rarity))
 		local label = makeText(cell, SLOT_SHORT[def.slot], UDim2.fromScale(1, 1), UDim2.new(), 13)
 		label.TextXAlignment = Enum.TextXAlignment.Center
 		makeBadge(cell, 11).Text = GearInfo.enhanceLabel(entry.enhance)
+		setGemMark(makeGemMark(cell, 14), entry.gem)
 		if entry.inUse then
 			local mark = makeText(cell, "E", UDim2.fromOffset(14, 14), UDim2.new(0, 3, 1, -15), 11)
 			mark.Name = "InUse"
@@ -337,6 +654,7 @@ local function rebuildGrid()
 		cell.Activated:Connect(function()
 			if selectedId ~= id then
 				confirmUntil = 0
+				selectedGem = nil
 			end
 			selectedId = id
 			showMessage("", true)
@@ -345,17 +663,50 @@ local function rebuildGrid()
 	end
 end
 
-local function flash(color: Color3)
-	local cell = bigCell
-	if not cell then
+-- Gemas do baú numa grade (aba Fundir à esquerda; aba Gemas, as opções para incrustar).
+local function rebuildStackGrid(grid: ScrollingFrame?, views: { [string]: StackView }, onPick: (gem: Types.Gem) -> ())
+	if not grid then
 		return
 	end
-	cell.BackgroundColor3 = color
-	TweenService:Create(cell, TweenInfo.new(0.6), { BackgroundColor3 = COLORS.cell }):Play()
+	clearGrid(grid)
+	table.clear(views)
+	for index, stack in snapshot.gems do
+		local gem: Types.Gem = { attribute = stack.attribute, level = stack.level }
+		views[gemKey(gem)] = makeStackCell(grid, stack, index, function()
+			onPick(gem)
+		end)
+	end
+end
+
+local function rebuildStacks()
+	rebuildStackGrid(stackGrid, stackViews, function(gem: Types.Gem)
+		selectedStack = gem
+		showMessage("", true)
+		refresh()
+	end)
+	rebuildStackGrid(choiceGrid, choiceViews, function(gem: Types.Gem)
+		selectedGem = gem
+		showMessage("", true)
+		refresh()
+	end)
+	if stackEmptyLabel then
+		stackEmptyLabel.Visible = currentTab == "Fuse" and #snapshot.gems == 0
+	end
+end
+
+-- ===== Ações =====
+
+local function flash(color: Color3)
+	local header = enhanceHeader
+	if not header then
+		return
+	end
+	header.cell.BackgroundColor3 = color
+	TweenService:Create(header.cell, TweenInfo.new(0.6), { BackgroundColor3 = COLORS.cell }):Play()
 end
 
 local function onEnhanceClicked()
-	local _, _, blocked = currentAction()
+	local _, _, blocked = enhanceAction()
 	if blocked then
 		showMessage(blocked, false)
 		return
@@ -376,6 +727,64 @@ local function onEnhanceClicked()
 	refresh()
 end
 
+local function onGemClicked()
+	local _, _, blocked = gemAction()
+	if blocked then
+		showMessage(blocked, false)
+		return
+	end
+	local entry, _ = selectedEntry()
+	if not entry then
+		return
+	end
+	if entry.gem then
+		Remotes.get("ExtractGem"):FireServer(entry.id)
+	else
+		local chosen = selectedGem
+		if chosen then
+			Remotes.get("SocketGem"):FireServer(entry.id, chosen.attribute, chosen.level)
+		end
+	end
+end
+
+local function onFuseClicked()
+	local _, _, blocked = fuseAction()
+	if blocked then
+		showMessage(blocked, false)
+		return
+	end
+	local stack = selectedStack
+	if stack then
+		Remotes.get("FuseGems"):FireServer(stack.attribute, stack.level)
+	end
+end
+
+local function selectTab(tab: Tab)
+	currentTab = tab
+	confirmUntil = 0
+	for name, side in sides do
+		side.Visible = name == tab
+	end
+	local showStacks = tab == "Fuse"
+	if pieceGrid then
+		pieceGrid.Visible = not showStacks
+	end
+	if stackGrid then
+		stackGrid.Visible = showStacks
+	end
+	if leftHeader then
+		leftHeader.Text = if showStacks then "Suas gemas (no baú)" else "Suas peças"
+	end
+	if leftHint then
+		leftHint.Text = if showStacks then "×N = quantidade" else "E = equipada"
+	end
+	if stackEmptyLabel then
+		stackEmptyLabel.Visible = showStacks and #snapshot.gems == 0
+	end
+	clearMessages()
+	refresh()
+end
+
 local function setOpen(open: boolean)
 	local frame = window
 	if frame then
@@ -384,8 +793,9 @@ local function setOpen(open: boolean)
 	ChatBlocker.setHidden("Forge", open)
 	confirmUntil = 0
 	if open then
-		showMessage("", true)
-		rebuildGrid()
+		clearMessages()
+		rebuildPieceGrid()
+		rebuildStacks()
 	end
 	refresh()
 end
@@ -396,72 +806,128 @@ local function forgePosition(): Vector3?
 	return if counter and counter:IsA("BasePart") then counter.Position else nil
 end
 
-local function buildPiecesSide(frame: Frame)
-	local side = makeSection(
-		frame,
-		"PiecesSide",
-		UDim2.fromOffset(LEFT_WIDTH, WINDOW_HEIGHT - TITLE_HEIGHT - 10),
-		UDim2.fromOffset(10, TITLE_HEIGHT)
-	)
-	local header = makeText(side, "Suas peças", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(12, 6), 14)
-	header.TextColor3 = COLORS.gold
-	local hint = makeText(side, "E = equipada", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(12, 6), 11)
-	hint.TextXAlignment = Enum.TextXAlignment.Right
-	hint.TextColor3 = COLORS.dim
+-- ===== Montagem =====
 
+local function makeGrid(parent: Instance, name: string, size: UDim2, position: UDim2): ScrollingFrame
 	local list = Instance.new("ScrollingFrame")
-	list.Name = "Grid"
-	list.Position = UDim2.fromOffset(10, 32)
-	list.Size = UDim2.new(1, -20, 1, -42)
+	list.Name = name
+	list.Position = position
+	list.Size = size
 	list.BackgroundTransparency = 1
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
 	list.CanvasSize = UDim2.new()
 	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	list.ScrollingDirection = Enum.ScrollingDirection.Y
-	list.Parent = side
+	list.Parent = parent
 	local layout = Instance.new("UIGridLayout")
 	layout.CellSize = UDim2.fromOffset(CELL_SIZE, CELL_SIZE)
 	layout.CellPadding = UDim2.fromOffset(CELL_GAP, CELL_GAP)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = list
-	grid = list
+	return list
 end
 
-local function buildEnhanceSide(frame: Frame)
+local function buildLeftSide(frame: Frame)
+	local side =
+		makeSection(frame, "PiecesSide", UDim2.fromOffset(LEFT_WIDTH, SIDE_HEIGHT), UDim2.fromOffset(10, TITLE_HEIGHT))
+	local header = makeText(side, "Suas peças", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(12, 6), 14)
+	header.TextColor3 = COLORS.gold
+	leftHeader = header
+	local hint = makeText(side, "E = equipada", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(12, 6), 11)
+	hint.TextXAlignment = Enum.TextXAlignment.Right
+	hint.TextColor3 = COLORS.dim
+	leftHint = hint
+	pieceGrid = makeGrid(side, "Grid", UDim2.new(1, -20, 1, -42), UDim2.fromOffset(10, 32))
+	local stacks = makeGrid(side, "GemGrid", UDim2.new(1, -20, 1, -42), UDim2.fromOffset(10, 32))
+	stacks.Visible = false
+	stackGrid = stacks
+	-- Fora da grade (o UIGridLayout espremeria o texto no tamanho de uma célula).
+	local empty = makeText(
+		side,
+		`Nenhuma gema no baú. A gema Nv{Gems.shopLevel} é vendida na loja ({Gems.shopPrice} Gold).`,
+		UDim2.new(1, -24, 0, 36),
+		UDim2.fromOffset(12, 36),
+		12
+	)
+	empty.Name = "Empty"
+	empty.TextColor3 = COLORS.dim
+	empty.TextWrapped = true
+	empty.Visible = false
+	stackEmptyLabel = empty
+end
+
+local function makeRightSide(frame: Frame, name: string, tab: Tab): Frame
 	local x = 10 + LEFT_WIDTH + 10
 	local side = makeSection(
 		frame,
-		"EnhanceSide",
-		UDim2.fromOffset(WINDOW_WIDTH - x - 10, WINDOW_HEIGHT - TITLE_HEIGHT - 10),
+		name,
+		UDim2.fromOffset(WINDOW_WIDTH - x - 10, SIDE_HEIGHT),
 		UDim2.fromOffset(x, TITLE_HEIGHT)
 	)
+	side.Visible = tab == currentTab
+	sides[tab] = side
+	return side
+end
 
-	-- Peça escolhida, em destaque.
+local function makeBigCell(side: Frame): (Frame, TextLabel, UIStroke)
 	local cell = Instance.new("Frame")
 	cell.Name = "Selected"
 	cell.Size = UDim2.fromOffset(BIG_CELL, BIG_CELL)
 	cell.Position = UDim2.fromOffset(14, 14)
 	cell.BackgroundColor3 = COLORS.cell
 	cell.Parent = side
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = cell
-	bigStroke = makeStroke(cell, COLORS.disabled)
+	makeCorner(cell, 10)
+	local stroke = makeStroke(cell, COLORS.disabled)
 	local label = makeText(cell, "?", UDim2.fromScale(1, 1), UDim2.new(), 20)
 	label.TextXAlignment = Enum.TextXAlignment.Center
-	bigLabel = label
-	bigBadge = makeBadge(cell, 16)
-	bigCell = cell
+	return cell, label, stroke
+end
 
+-- Nome e linha de baixo, ao lado da célula grande.
+local function makeTitleLines(side: Frame): (TextLabel, TextLabel)
 	local textX = 14 + BIG_CELL + 12
 	local name = makeText(side, "", UDim2.new(1, -(textX + 10), 0, 22), UDim2.fromOffset(textX, 18), 16)
 	name.Name = "PieceName"
 	name.TextTruncate = Enum.TextTruncate.AtEnd
-	nameLabel = name
 	local slot = makeText(side, "", UDim2.new(1, -(textX + 10), 0, 16), UDim2.fromOffset(textX, 44), 12)
 	slot.TextColor3 = COLORS.dim
-	slotLabel = slot
+	return name, slot
+end
+
+local function buildPieceHeader(side: Frame): PieceHeader
+	local cell, label, stroke = makeBigCell(side)
+	local name, slot = makeTitleLines(side)
+	return {
+		cell = cell,
+		label = label,
+		badge = makeBadge(cell, 16),
+		gemMark = makeGemMark(cell, 20),
+		stroke = stroke,
+		name = name,
+		slot = slot,
+	}
+end
+
+-- Mensagem do servidor; `lines` = linhas que cabem ali (as mensagens das gemas são mais longas).
+local function makeMessage(side: Frame, tab: Tab, y: number, lines: number)
+	local message = makeText(side, "", UDim2.new(1, -28, 0, 15 * lines + 2), UDim2.fromOffset(14, y), 13)
+	message.Name = "Message"
+	message.TextWrapped = true
+	message.TextYAlignment = Enum.TextYAlignment.Top
+	messageLabels[tab] = message
+end
+
+local function makeFooter(side: Frame, text: string, lines: number)
+	local height = 14 * lines
+	local rules = makeText(side, text, UDim2.new(1, -28, 0, height), UDim2.new(0, 14, 1, -(height + 8)), 11)
+	rules.TextColor3 = COLORS.dim
+	rules.TextWrapped = true
+end
+
+local function buildEnhanceSide(frame: Frame)
+	local side = makeRightSide(frame, "EnhanceSide", "Enhance")
+	enhanceHeader = buildPieceHeader(side)
 
 	local y = 14 + BIG_CELL + 16
 	local function line(lineName: string, textSize: number, color: Color3): TextLabel
@@ -483,20 +949,86 @@ local function buildEnhanceSide(frame: Frame)
 	button.TextSize = 18
 	button.Activated:Connect(onEnhanceClicked)
 	enhanceButton = button
+	makeMessage(side, "Enhance", y + 56, 2)
+	makeFooter(side, `+1 a +3 nunca falham  ·  falhar do +{Forge.dropOnFailFrom} em diante tira 1 nível`, 1)
+end
 
-	local message = makeText(side, "", UDim2.new(1, -28, 0, 20), UDim2.fromOffset(14, y + 56), 14)
-	message.Name = "Message"
-	message.TextWrapped = true
-	messageLabel = message
+local function buildGemSide(frame: Frame)
+	local side = makeRightSide(frame, "GemSide", "Gems")
+	gemHeader = buildPieceHeader(side)
 
-	local rules = makeText(
+	local line = makeText(side, "", UDim2.new(1, -28, 0, 18), UDim2.fromOffset(14, 108), 15)
+	line.Name = "GemLine"
+	gemLine = line
+	local choose = makeText(side, "", UDim2.new(1, -28, 0, 14), UDim2.fromOffset(14, 132), 12)
+	choose.Name = "Choose"
+	choose.TextColor3 = COLORS.dim
+	chooseLabel = choose
+	choiceGrid =
+		makeGrid(side, "Choices", UDim2.new(1, -28, 0, 2 * CELL_SIZE + CELL_GAP + 2), UDim2.fromOffset(14, 150))
+	local info = makeText(side, "", UDim2.new(1, -28, 0, 28), UDim2.fromOffset(14, 252), 12)
+	info.Name = "Info"
+	info.TextColor3 = COLORS.gold
+	info.TextWrapped = true
+	info.TextYAlignment = Enum.TextYAlignment.Top
+	gemInfo = info
+
+	local button = makeButton(side, "Incrustar", UDim2.new(1, -28, 0, 40), UDim2.fromOffset(14, 284), COLORS.button)
+	button.Name = "GemButton"
+	button.TextSize = 18
+	button.Activated:Connect(onGemClicked)
+	gemButton = button
+	makeMessage(side, "Gems", 326, 2)
+	makeFooter(side, "1 gema por peça  ·  para trocar de gema, extraia antes", 1)
+end
+
+local function buildFuseSide(frame: Frame)
+	local side = makeRightSide(frame, "FuseSide", "Fuse")
+	local cell, label, stroke = makeBigCell(side)
+	fuseStroke = stroke
+	fuseCellLabel = label
+	local level = makeBadge(cell, 14)
+	level.TextColor3 = COLORS.text
+	fuseLevelLabel = level
+	local count = makeText(cell, "", UDim2.new(1, -6, 0, 16), UDim2.new(0, 0, 1, -18), 13)
+	count.TextXAlignment = Enum.TextXAlignment.Right
+	count.TextColor3 = COLORS.dim
+	fuseCountLabel = count
+	local name, owned = makeTitleLines(side)
+	name.Name = "GemName"
+	fuseName = name
+	fuseOwned = owned
+
+	local recipe = makeText(side, "", UDim2.new(1, -28, 0, 36), UDim2.fromOffset(14, 114), 14)
+	recipe.Name = "Recipe"
+	recipe.TextWrapped = true
+	recipe.TextYAlignment = Enum.TextYAlignment.Top
+	recipeLabel = recipe
+	local cost = makeText(side, "", UDim2.new(1, -28, 0, 20), UDim2.fromOffset(14, 156), 15)
+	cost.Name = "Cost"
+	cost.TextColor3 = COLORS.gold
+	fuseCostLabel = cost
+
+	local button = makeButton(side, "Fundir", UDim2.new(1, -28, 0, 44), UDim2.fromOffset(14, 188), COLORS.button)
+	button.Name = "FuseButton"
+	button.TextSize = 18
+	button.Activated:Connect(onFuseClicked)
+	fuseButton = button
+	makeMessage(side, "Fuse", 240, 2)
+
+	local fusions: { string } = {}
+	for fromLevel = 1, Gems.maxLevel do
+		local price = Gems.fuseCost[fromLevel]
+		if price then
+			table.insert(fusions, `de Nv{fromLevel} para Nv{fromLevel + 1} ({price} Gold)`)
+		end
+	end
+	makeFooter(
 		side,
-		`+1 a +3 nunca falham  ·  falhar do +{Forge.dropOnFailFrom} em diante tira 1 nível`,
-		UDim2.new(1, -28, 0, 14),
-		UDim2.new(0, 14, 1, -22),
-		11
+		`{Gems.fuseCount} gemas iguais (nível e atributo) viram 1 do nível seguinte. Fusões: `
+			.. `{table.concat(fusions, " e ")}. A gema Nv{Gems.shopLevel} da loja não funde.`,
+		3
 	)
-	rules.TextColor3 = COLORS.dim
 end
 
 local function build()
@@ -516,9 +1048,7 @@ local function build()
 	frame.BackgroundTransparency = 0.05
 	frame.Visible = false
 	frame.Parent = gui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = frame
+	makeCorner(frame, 12)
 	window = frame
 
 	-- Telas baixas (celular deitado): a janela encolhe para caber.
@@ -536,11 +1066,22 @@ local function build()
 
 	local title = makeText(frame, "Forja", UDim2.fromOffset(90, 28), UDim2.fromOffset(14, 10), 20)
 	title.TextColor3 = COLORS.forge
-	-- Aba única por enquanto; incrustar, fundir e extrair gemas entram como abas na etapa 3.
-	local tab = makeButton(frame, "Fortalecer", UDim2.fromOffset(120, 30), UDim2.fromOffset(100, 9), COLORS.tabActive)
-	tab.Name = "EnhanceTab"
-	tab.TextSize = 15
-	tab.AutoButtonColor = false
+	local tabs: { { tab: Tab, name: string, text: string } } = {
+		{ tab = "Enhance", name = "EnhanceTab", text = "Fortalecer" },
+		{ tab = "Gems", name = "GemsTab", text = "Gemas" },
+		{ tab = "Fuse", name = "FuseTab", text = "Fundir" },
+	}
+	for index, info in tabs do
+		local x = 90 + (index - 1) * 116
+		local button = makeButton(frame, info.text, UDim2.fromOffset(110, 30), UDim2.fromOffset(x, 9), COLORS.tabIdle)
+		button.Name = info.name
+		button.TextSize = 15
+		local tab: Tab = info.tab -- anotado: sem isso o verificador alarga para `string`
+		button.Activated:Connect(function()
+			selectTab(tab)
+		end)
+		tabButtons[tab] = button
+	end
 	local gold = makeText(frame, "Gold: 0", UDim2.fromOffset(160, 28), UDim2.new(1, -212, 0, 10), 16)
 	gold.TextColor3 = COLORS.gold
 	gold.TextXAlignment = Enum.TextXAlignment.Right
@@ -551,8 +1092,10 @@ local function build()
 		setOpen(false)
 	end)
 
-	buildPiecesSide(frame)
+	buildLeftSide(frame)
 	buildEnhanceSide(frame)
+	buildGemSide(frame)
+	buildFuseSide(frame)
 end
 
 local function onForgeResult(payload: unknown)
@@ -572,13 +1115,24 @@ local function onForgeResult(payload: unknown)
 	refresh()
 end
 
+-- A escolha ainda existe no baú? (Some quando a pilha acaba: gema incrustada ou fundida.)
+local function stillInChest(gem: Types.Gem?): Types.Gem?
+	if gem and GearSnapshot.gemCount(snapshot, gem.attribute, gem.level) > 0 then
+		return gem
+	end
+	return nil
+end
+
 local function onGearDataChanged()
 	snapshot = GearSnapshot.decode(localPlayer:GetAttribute(Keys.PlayerAttr.GearData))
 	if selectedId ~= nil and GearSnapshot.find(snapshot, selectedId) == nil then
 		selectedId = nil -- a peça saiu da conta (ex.: vendida)
 	end
+	selectedGem = stillInChest(selectedGem)
+	selectedStack = stillInChest(selectedStack)
 	if window and window.Visible then
-		rebuildGrid()
+		rebuildPieceGrid()
+		rebuildStacks()
 	end
 	refresh()
 end

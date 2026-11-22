@@ -8,6 +8,7 @@ local Progression = require(script.Parent.Balance.Progression)
 local Luck = require(script.Parent.Balance.Luck)
 local Gear = require(script.Parent.Balance.Gear)
 local Forge = require(script.Parent.Balance.Forge)
+local Gems = require(script.Parent.Balance.Gems)
 
 local Formulas = {}
 
@@ -127,6 +128,67 @@ end
 -- Poder de uma arma na raridade e no fortalecimento dela (0 nas peças que não são arma).
 function Formulas.gearPower(def: Types.GearDef, rarity: Types.Rarity, enhance: number?): number
 	return tidy(def.power * (Gear.rarityMultiplier[rarity] or 1) * Formulas.enhanceFactor(enhance))
+end
+
+-- ===== Gemas (GDD > Gemas; números em Balance/Gems) =====
+
+local GEM_ATTRIBUTE_BY_NAME: { [string]: Types.GemAttribute } = {
+	Strength = "Strength",
+	Vitality = "Vitality",
+	Intelligence = "Intelligence",
+	Wisdom = "Wisdom",
+	Dexterity = "Dexterity",
+	Defense = "Defense",
+}
+
+-- Atributo de gema vindo de fora (Remote, save): um dos 6 (não existe gema de Sorte). Nil se inválido.
+function Formulas.parseGemAttribute(value: unknown): Types.GemAttribute?
+	if typeof(value) ~= "string" then
+		return nil
+	end
+	return GEM_ATTRIBUTE_BY_NAME[value]
+end
+
+-- Nível de gema vindo de fora: inteiro de 1 a Gems.maxLevel. Nil se inválido.
+function Formulas.parseGemLevel(value: unknown): number?
+	if typeof(value) ~= "number" or value ~= value or value % 1 ~= 0 then
+		return nil
+	end
+	if value < 1 or value > Gems.maxLevel then
+		return nil
+	end
+	return value
+end
+
+-- Gema vinda de fora ({ attribute, level }). Nil se inválida. Tabela nova.
+function Formulas.parseGem(value: unknown): Types.Gem?
+	if typeof(value) ~= "table" then
+		return nil
+	end
+	local data = value :: { [string]: unknown }
+	-- Tipos anotados: sem eles o verificador alarga o atributo para `string`.
+	local attribute: Types.GemAttribute? = Formulas.parseGemAttribute(data.attribute)
+	local level = Formulas.parseGemLevel(data.level)
+	if attribute == nil or level == nil then
+		return nil
+	end
+	local gem: Types.Gem = { attribute = attribute, level = level }
+	return gem
+end
+
+-- Pontos que a gema dá (nível × pontos por nível, só no atributo dela). Sem gema: tudo 0. Tabela nova.
+-- O fortalecimento NÃO multiplica a gema (GDD: cada + dá 10% dos atributos BASE da peça).
+function Formulas.gemAttributes(gem: Types.Gem?): Types.Attributes
+	local result = Formulas.emptyAttributes()
+	if gem then
+		result[gem.attribute] = gem.level * Gems.pointsPerLevel
+	end
+	return result
+end
+
+-- Gold para fundir 3 gemas deste nível; nil = este nível não funde (Nv1 da loja, Nv3 e o máximo).
+function Formulas.fuseCost(level: number): number?
+	return Gems.fuseCost[level]
 end
 
 -- ===== Fortalecimento (GDD > Fortalecimento). `target` = nível que a tentativa quer alcançar (1 a 10). =====

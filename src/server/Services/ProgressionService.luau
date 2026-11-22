@@ -80,7 +80,8 @@ function ProgressionService.waitUntilLoaded(player: Player): boolean
 	return loaded[player] == true
 end
 
--- Soma o equipamento do personagem ativo. Peça inerte (fora do catálogo) ou id que sumiu não conta.
+-- Soma o equipamento do personagem ativo (peças e as gemas encaixadas nelas). Peça inerte (fora do catálogo) ou id
+-- que sumiu não conta.
 local function computeGearBonus(profile: PlayerSchema.Profile, data: PlayerData): GearBonus
 	local bonus: GearBonus = { attributes = Formulas.emptyAttributes(), power = 0, damageType = nil }
 	for _, slot: Types.EquipSlot in Gear.slots do
@@ -90,6 +91,7 @@ local function computeGearBonus(profile: PlayerSchema.Profile, data: PlayerData)
 		if piece and def then
 			bonus.attributes =
 				Formulas.addAttributes(bonus.attributes, Formulas.gearAttributes(def, piece.rarity, piece.enhance))
+			bonus.attributes = Formulas.addAttributes(bonus.attributes, Formulas.gemAttributes(piece.gem))
 			if slot == "Weapon" then
 				bonus.power = Formulas.gearPower(def, piece.rarity, piece.enhance)
 				bonus.damageType = def.damageType

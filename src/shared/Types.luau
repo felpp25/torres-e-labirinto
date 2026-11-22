@@ -186,13 +186,25 @@ export type GearDef = {
 	tower: number, -- torre em que a peça cai: define a base do custo do fortalecimento (Balance/Forge)
 }
 
+-- Gemas (GDD > Equipamentos > Gemas; números em Balance/Gems). O atributo é um dos 7, menos a Sorte.
+export type GemAttribute = "Strength" | "Vitality" | "Intelligence" | "Wisdom" | "Dexterity" | "Defense"
+
+export type Gem = {
+	attribute: GemAttribute,
+	level: number, -- 1 a 5 = 1 a 5 pontos no atributo
+}
+
+-- Pilha no baú da conta (gemas e Removedores empilham por tipo; cada pilha ocupa 1 espaço do baú).
+export type GemStack = { attribute: GemAttribute, level: number, count: number }
+export type RemoverStack = { level: number, count: number }
+
 -- Peça que a conta possui (o que vai para o save). Pontos, Poder, nome e preço vêm do catálogo.
--- A gema (etapa 3 do GDD) entra aqui depois, com um novo VERSION do save.
 export type OwnedGear = {
 	id: number, -- único na conta e nunca reutilizado
 	defId: string,
 	rarity: Rarity,
 	enhance: number, -- fortalecimento: 0 (sem) a 10 (save v5)
+	gem: Gem?, -- gema encaixada (save v6); nil = sem gema
 }
 
 -- Visão do cliente (atributo GearData; formato em Shared/GearSnapshot).
@@ -201,12 +213,15 @@ export type GearEntry = {
 	defId: string,
 	rarity: Rarity,
 	enhance: number, -- fortalecimento (0 a 10)
+	gem: Gem?,
 	inUse: boolean, -- equipada por algum personagem da conta: não conta no baú e não pode ser vendida
 }
 
 export type GearSnapshot = {
 	gear: { GearEntry },
 	equipped: { [EquipSlot]: number }, -- slots do personagem ativo (slot -> id da peça)
+	gems: { GemStack }, -- gemas soltas no baú (na ordem de Balance/Gems: atributo, depois nível)
+	removers: { RemoverStack }, -- Removedores no baú (por nível)
 }
 
 -- Uma sala na grade do labirinto (gerada pelo MazeGenerator).

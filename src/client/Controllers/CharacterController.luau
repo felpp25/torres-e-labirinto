@@ -2,8 +2,10 @@
 -- Janela "Personagem" (layout inspirado na mochila do DDTank; arte final virá depois):
 -- - à esquerda: o personagem no meio (visual 3D), os equipamentos do corpo numa coluna (Capacete, Armadura, Calças,
 --   Botas) e a arma e os acessórios na outra (Arma, Pulseira, Colar); embaixo, os atributos efetivos;
--- - à direita: a mochila (baú da conta), uma grade com as peças que não estão equipadas;
--- - clicar numa peça (slot ou mochila) mostra os detalhes e a ação: Equipar/Trocar ou Tirar.
+-- - à direita: a mochila (baú da conta), uma grade com as peças que não estão equipadas e as pilhas de gemas e
+--   Removedores (cada pilha ocupa 1 espaço do baú; decisão do designer);
+-- - clicar numa peça (slot ou mochila) mostra os detalhes e a ação: Equipar/Trocar ou Tirar. Gemas e Removedores
+--   só mostram os detalhes (incrustar e extrair são na Forja).
 -- Distribuir pontos de atributo fica numa janela separada (botão "Distribuir pontos").
 -- O cliente só PEDE (AllocateAttribute, AllocateRecommended, EquipGear, UnequipGear); o servidor valida tudo e
 -- responde pelo GearResult. Botões cinza quando a ação é impossível (ex.: dentro da torre); a regra é do servidor.
@@ -84,10 +86,13 @@ local COLORS = {
 	selected = Color3.fromRGB(255, 255, 255),
 	emptyStroke = Color3.fromRGB(60, 60, 74),
 	enhance = Color3.fromRGB(255, 170, 80), -- "+5" no canto da peça fortalecida
+	gemText = Color3.fromRGB(20, 20, 28),
 }
 
 type Row = { value: TextLabel, preview: TextLabel, plus: TextButton }
-type SlotView = { button: TextButton, label: TextLabel, badge: TextLabel, stroke: UIStroke }
+type SlotView = { button: TextButton, label: TextLabel, badge: TextLabel, gem: TextLabel, stroke: UIStroke }
+-- Borda de uma pilha da mochila e a cor dela fora da seleção.
+type StackView = { stroke: UIStroke, color: Color3 }
 
 local fmt = GearInfo.formatNumber
 
@@ -106,6 +111,7 @@ local chestGrid: ScrollingFrame? = nil
 local chestHeader: TextLabel? = nil
 local goldLabel: TextLabel? = nil
 local cellStrokes: { [number]: UIStroke } = {}
+local stackViews: { [string]: StackView } = {}
 local detailName: TextLabel? = nil
 local detailStats: TextLabel? = nil
 local detailButton: TextButton? = nil
@@ -120,6 +126,7 @@ local rows: { [string]: Row } = {}
 local snapshot: Types.GearSnapshot = GearSnapshot.empty()
 local selectedSlot: Types.EquipSlot? = nil -- peça escolhida num slot do personagem
 local selectedId: number? = nil -- ou peça escolhida na mochila
+local selectedStack: string? = nil -- ou pilha escolhida na mochila (gemStackKey / removerStackKey)
 
 local function numberAttr(name: string): number
 	local value = localPlayer:GetAttribute(name)
@@ -290,16 +297,73 @@ local function makeBadge(parent: GuiObject, textSize: number): TextLabel
 	return badge
 end
 
+-- Quadradinho da gema encaixada, no canto inferior direito da peça: cor do atributo e o nível. Some sem gema.
+local function makeGemMark(parent: GuiObject, size: number): TextLabel
+	local mark = Instance.new("TextLabel")
+	mark.Name = "Gem"
+	mark.AnchorPoint = Vector2.new(1, 1)
+	mark.Position = UDim2.new(1, -3, 1, -3)
+	mark.Size = UDim2.fromOffset(size, size)
+	mark.Text = ""
+	mark.TextColor3 = COLORS.gemText
+	mark.TextSize = size - 3
+	mark.Font = FONT
+	mark.Visible = false
+	mark.Parent = parent
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 3)
+	corner.Parent = mark
+	return mark
+end
+
+local function setGemMark(mark: TextLabel, gem: Types.Gem?)
+	mark.Visible = gem ~= nil
+	if gem then
+		mark.BackgroundColor3 = GearInfo.gemColor(gem.attribute)
+		mark.Text = tostring(gem.level)
+	end
+end
+
+local function gemStackKey(attribute: Types.GemAttribute, level: number): string
+	return `gem:{attribute}:{level}`
+end
+
+local function removerStackKey(level: number): string
+	return `remover:{level}`
+end
+
 local function equippedEntry(slot: Types.EquipSlot): Types.GearEntry?
 	local id = snapshot.equipped[slot]
 	return if id ~= nil then GearSnapshot.find(snapshot, id) else nil
+end
+
+-- Detalhes da pilha escolhida na mochila: nome, cor e texto. Nil se a pilha não existe mais.
+local function stackDetail(key: string): (string?, Color3, string)
+	for _, stack in snapshot.gems do
+		if gemStackKey(stack.attribute, stack.level) == key then
+			return GearInfo.gemName(stack.attribute, stack.level),
+				GearInfo.gemColor(stack.attribute),
+				`{GearInfo.gemEffect(stack.attribute, stack.level)} numa peça  ·  no baú: {stack.count}  ·  incruste`
+					.. " na Forja (bigorna atrás da loja)"
+		end
+	end
+	for _, stack in snapshot.removers do
+		if removerStackKey(stack.level) == key then
+			return GearInfo.removerName(stack.level),
+				COLORS.text,
+				`Tira uma gema Nv{stack.level} da peça, inteira (na Forja)  ·  no baú: {stack.count}`
+		end
+	end
+	return nil, COLORS.text, ""
 end
 
 -- ===== Detalhes da peça escolhida =====
 
 -- Ação possível para a peça escolhida: texto, cor e motivo do bloqueio (nil = liberado).
 local function currentAction(): (string?, Color3, string?)
-	if selectedId ~= nil then
+	if selectedStack ~= nil then
+		return nil, COLORS.disabled, nil -- gemas e Removedores: a ação é na Forja
+	elseif selectedId ~= nil then
 		local entry = GearSnapshot.find(snapshot, selectedId)
 		local def = if entry then Gear.byId[entry.defId] else nil
 		if not entry or not def or entry.inUse then
@@ -350,13 +414,22 @@ local function refreshDetail()
 		end
 	end
 	local def = if entry then Gear.byId[entry.defId] else nil
-	if entry and def then
+	local stackName: string?, stackColor: Color3, stackText = nil, COLORS.text, ""
+	if selectedStack ~= nil then
+		stackName, stackColor, stackText = stackDetail(selectedStack)
+	end
+	if stackName then
+		nameLabel.Text = `<font color="{hexColor(stackColor)}">{stackName}</font>`
+		statsLabel.Text = stackText
+	elseif entry and def then
 		local rarity: Types.Rarity = entry.rarity
 		-- Nome na cor da raridade; a raridade por extenso vai na linha de baixo (com o "+N" não cabia ao lado).
 		local color = hexColor(GearInfo.rarityColor(rarity))
 		nameLabel.Text = `<font color="{color}">{GearInfo.displayName(def, entry.enhance)}</font>`
 		local slotText = `{GearInfo.rarityLabel(rarity)}  ·  {GearInfo.slotLabel(def.slot)}`
-		statsLabel.Text = `{slotText}  ·  {GearInfo.describe(def, rarity, entry.enhance)}`
+		local gem = entry.gem
+		local gemText = if gem then `  ·  Gema Nv{gem.level}: {GearInfo.gemEffect(gem.attribute, gem.level)}` else ""
+		statsLabel.Text = `{slotText}  ·  {GearInfo.describe(def, rarity, entry.enhance)}{gemText}`
 	elseif emptySlot then
 		nameLabel.Text = `{GearInfo.slotLabel(emptySlot)}: vazio`
 		statsLabel.Text = "Escolha uma peça deste tipo na mochila"
@@ -406,6 +479,7 @@ local function refreshSlots()
 				view.button.BackgroundColor3 = COLORS.cellEmpty
 				view.stroke.Color = COLORS.emptyStroke
 			end
+			setGemMark(view.gem, if entry then entry.gem else nil)
 			local isSelected = selectedSlot == slot
 			view.stroke.Thickness = if isSelected then 3 else 2
 			if isSelected then
@@ -422,6 +496,11 @@ local function refreshSlots()
 			stroke.Color = GearInfo.rarityColor(entry.rarity)
 			stroke.Thickness = 2
 		end
+	end
+	for key, view in stackViews do
+		local isSelected = selectedStack == key
+		view.stroke.Color = if isSelected then COLORS.selected else view.color
+		view.stroke.Thickness = if isSelected then 3 else 2
 	end
 end
 
@@ -480,21 +559,22 @@ local function rebuildChest()
 		end
 	end
 	table.clear(cellStrokes)
+	table.clear(stackViews)
 	local chest = chestEntries()
+	local used = GearSnapshot.chestCount(snapshot) -- peças + 1 por pilha de gema ou Removedor
 	local header = chestHeader
 	if header then
-		header.Text = `Mochila  ·  {#chest}/{Gear.chestCapacity}`
-		header.TextColor3 = if #chest > Gear.chestCapacity then COLORS.fail else COLORS.gold
+		header.Text = `Mochila  ·  {used}/{Gear.chestCapacity}`
+		header.TextColor3 = if used > Gear.chestCapacity then COLORS.fail else COLORS.gold
 	end
-	local cells = math.max(Gear.chestCapacity, #chest)
-	for index = 1, cells do
-		local entry = chest[index]
+
+	local function makeCell(name: string, index: number, filled: boolean): (TextButton, UIStroke)
 		local cell = Instance.new("TextButton")
-		cell.Name = if entry then `Item_{entry.id}` else `Empty_{index}`
+		cell.Name = name
 		cell.LayoutOrder = index
-		cell.AutoButtonColor = entry ~= nil
+		cell.AutoButtonColor = filled
 		cell.Text = ""
-		cell.BackgroundColor3 = if entry then COLORS.cell else COLORS.cellEmpty
+		cell.BackgroundColor3 = if filled then COLORS.cell else COLORS.cellEmpty
 		cell.Parent = grid
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 6)
@@ -504,21 +584,68 @@ local function rebuildChest()
 		stroke.Thickness = 2
 		stroke.Color = COLORS.emptyStroke
 		stroke.Parent = cell
-		if entry then
-			local def = Gear.byId[entry.defId]
-			local label = makeText(cell, SLOT_SHORT[def.slot], UDim2.fromScale(1, 1), UDim2.new(), 13)
-			label.TextXAlignment = Enum.TextXAlignment.Center
-			makeBadge(cell, 11).Text = GearInfo.enhanceLabel(entry.enhance)
-			stroke.Color = GearInfo.rarityColor(entry.rarity)
-			cellStrokes[entry.id] = stroke
-			local id = entry.id
-			cell.Activated:Connect(function()
-				selectedId = id
-				selectedSlot = nil
-				showMessage("", true)
-				refresh()
-			end)
-		end
+		return cell, stroke
+	end
+
+	local function selectStack(key: string)
+		selectedStack = key
+		selectedId = nil
+		selectedSlot = nil
+		showMessage("", true)
+		refresh()
+	end
+
+	-- Pilha (gema ou Removedor): sigla, "Nv1" no canto e a quantidade embaixo.
+	local function makeStack(key: string, index: number, short: string, level: number, count: number, color: Color3)
+		local cell, stroke = makeCell(`Stack_{key}`, index, true)
+		stroke.Color = color
+		local label = makeText(cell, short, UDim2.fromScale(1, 1), UDim2.new(), 13)
+		label.TextXAlignment = Enum.TextXAlignment.Center
+		label.TextColor3 = color
+		local levelLabel = makeBadge(cell, 10)
+		levelLabel.Text = `Nv{level}`
+		levelLabel.TextColor3 = COLORS.text
+		local countLabel = makeText(cell, `×{count}`, UDim2.new(1, -4, 0, 12), UDim2.new(0, 0, 1, -14), 10)
+		countLabel.TextXAlignment = Enum.TextXAlignment.Right
+		countLabel.TextColor3 = COLORS.dim
+		stackViews[key] = { stroke = stroke, color = color }
+		cell.Activated:Connect(function()
+			selectStack(key)
+		end)
+	end
+
+	local index = 0
+	for _, entry in chest do
+		index += 1
+		local cell, stroke = makeCell(`Item_{entry.id}`, index, true)
+		local def = Gear.byId[entry.defId]
+		local label = makeText(cell, SLOT_SHORT[def.slot], UDim2.fromScale(1, 1), UDim2.new(), 13)
+		label.TextXAlignment = Enum.TextXAlignment.Center
+		makeBadge(cell, 11).Text = GearInfo.enhanceLabel(entry.enhance)
+		setGemMark(makeGemMark(cell, 14), entry.gem)
+		stroke.Color = GearInfo.rarityColor(entry.rarity)
+		cellStrokes[entry.id] = stroke
+		local id = entry.id
+		cell.Activated:Connect(function()
+			selectedId = id
+			selectedSlot = nil
+			selectedStack = nil
+			showMessage("", true)
+			refresh()
+		end)
+	end
+	for _, stack in snapshot.gems do
+		index += 1
+		local key = gemStackKey(stack.attribute, stack.level)
+		local color = GearInfo.gemColor(stack.attribute)
+		makeStack(key, index, GearInfo.gemShort(stack.attribute), stack.level, stack.count, color)
+	end
+	for _, stack in snapshot.removers do
+		index += 1
+		makeStack(removerStackKey(stack.level), index, "REM", stack.level, stack.count, COLORS.dim)
+	end
+	for empty = index + 1, math.max(Gear.chestCapacity, index) do
+		makeCell(`Empty_{empty}`, empty, false)
 	end
 end
 
@@ -625,13 +752,15 @@ local function buildSlotColumn(parent: Frame, slots: { Types.EquipSlot }, x: num
 		label.TextXAlignment = Enum.TextXAlignment.Center
 		label.TextWrapped = true
 		local badge = makeBadge(button, 13)
+		local gem = makeGemMark(button, 16)
 		button.Activated:Connect(function()
 			selectedSlot = slot
 			selectedId = nil
+			selectedStack = nil
 			showMessage("", true)
 			refresh()
 		end)
-		slotViews[slot] = { button = button, label = label, badge = badge, stroke = stroke }
+		slotViews[slot] = { button = button, label = label, badge = badge, gem = gem, stroke = stroke }
 	end
 end
 
@@ -938,6 +1067,10 @@ local function onGearDataChanged()
 			selectedSlot = slot
 			selectedId = nil
 		end
+	end
+	-- A pilha escolhida acabou (gema incrustada, fundida...).
+	if selectedStack ~= nil and stackDetail(selectedStack) == nil then
+		selectedStack = nil
 	end
 	if window and window.Visible then
 		rebuildChest()
