@@ -185,7 +185,8 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
 ## Lobby e loja
 
 - O jogador **nasce no lobby**. A torre começa ao entrar no **portal**; quem entrar depois vai para o andar atual
-  da run. Torre concluída ou game over: todos **voltam ao lobby**.
+  da run. Torre concluída ou game over: todos **voltam ao lobby**. *Em construção:* um portal por torre, várias runs
+  por servidor (ver "Torre 2 e escolha de torre").
 - **Loja** (balcão no lobby): o Gold é gasto aqui. Primeira versão:
   - **Poções** (consumíveis da conta, levadas para a run): **Vida** (recupera parte da vida máxima), **Stamina**
     (enche a stamina) e **Mana** (enche a mana). Usadas por **atalhos fixos** (teclas **E = Vida, R = Mana,
@@ -430,20 +431,14 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
     20% do custo de refazer; grátis; qualquer tipo de peça; qualquer torre.
   - *Implementado:* aba **Transferir** da Forja: a peça escolhida à esquerda, à direita as peças compatíveis, como as
     duas ficam depois da troca e o custo; sempre pede um segundo clique.
-- **Item de subir de torre** (decisões do designer; **entra com a Torre 2**): item raro ou de evento, gasto na
-  transferência, que libera passar o fortalecimento para uma peça de **torre mais alta**. Responde ao "o que fazer
-  com o Gold investido quando o jogador muda de torre".
-  - A peça que recebe fica **no máximo +7**. Se a origem passa disso (ex.: +9), o destino fica +7, a origem fica com o
-    nível que o destino tinha e o resto se perde (a tela avisa antes; a alternativa é vender a peça). O +7 é o teto
-    realista de cada torre; os +8 a +10 (97% do custo do +10) ficam na torre em que foram feitos.
-  - **Gold igual ao da transferência de hoje:** 1 tentativa do maior nível, na base da torre de origem (+7 da Torre 1 =
-    6.400: 7 a 9,5 runs da Torre 2, 1 a 3 runs da Torre 5). Quem limita é o item raro. Cada uso vale ~42 runs da torre
-    nova (o +7 feito do zero lá).
-  - Brecha aceita: levar um +7 da Torre 1 para a Torre 5 e vender lá rende ~6 runs da Torre 5 (renda ×2 por torre),
-    bem menos que usar o item de verdade (42).
-  - Descartados: só aceitar origem até +7; cobrar 1 tentativa na base da torre nova (~14 runs dela em qualquer salto);
-    só o item, sem Gold; custo de fortalecer igual em todas as torres (na Torre 5 o +7 sairia por 3 a 8 runs e o
-    fortalecimento deixaria de segurar o Gold).
+- **Equipamento de torre mais baixa (decisões do designer):** a peça vai junto para qualquer torre, mas numa torre
+  acima da dela vale **50%** (pontos, Poder e fortalecimento; a mesma porcentagem a qualquer distância). A **gema vale
+  inteira** (é do nível dela, não da torre). Dá para jogar os primeiros andares com o equipamento velho, mas o chefão
+  pede o da torre atual. Contas em "Torre 2 e escolha de torre".
+  - O fortalecimento continua sem subir de torre na transferência (só para a mesma torre ou uma mais baixa).
+  - **Descartado: o Pergaminho de Ascensão** (item raro que levava o +7 para a peça da torre nova): a peça velha
+    valendo 50% e a chave de acesso fazem esse papel (decisão do designer). Também descartado: custo de fortalecer
+    igual em todas as torres (na Torre 5 o +7 sairia por 3 a 8 runs e o fortalecimento deixaria de segurar o Gold).
 - *Implementado:* janela da **Forja** (bigorna no lobby, tecla F / toque): à esquerda todas as peças da conta (as
   equipadas primeiro, marcadas com "E"); à direita a peça escolhida com o que dá agora e no próximo nível, a chance, o
   custo e o que acontece se falhar. As tentativas de +8 a +10 (as que podem tirar um nível) pedem um segundo clique.
@@ -550,8 +545,6 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   protótipo).
 - Itens de bênção e pedra de fortalecimento: se entram, quanto somam e como se obtêm (adiados; análise em
   "Fortalecimento").
-- Item de subir de torre (com a renda da Torre 2): nome, de onde vem (drop raro, evento; compra com Robux foi
-  cogitada) e a chance de drop. Um conjunto de 7 peças pede 7 itens por troca de torre.
 - Épico e Lendário (com os modos Avançado/Pesadelo): chance de cada raridade por modo e por torre, preço de venda
   (hoje Comum 10, Raro 50), cores (sugestão: roxo e laranja) e o que a fabricação faz.
 - Gemas, para quando as torres 5 a 10 forem construídas:
@@ -570,9 +563,80 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 2. ~~Forja no lobby + fortalecimento.~~ **Feito** (sem itens de bênção, adiados).
 3. ~~Gemas: nível 1 e removedores na loja; incrustar, fundir e extrair na Forja.~~ **Feito** (a fusão só tem gemas
    para fundir quando existirem as torres 5+; até lá, testar com o DevService: "GiveGems").
-4. Com a Torre 2: o item de subir de torre (ver "Fortalecimento").
+4. Com a Torre 2: o equipamento de torre mais baixa valendo 50% (ver "Fortalecimento") e o catálogo da Torre 2.
 5. Depois: fabricação (depende dos modos Avançado e Pesadelo), raridades Épico e Lendário (junto com esses modos) e
    encantamento.
+
+## Torre 2 e escolha de torre (decidido pelo designer; em construção)
+
+### Runs e portais
+- **Várias runs no mesmo servidor:** cada grupo (1 a 4) tem a sua run, montada num ponto separado do mapa; o lobby
+  continua com todo mundo junto.
+  - Descartados: servidor separado por grupo (teleporte; dois places, não testa no Studio) e 1 run por servidor de 4
+    (desconhecidos virariam um grupo forçado).
+- **Um portal por torre, com espera:** pisar no portal abre uma espera de ~10 s; quem pisar no mesmo portal nesse tempo
+  entra no grupo (até 4) e a run começa. O portal de uma torre trancada mostra o que falta.
+  - Descartados: grupo antes e torre depois (mais telas) e portal único com menu.
+- **Entrar no meio: só amigos.** Um amigo de quem está na run entra nela pelo portal da torre (vai para o andar atual;
+  as regras do chefão continuam: quem chega no andar dele não ganha o prêmio). Desconhecidos criam a própria run.
+- **Servidor de 16 jogadores** (até 4 grupos cheios, ~120 mobs no pior caso). AÇÃO MANUAL no Creator Hub.
+
+### Acesso às torres
+- **Nível mínimo + acesso:** a Torre 2 exige o **nível 10** e o **acesso**, que é **vitalício e da conta** (todos os
+  personagens da conta; cada um ainda precisa do nível). No portal, **cada um do grupo** precisa ter os dois.
+- O acesso vem de **um dos dois caminhos** (decisão do designer):
+  - **Chave:** cai do chefão da torre anterior, **5% por jogador** (com a Sorte, regra dos achados raros). Em média 20
+    vitórias; 10% dos jogadores passariam de 45 e 5% de 58: por isso existe a missão. Quem já tem o acesso não sorteia.
+  - **Missão:** o caminho garantido (série de eventos, conversas com NPCs), com tamanho de ~15 vitórias. Conteúdo a
+    definir com o designer.
+  - Descartados: só a chave (azar sem saída) e só a missão.
+
+### Números da Torre 2
+- **Teto de nível: 20** (+10 por torre). Do 10 ao 20 são 40.648 XP: ~8,5 runs (2,6 h).
+  - A curva de XP (cada nível 35% mais caro) **precisa mudar antes da Torre 3**: o nível 30 custaria 223 mil XP só ele.
+  - Descartados: teto 15 (chega na primeira vitória) e 30 (~180 runs com a curva atual).
+- **Recompensa ×2** (XP e Gold por run): ~4.760 XP e ~900 Gold solo; chefão 3.000 XP e 600 Gold. **Base da Forja da
+  Torre 2 = 200** (o +7 continua em ~42 runs). Descartados: ×1,5 e ×3.
+- **Mobs e chefão ×1,75** (vida e dano): o andar 1 da Torre 2 tem a força do andar 5 da Torre 1 (e a rampa de +15% por
+  andar continua dentro da torre). Descartados: ×1,5 (mais fácil que o fim da Torre 1) e ×2 (continuar a rampa).
+- **Equipamento ×2:** as mesmas linhas, com o dobro dos pontos e do Poder da Torre 1 (o Comum da Torre 2 = o Raro da
+  Torre 1; segue a referência "conjunto Comum ≈ metade dos pontos do nível máximo da torre"). Nível mínimo 10.
+  Descartados: ×1,5 e ×3.
+- **Equipamento da Torre 1 na Torre 2: 50%** (ver "Fortalecimento"). Índice de dificuldade (média do tempo para matar
+  e do tempo para morrer, em relação ao poder do jogador; **1,75 = o chefão da Torre 1 vencido solo no nível 10 sem
+  equipamento, validado como "desafiador"**):
+
+| Lutador nível 10, equipamento da Torre 1 a 50% | Andar 1 | Andar 3 | Chefão da Torre 2 |
+|---|---|---|---|
+| Raro +7 | 1,25 | 1,66 | 2,19 |
+| Raro | 1,42 | 1,88 | 2,49 |
+| Comum | 1,57 | 2,08 | 2,75 |
+
+  - Esperado no fim da Torre 2 (nível 20, Raro da Torre 2): 1,20. Sem a penalidade, o Raro +7 da Torre 1 venceria o
+    chefão da Torre 2 no nível 10 (1,67). Quem insiste no equipamento velho até o nível 20 chega a 1,60 a 1,91, mas
+    sem vencer o chefão só os mobs dão XP (~23 runs), e nesse tempo os mobs da Torre 2 dão ~13 peças novas.
+  - Descartados: 33% e 25% (os primeiros andares ficam apertados demais); cair de novo a cada torre de diferença; a
+    gema perder eficiência junto.
+
+### Conteúdo da Torre 2
+- **Arremessador** (mob novo, à distância): marca um círculo (raio 4) onde o jogador está e a pedra cai 0,8 s depois.
+  Base na escala da Torre 1: vida 40, 10 de dano, alcance 30 (na Torre 2, ×1,75). **1 a cada 3 mobs** (~1 por sala de
+  combate); os Brutamontes seguram o jogador. Descartados: projétil voando; metade dos mobs; 1 a cada 5.
+- **Chefão: Geomante das Rochas** (mago de pedra; vida 2.100 solo, +50% por jogador extra):
+  - **Chuva de Rochas** (tipo novo: mira em cada jogador): círculo de raio 6 embaixo de cada um, aviso de 1,2 s, 40 de
+    dano, 3 ondas seguidas.
+  - **Onda Sísmica:** círculo de raio 12 em volta dele, aviso de 1,2 s, 38 de dano (pune quem cola).
+  - **Rajada de Pedra:** faixa à frente de 24 × 6, aviso de 1,0 s, 45 de dano.
+  - Descartados: Carcereiro Acorrentado (anel que acerta quem está longe) e Touro de Bronze (investida pela arena).
+- A definir: os nomes das peças da Torre 2, o nome da chave e o conteúdo da missão.
+
+### Ordem de construção da fase
+1. Runs separadas (várias por servidor), ainda só com a Torre 1.
+2. Portais por torre com espera, amigos no meio, acesso (nível + chave), save novo com as torres liberadas da conta.
+3. Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, equipamento de torre mais baixa a 50%.
+4. Arremessador.
+5. Geomante das Rochas.
+6. Missão de acesso (depois de definida com o designer).
 
 ## Dificuldades (futuro)
 
