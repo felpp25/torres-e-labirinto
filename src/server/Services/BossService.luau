@@ -36,6 +36,8 @@ export type ArenaBounds = {
 type Boss = {
 	run: RunRegistry.Run,
 	def: Types.BossDef,
+	statMultiplier: number, -- força da torre: vida (já aplicada no modelo) e dano dos ataques
+	rewardMultiplier: number, -- recompensa da torre: XP e Gold
 	model: Model,
 	humanoid: Humanoid,
 	root: BasePart,
@@ -149,7 +151,7 @@ local function perform(boss: Boss, attack: Types.BossAttackDef, target: BasePart
 	end
 	setTelegraphColor(boss, false)
 	for _, player in hitPlayers() do
-		CombatService.damagePlayer(player, attack.damage)
+		CombatService.damagePlayer(player, attack.damage * boss.statMultiplier)
 	end
 
 	task.wait(attack.recovery)
@@ -186,11 +188,13 @@ local function onDied(boss: Boss)
 	publishHealth(run, nil)
 	local position = boss.root.Position
 	-- O boss dá o grosso da recompensa da torre: para cada participante com direito (vivo ou espectando).
+	local xp = math.round(boss.def.xp * boss.rewardMultiplier)
+	local gold = math.round(boss.def.gold * boss.rewardMultiplier)
 	for _, player in RunRegistry.members(run) do
 		if rewardFilter(run, player) then
-			ProgressionService.addXp(player, boss.def.xp)
-			ProgressionService.addGold(player, boss.def.gold)
-			local payload: Remotes.RewardPayload = { xp = boss.def.xp, gold = boss.def.gold, position = position }
+			ProgressionService.addXp(player, xp)
+			ProgressionService.addGold(player, gold)
+			local payload: Remotes.RewardPayload = { xp = xp, gold = gold, position = position }
 			Remotes.get("RewardGranted"):FireClient(player, payload)
 		end
 	end
@@ -205,16 +209,19 @@ local function onDied(boss: Boss)
 	onDefeated(run, position)
 end
 
--- Cria o boss na arena da run. A vida escala com o nº de participantes da run (coop).
+-- Cria o boss na arena da run. A vida escala com o nº de participantes da run (coop) e com a força da torre
+-- (`statMultiplier`, que também vale para o dano dos ataques); `rewardMultiplier` escala o XP e o Gold.
 function BossService.spawn(
 	run: RunRegistry.Run,
 	def: Types.BossDef,
 	arena: ArenaBounds,
 	groundY: number,
-	parent: Instance
+	parent: Instance,
+	statMultiplier: number,
+	rewardMultiplier: number
 )
 	local extraPlayers = math.max(#run.members - 1, 0)
-	local healthMultiplier = 1 + def.healthPerExtraPlayer * extraPlayers
+	local healthMultiplier = (1 + def.healthPerExtraPlayer * extraPlayers) * statMultiplier
 	local spawnPosition = arena.bossSpawn + Vector3.new(0, def.body.size.Y / 2 + 3, 0)
 	local model = EnemyFactory.create(def.body, CFrame.new(spawnPosition), healthMultiplier)
 	model:SetAttribute("KnockbackImmune", true)
@@ -236,6 +243,8 @@ function BossService.spawn(
 	local boss: Boss = {
 		run = run,
 		def = def,
+		statMultiplier = statMultiplier,
+		rewardMultiplier = rewardMultiplier,
 		model = model,
 		humanoid = humanoid,
 		root = root,

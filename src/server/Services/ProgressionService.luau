@@ -29,6 +29,7 @@ local Shop = require(Shared.Balance.Shop)
 local Gear = require(Shared.Balance.Gear)
 
 local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
+local RunRegistry = require(script.Parent.Parent.Runs.RunRegistry)
 local DataService = require(script.Parent.DataService)
 
 type PlayerData = PlayerSchema.Character
@@ -80,20 +81,33 @@ function ProgressionService.waitUntilLoaded(player: Player): boolean
 	return loaded[player] == true
 end
 
+local function scaled(attributes: Types.Attributes, factor: number): Types.Attributes
+	if factor == 1 then
+		return attributes
+	end
+	local result = Formulas.emptyAttributes()
+	for _, name in Formulas.attributeNames() do
+		result[name] = attributes[name] * factor
+	end
+	return result
+end
+
 -- Soma o equipamento do personagem ativo (peças e as gemas encaixadas nelas). Peça inerte (fora do catálogo) ou id
--- que sumiu não conta.
-local function computeGearBonus(profile: PlayerSchema.Profile, data: PlayerData): GearBonus
+-- que sumiu não conta. `runTower` = torre da run em que o jogador está (nil = lobby): peça de torre mais baixa vale
+-- a eficiência de Balance/Gear (decisão do designer: 50%); a gema vale inteira.
+local function computeGearBonus(profile: PlayerSchema.Profile, data: PlayerData, runTower: number?): GearBonus
 	local bonus: GearBonus = { attributes = Formulas.emptyAttributes(), power = 0, damageType = nil }
 	for _, slot: Types.EquipSlot in Gear.slots do
 		local id = data.equipped[slot]
 		local piece = if id ~= nil then PlayerSchema.findGear(profile, id) else nil
 		local def = if piece then PlayerSchema.defOf(piece) else nil
 		if piece and def then
-			bonus.attributes =
-				Formulas.addAttributes(bonus.attributes, Formulas.gearAttributes(def, piece.rarity, piece.enhance))
+			local efficiency = Formulas.gearEfficiency(def, runTower)
+			local pieceAttributes = Formulas.gearAttributes(def, piece.rarity, piece.enhance)
+			bonus.attributes = Formulas.addAttributes(bonus.attributes, scaled(pieceAttributes, efficiency))
 			bonus.attributes = Formulas.addAttributes(bonus.attributes, Formulas.gemAttributes(piece.gem))
 			if slot == "Weapon" then
-				bonus.power = Formulas.gearPower(def, piece.rarity, piece.enhance)
+				bonus.power = Formulas.gearPower(def, piece.rarity, piece.enhance) * efficiency
 				bonus.damageType = def.damageType
 			end
 		end
@@ -104,7 +118,8 @@ end
 local function getGearBonus(player: Player): GearBonus
 	local bonus = gearBonus[player]
 	if not bonus then
-		bonus = computeGearBonus(getProfile(player), getData(player))
+		local run = RunRegistry.runOf(player)
+		bonus = computeGearBonus(getProfile(player), getData(player), if run then run.towerId else nil)
 		gearBonus[player] = bonus
 	end
 	return bonus

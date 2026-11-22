@@ -93,7 +93,10 @@ end
 
 -- ===== Participantes =====
 
+-- Entrou numa run: o equipamento é recalculado para a torre dela (peça de torre mais baixa vale menos) e vida,
+-- mana e stamina enchem.
 local function restoreForRun(player: Player)
+	ProgressionService.refreshEquipment(player)
 	ProgressionService.restoreHealth(player)
 	CombatService.restoreResources(player)
 	CombatService.resetUltimate(player) -- a barra carregada nos bonecos de treino do lobby não entra na torre
@@ -171,6 +174,9 @@ local function endRun(run: RunRegistry.Run, reason: string)
 	bossLootGiven[run] = nil
 	RunRegistry.destroy(run)
 	for _, player in members do
+		if player.Parent then
+			ProgressionService.refreshEquipment(player) -- fora da torre o equipamento vale inteiro
+		end
 		if player.Parent and LifeService.isAlive(player) and player.Character then
 			player.Character:PivotTo(LobbyService.spawnCFrame(player))
 			ProgressionService.restoreHealth(player)
@@ -300,9 +306,15 @@ local function bestLuckNear(run: RunRegistry.Run, position: Vector3, filter: ((P
 	return best
 end
 
--- Dá uma peça a um jogador sem deixar um erro parar quem chamou (run, save, outros jogadores).
-local function safeLoot(kind: string, player: Player, roll: (Player, number) -> unknown, luck: number)
-	local ok, err = pcall(roll, player, luck)
+-- Dá uma peça da torre a um jogador sem deixar um erro parar quem chamou (run, save, outros jogadores).
+local function safeLoot(
+	kind: string,
+	player: Player,
+	roll: (Player, number, number) -> unknown,
+	luck: number,
+	towerId: number
+)
+	local ok, err = pcall(roll, player, luck, towerId)
 	if not ok then
 		warn(`[Loot] falha no drop {kind} de {player.Name}: {err}`)
 	end
@@ -322,7 +334,7 @@ local function grantBossLoot(run: RunRegistry.Run, position: Vector3)
 	for _, player in RunRegistry.members(run) do
 		if player.Parent and isBossEligible(run, player) then
 			table.insert(eligible, player)
-			safeLoot("do boss", player, GearService.rollBossLoot, luck)
+			safeLoot("do boss", player, GearService.rollBossLoot, luck, run.towerId)
 		end
 	end
 	local ok, err = pcall(function(): string?
@@ -436,7 +448,7 @@ local function onMobDied(_: Types.MobDef, position: Vector3, parent: Instance)
 		spawnHeart(run, position, parent)
 	end
 	for _, player in membersNear(run, position) do
-		safeLoot("de mob", player, GearService.rollMobLoot, luck)
+		safeLoot("de mob", player, GearService.rollMobLoot, luck, run.towerId)
 	end
 end
 

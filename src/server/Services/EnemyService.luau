@@ -29,6 +29,7 @@ type Enemy = {
 	humanoid: Humanoid,
 	root: BasePart,
 	damageMultiplier: number,
+	rewardMultiplier: number, -- XP e Gold (recompensa da torre)
 	nextAttackAt: number,
 	pathParams: { [string]: any },
 	waypoints: { PathWaypoint },
@@ -208,10 +209,11 @@ local function grantRewards(enemy: Enemy)
 	local position = enemy.root.Position
 	for player, root in aliveCharacterRoots() do
 		if (root.Position - position).Magnitude <= Progression.xpShareRadius then
-			local gold = rng:NextInteger(enemy.def.goldMin, enemy.def.goldMax)
-			ProgressionService.addXp(player, enemy.def.xp)
+			local gold = math.round(rng:NextInteger(enemy.def.goldMin, enemy.def.goldMax) * enemy.rewardMultiplier)
+			local xp = math.round(enemy.def.xp * enemy.rewardMultiplier)
+			ProgressionService.addXp(player, xp)
 			ProgressionService.addGold(player, gold)
-			local payload: Remotes.RewardPayload = { xp = enemy.def.xp, gold = gold, position = position }
+			local payload: Remotes.RewardPayload = { xp = xp, gold = gold, position = position }
 			Remotes.get("RewardGranted"):FireClient(player, payload)
 		end
 	end
@@ -233,8 +235,15 @@ local function onDied(enemy: Enemy)
 	Debris:AddItem(enemy.model, Combat.corpseLifetime)
 end
 
--- Cria um mob com IA. `statMultiplier` escala vida e dano (dificuldade do andar).
-function EnemyService.spawn(def: Types.MobDef, cframe: CFrame, statMultiplier: number, parent: Instance): Model
+-- Cria um mob com IA. `statMultiplier` escala vida e dano (dificuldade do andar e da torre); `rewardMultiplier`
+-- escala o XP e o Gold (recompensa da torre; padrão 1).
+function EnemyService.spawn(
+	def: Types.MobDef,
+	cframe: CFrame,
+	statMultiplier: number,
+	parent: Instance,
+	rewardMultiplier: number?
+): Model
 	local model = EnemyFactory.create(def, cframe, statMultiplier)
 	model.Parent = parent
 	EnemyFactory.setServerOwned(model)
@@ -256,6 +265,7 @@ function EnemyService.spawn(def: Types.MobDef, cframe: CFrame, statMultiplier: n
 		humanoid = humanoid,
 		root = root,
 		damageMultiplier = statMultiplier,
+		rewardMultiplier = rewardMultiplier or 1,
 		nextAttackAt = 0,
 		pathParams = {
 			AgentRadius = math.max(def.size.X, def.size.Z) / 2 + 0.5,

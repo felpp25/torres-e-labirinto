@@ -1,6 +1,6 @@
 --!strict
--- Equipamentos (GDD > Equipamentos > Catálogo da Torre 1). Valores da raridade COMUM; a Rara vale
--- `rarityMultiplier.Rare` vezes isso (o dobro dos pontos e do Poder).
+-- Equipamentos (GDD > Equipamentos > Catálogo da Torre 1; Torre 2 em "Torre 2 e escolha de torre"). Valores da
+-- raridade COMUM; a Rara vale `rarityMultiplier.Rare` vezes isso (o dobro dos pontos e do Poder).
 -- Os ids vão para o save (DataStore): NUNCA renomear nem apagar um id já usado. Para aposentar uma peça, tire-a de
 -- `dropPool` (quem já tem continua com ela).
 -- Cada peça é declarada com o tipo exato e só depois entra na tabela geral (mesmo padrão de Balance/Abilities).
@@ -180,7 +180,7 @@ local IRON_KNUCKLES: Types.GearDef = {
 	tower = 1,
 }
 
-local LIST: { Types.GearDef } = {
+local TOWER_1: { Types.GearDef } = {
 	COMBATANT_HEADBAND,
 	COMBATANT_JERKIN,
 	COMBATANT_PANTS,
@@ -197,6 +197,63 @@ local LIST: { Types.GearDef } = {
 	IRON_KNUCKLES,
 }
 
+-- Torre 2 (GDD > Torre 2 e escolha de torre; decisões do designer): as mesmas peças e linhas com o DOBRO dos pontos e
+-- do Poder (o Comum da Torre 2 = o Raro da Torre 1), nível mínimo 10. As duas armas do Lutador também.
+-- NOMES PROVISÓRIOS ("… II") até o designer mandar os nomes: o save guarda o id, não o nome.
+local TOWER_2_MULTIPLIER = 2
+local TOWER_2_MIN_LEVEL = 10
+
+local function towerVersion(base: Types.GearDef, id: string, displayName: string): Types.GearDef
+	local m = TOWER_2_MULTIPLIER
+	local a = base.attributes
+	return {
+		id = id,
+		displayName = displayName,
+		slot = base.slot,
+		line = base.line,
+		classId = base.classId,
+		damageType = base.damageType,
+		power = base.power * m,
+		attributes = points({
+			Strength = a.Strength * m,
+			Vitality = a.Vitality * m,
+			Intelligence = a.Intelligence * m,
+			Wisdom = a.Wisdom * m,
+			Dexterity = a.Dexterity * m,
+			Defense = a.Defense * m,
+			Luck = a.Luck * m,
+		}),
+		minLevel = TOWER_2_MIN_LEVEL,
+		tower = 2,
+	}
+end
+
+local TOWER_2: { Types.GearDef } = {
+	towerVersion(COMBATANT_HEADBAND, "CombatantHeadband2", "Faixa do Combatente II"),
+	towerVersion(COMBATANT_JERKIN, "CombatantJerkin2", "Gibão do Combatente II"),
+	towerVersion(COMBATANT_PANTS, "CombatantPants2", "Calças do Combatente II"),
+	towerVersion(COMBATANT_BOOTS, "CombatantBoots2", "Botas do Combatente II"),
+	towerVersion(COMBATANT_BRACELET, "CombatantBracelet2", "Pulseira do Combatente II"),
+	towerVersion(COMBATANT_NECKLACE, "CombatantNecklace2", "Colar do Combatente II"),
+	towerVersion(GUARDIAN_HELM, "GuardianHelm2", "Elmo do Guardião II"),
+	towerVersion(GUARDIAN_CUIRASS, "GuardianCuirass2", "Couraça do Guardião II"),
+	towerVersion(GUARDIAN_GREAVES, "GuardianGreaves2", "Perneiras do Guardião II"),
+	towerVersion(GUARDIAN_BOOTS, "GuardianBoots2", "Botas do Guardião II"),
+	towerVersion(GUARDIAN_BRACELET, "GuardianBracelet2", "Pulseira do Guardião II"),
+	towerVersion(GUARDIAN_NECKLACE, "GuardianNecklace2", "Colar do Guardião II"),
+	towerVersion(LEATHER_GLOVES, "LeatherGloves2", "Luvas de Couro II"),
+	towerVersion(IRON_KNUCKLES, "IronKnuckles2", "Soco Inglês de Ferro II"),
+}
+
+local BY_TOWER: { [number]: { Types.GearDef } } = { [1] = TOWER_1, [2] = TOWER_2 }
+
+local LIST: { Types.GearDef } = {}
+for _, defs in BY_TOWER do
+	for _, def in defs do
+		table.insert(LIST, def)
+	end
+end
+
 local BY_ID: { [string]: Types.GearDef } = {}
 for _, def in LIST do
 	assert(BY_ID[def.id] == nil, `Gear: id repetido {def.id}`)
@@ -207,10 +264,15 @@ end
 -- Ordem dos slots no painel e no sorteio do drop.
 local SLOTS: { Types.EquipSlot } = { "Weapon", "Helmet", "Armor", "Pants", "Boots", "Bracelet", "Necklace" }
 
--- Peças que podem cair na Torre 1 (protótipo: a única torre; vira uma lista por torre depois).
-local DROP_POOL: { string } = {}
-for _, def in LIST do
-	table.insert(DROP_POOL, def.id)
+-- Peças que podem cair em cada torre (as da própria torre).
+local DROP_POOL: { [number]: { string } } = {}
+for tower, defs in BY_TOWER do
+	local pool: { string } = {}
+	for _, def in defs do
+		assert(def.tower == tower, `Gear: {def.id} está na lista da torre {tower}, mas é da torre {def.tower}`)
+		table.insert(pool, def.id)
+	end
+	DROP_POOL[tower] = table.freeze(pool)
 end
 
 -- Arma que todo personagem da classe recebe ao ser criado (e na migração do save v3 -> v4).
@@ -249,8 +311,10 @@ for classId, defId in STARTING_WEAPON do
 	local def = BY_ID[defId]
 	assert(def ~= nil and def.slot == "Weapon" and def.classId == classId, `Gear: arma inicial inválida ({classId})`)
 end
-for _, defId in DROP_POOL do
-	assert(BY_ID[defId] ~= nil, `Gear: {defId} no dropPool não existe`)
+for tower, pool in DROP_POOL do
+	for _, defId in pool do
+		assert(BY_ID[defId] ~= nil, `Gear: {defId} no dropPool da torre {tower} não existe`)
+	end
 end
 for rarity in RARITY_MULTIPLIER do
 	assert(SELL_PRICE[rarity] ~= nil, `Gear: falta o preço de venda de {rarity}`)
@@ -260,10 +324,11 @@ end
 export type GearBalance = {
 	byId: { [string]: Types.GearDef },
 	slots: { Types.EquipSlot },
-	dropPool: { string },
+	dropPool: { [number]: { string } }, -- torre -> peças que caem nela
 	startingWeapon: { [string]: string },
 	rarityMultiplier: { [string]: number },
 	sellPrice: { [string]: number },
+	lowerTowerEfficiency: number,
 	chestCapacity: number,
 	bossRareChance: number,
 	mobDropChance: number,
@@ -275,7 +340,12 @@ local GEAR: GearBalance = {
 	dropPool = table.freeze(DROP_POOL),
 	startingWeapon = table.freeze(STARTING_WEAPON),
 	rarityMultiplier = table.freeze(RARITY_MULTIPLIER),
-	sellPrice = table.freeze(SELL_PRICE), -- Gold pago pela loja ao vender (e quando o baú está cheio no drop)
+	-- Gold pago pela loja ao vender uma peça da Torre 1 (e quando o baú está cheio no drop). Nas outras torres, vezes
+	-- a recompensa da torre (Balance/Towers; Torre 2: o dobro, 20 / 100).
+	sellPrice = table.freeze(SELL_PRICE),
+	-- Peça numa run de torre ACIMA da dela vale isto (pontos, Poder e fortalecimento; a gema vale inteira). Decisão
+	-- do designer: dá para jogar os primeiros andares com o equipamento velho, mas o chefão pede o da torre atual.
+	lowerTowerEfficiency = 0.5,
 	chestCapacity = 50, -- peças no baú da conta (as equipadas não contam)
 	bossRareChance = 0.35, -- item garantido do chefão: chance de ser Raro (com a Sorte do grupo)
 	mobDropChance = 0.005, -- chance de cada mob dar uma peça Comum (com a Sorte do grupo)

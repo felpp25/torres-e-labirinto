@@ -62,7 +62,7 @@ local Bosses: { [string]: Types.BossDef } = {
 	},
 }
 
+-- O chefão de cada torre fica em Balance/Towers (bossId).
 return table.freeze({
 	byId = table.freeze(Bosses),
-	towerBossId = "TowerGuardian", -- boss da única torre do protótipo
 })

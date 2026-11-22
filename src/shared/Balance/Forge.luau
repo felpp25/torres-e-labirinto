@@ -10,6 +10,7 @@ local SUCCESS_CHANCE: { number } = { 1, 1, 1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3 
 -- Gold que ela rende: o fortalecimento custa o mesmo esforço na torre de origem do item.
 local ENHANCE_BASE_COST: { [number]: number } = {
 	[1] = 100, -- Torre 1: +1 = 100, +2 = 200, +5 = 1.600, +10 = 51.200
+	[2] = 200, -- Torre 2 (renda ×2): o +7 continua em ~42 runs da torre
 }
 
 local MAX_ENHANCE = 10

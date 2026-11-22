@@ -281,10 +281,10 @@ local COMMANDS: { [string]: Command } = {
 		return `{if ok then "ok" else "recusado"}: {message or "(sem mensagem)"}`
 	end,
 
-	SampleDrops = function(classId: string, count: number): string
+	SampleDrops = function(classId: string, count: number, towerId: number?): string
 		local counts: { [string]: number } = {}
 		for _ = 1, count do
-			local defId = GearService.rollDefId(classId)
+			local defId = GearService.rollDefId(classId, towerId or 1)
 			counts[defId] = (counts[defId] or 0) + 1
 		end
 		return HttpService:JSONEncode(counts)
@@ -303,9 +303,9 @@ local COMMANDS: { [string]: Command } = {
 		return hits / count
 	end,
 
-	RollBossLoot = function(player: Player, luck: number?): string
+	RollBossLoot = function(player: Player, luck: number?, towerId: number?): string
 		return HttpService:JSONEncode(
-			GearService.rollBossLoot(player, luck or 0) or { error = "perfil não carregado" }
+			GearService.rollBossLoot(player, luck or 0, towerId or 1) or { error = "perfil não carregado" }
 		)
 	end,
 

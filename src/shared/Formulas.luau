@@ -9,6 +9,7 @@ local Luck = require(script.Parent.Balance.Luck)
 local Gear = require(script.Parent.Balance.Gear)
 local Forge = require(script.Parent.Balance.Forge)
 local Gems = require(script.Parent.Balance.Gems)
+local Towers = require(script.Parent.Balance.Towers)
 
 local Formulas = {}
 
@@ -234,9 +235,21 @@ function Formulas.enhanceSellBonus(def: Types.GearDef, enhance: number): number
 	return math.floor(total * Forge.enhanceSellFraction + 1e-6)
 end
 
--- Gold que a loja paga pela peça: preço base da raridade + o que o fortalecimento soma.
+-- Gold que a loja paga pela peça: preço base da raridade (vezes a recompensa da torre da peça: Torre 2 = o dobro) +
+-- o que o fortalecimento soma.
 function Formulas.gearSellPrice(def: Types.GearDef, rarity: Types.Rarity, enhance: number): number
-	return (Gear.sellPrice[rarity] or 0) + Formulas.enhanceSellBonus(def, enhance)
+	local tower = Towers.byId[def.tower]
+	local base = (Gear.sellPrice[rarity] or 0) * (if tower then tower.rewardMultiplier else 1)
+	return math.round(base) + Formulas.enhanceSellBonus(def, enhance)
+end
+
+-- Quanto a peça vale numa run da torre `runTower` (nil = fora de run): numa torre ACIMA da dela, a fração de
+-- Balance/Gear (pontos, Poder e fortalecimento; a gema não entra aqui: vale inteira).
+function Formulas.gearEfficiency(def: Types.GearDef, runTower: number?): number
+	if runTower ~= nil and runTower > def.tower then
+		return Gear.lowerTowerEfficiency
+	end
+	return 1
 end
 
 -- ===== Transferir o fortalecimento (decisões do designer): as duas peças TROCAM os níveis =====

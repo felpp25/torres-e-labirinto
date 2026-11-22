@@ -621,6 +621,14 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
     sem vencer o chefão só os mobs dão XP (~23 runs), e nesse tempo os mobs da Torre 2 dão ~13 peças novas.
   - Descartados: 33% e 25% (os primeiros andares ficam apertados demais); cair de novo a cada torre de diferença; a
     gema perder eficiência junto.
+- **Armas da Torre 2 (decisão do designer):** as duas do Lutador, Luvas e Soco Inglês, em versão Torre 2.
+- **Venda das peças da Torre 2 (decisão do designer):** o dobro, Comum 20 / Raro 100 (acompanha a renda; também vale
+  quando o drop vira Gold com o baú cheio). O que o fortalecimento soma dobra sozinho com a base da Forja (200).
+  Descartado: o mesmo 10 / 50 (vender drops valeria metade em proporção).
+- *Implementado:* teto 20, mobs e chefão ×1,75, XP e Gold ×2, catálogo da Torre 2 (14 peças, nomes provisórios
+  "… II" até o designer mandar os nomes), drops da Torre 2 só com peças dela, Forja (+1 = 200) e venda (20 / 100),
+  equipamento da Torre 1 a 50% numa run da Torre 2 (a gema vale inteira; no lobby tudo vale inteiro). Medido: Brutamontes
+  com 105 de vida, 16 XP; chefão com 2.100 de vida, 3.000 XP e 600 Gold; Luvas da Torre 1 dando FOR 0,5 e Poder 2,5%.
 
 ### Conteúdo da Torre 2
 - **Arremessador** (mob novo, à distância): marca um círculo (raio 4) onde o jogador está e a pedra cai 0,8 s depois.
@@ -638,7 +646,8 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 1. ~~Runs separadas (várias por servidor), portal com espera, amigos no meio.~~ **Feito.**
 2. ~~Portal da Torre 2, acesso (nível + chave), save novo com as torres liberadas da conta.~~ **Feito** (a run da
    Torre 2 ainda usa o conteúdo da Torre 1 até a etapa 3).
-3. Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, equipamento de torre mais baixa a 50%.
+3. ~~Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, equipamento de torre mais baixa a 50%.~~
+   **Feito** (faltam os nomes das peças, que o designer vai mandar).
 4. Arremessador.
 5. Geomante das Rochas.
 6. Missão de acesso (depois de definida com o designer).

@@ -21,8 +21,7 @@ local Dungeon = table.freeze({
 	maxDeadEnds = 2,
 	maxBranchLength = 2, -- salas em cada corredor lateral que termina num beco
 
-	-- Mobs (salas de combate e becos)
-	mobPool = table.freeze({ "Brute" }),
+	-- Mobs (salas de combate e becos). Quais mobs e a força de cada torre: Balance/Towers.
 	mobsPerCombatRoom = 2,
 	extraMobsPerStep = 1, -- +1 mob por sala de combate...
 	floorsPerMobStep = 2, -- ...a cada 2 andares (andares 1-2: 2 mobs; 3-4: 3 mobs; ...)

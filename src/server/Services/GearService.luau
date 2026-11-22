@@ -144,12 +144,14 @@ end
 
 -- ===== Drops (GDD > Equipamentos > Obtenção) =====
 
--- Sorteia a peça: slot ao acaso, depois uma peça do drop desse slot (armas só da classe do personagem).
--- Com 2 linhas por slot e 2 armas do Lutador, cada uma das 14 peças sai com a mesma chance.
-function GearService.rollDefId(classId: string): string
+-- Sorteia a peça da torre: slot ao acaso, depois uma peça do drop desse slot (armas só da classe do personagem).
+-- Com 2 linhas por slot e 2 armas do Lutador, cada uma das 14 peças da torre sai com a mesma chance.
+function GearService.rollDefId(classId: string, towerId: number): string
+	local pool = Gear.dropPool[towerId]
+	assert(pool, `GearService: a torre {towerId} não tem drop`)
 	local slot = Gear.slots[rng:NextInteger(1, #Gear.slots)]
 	local options: { string } = {}
-	for _, defId in Gear.dropPool do
+	for _, defId in pool do
 		local def = Gear.byId[defId]
 		if def.slot == slot and (def.classId == nil or def.classId == classId) then
 			table.insert(options, defId)
@@ -157,7 +159,7 @@ function GearService.rollDefId(classId: string): string
 	end
 	if #options == 0 then
 		-- Classe sem arma neste drop: sorteia entre as peças que não são arma.
-		for _, defId in Gear.dropPool do
+		for _, defId in pool do
 			if Gear.byId[defId].classId == nil then
 				table.insert(options, defId)
 			end
@@ -175,21 +177,22 @@ function GearService.rollsMobDrop(luck: number): boolean
 	return rng:NextNumber() < Formulas.luckChance(Gear.mobDropChance, luck)
 end
 
--- 1 peça garantida do chefe para este jogador (loot individual). `luck` = Sorte do grupo (quem chama calcula).
-function GearService.rollBossLoot(player: Player, luck: number): GrantResult?
+-- 1 peça garantida do chefe da torre `towerId` para este jogador (loot individual). `luck` = Sorte do grupo (quem
+-- chama calcula).
+function GearService.rollBossLoot(player: Player, luck: number, towerId: number): GrantResult?
 	local classId = ProgressionService.getClass(player).id
-	return GearService.grant(player, GearService.rollDefId(classId), GearService.rollBossRarity(luck), "Boss")
+	return GearService.grant(player, GearService.rollDefId(classId, towerId), GearService.rollBossRarity(luck), "Boss")
 end
 
--- Chance de uma peça Comum por mob, para cada jogador perto (loot individual).
-function GearService.rollMobLoot(player: Player, luck: number): GrantResult?
+-- Chance de uma peça Comum da torre por mob, para cada jogador perto (loot individual).
+function GearService.rollMobLoot(player: Player, luck: number, towerId: number): GrantResult?
 	local forced = forceMobDrop[player] == true
 	if not forced and not GearService.rollsMobDrop(luck) then
 		return nil
 	end
 	forceMobDrop[player] = nil
 	local classId = ProgressionService.getClass(player).id
-	return GearService.grant(player, GearService.rollDefId(classId), "Common", "Mob")
+	return GearService.grant(player, GearService.rollDefId(classId, towerId), "Common", "Mob")
 end
 
 -- SÓ TESTES no Studio (DevService): o próximo mob que morrer perto do jogador dá uma peça.

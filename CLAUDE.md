@@ -39,7 +39,8 @@ src/
   shared/   -> ReplicatedStorage/Shared        (módulos usados pelos dois lados)
     Types.luau      tipos compartilhados
     Balance/        TODOS os números de balanceamento (combate, classes, habilidades, mobs, progressão, andares,
-                    equipamentos: Balance/Gear, forja/fortalecimento: Balance/Forge, gemas: Balance/Gems)
+                    equipamentos: Balance/Gear, forja/fortalecimento: Balance/Forge, gemas: Balance/Gems,
+                    torres: Balance/Towers = nível, acesso, chave, força, recompensa, chefão e mobs de cada torre)
     Formulas.luau   fórmulas puras (dano, defesa, crítico, XP...): servidor decide, cliente só mostra
     Remotes.luau    RemoteEvents com nome tipado (servidor cria; cliente espera)
     GearInfo.luau / GearSnapshot.luau  textos das peças e gemas e o formato do Attribute GearData (peças, slots e
@@ -153,7 +154,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   Atributos e dano: `"GetStats"(player)` (distribuídos, equipamento, efetivos, Poder, máximos) e
   `"DamagePreview"(player, 100)` (dano real de um golpe base 100, sem crítico e sem a Defesa do alvo).
   Equipamento: `"ListGear"`, `"GiveGear"(player, defId, "Rare")`, `"FillChest"(player, n, defId?, raridade?)`,
-  `"Equip"(player, id)`, `"Unequip"(player, slot)`. Drops: `"SampleDrops"`, `"SampleLoot"`, `"RollBossLoot"`,
+  `"Equip"(player, id)`, `"Unequip"(player, slot)`. Drops: `"SampleDrops"(classe, n, torre?)`, `"SampleLoot"`,
+  `"RollBossLoot"(player, sorte, torre?)`,
   `"ForceMobDrop"`, `"GoToFloor"(n, player?)` (a run do jogador, ou a única ativa), `"RejoinRun"`, `"BossEligible"`.
   Runs: `"Runs"()` (JSON das runs e das esperas nos portais) e `"SetAllFriends"(true)` (todos contam como amigos,
   para testar "amigo entra no meio da run": os jogadores de teste do Studio não são amigos).

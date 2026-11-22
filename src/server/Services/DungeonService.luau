@@ -13,6 +13,7 @@ local Keys = require(Shared.Keys)
 local Dungeon = require(Shared.Balance.Dungeon)
 local Mobs = require(Shared.Balance.Mobs)
 local Bosses = require(Shared.Balance.Bosses)
+local Towers = require(Shared.Balance.Towers)
 
 local MazeGenerator = require(script.Parent.Parent.Dungeon.MazeGenerator)
 local RoomBuilder = require(script.Parent.Parent.Dungeon.RoomBuilder)
@@ -51,6 +52,7 @@ local function memberIndex(run: RunRegistry.Run, player: Player): number
 end
 
 local function spawnMobs(
+	tower: Towers.TowerDef,
 	built: RoomBuilder.BuiltFloor,
 	layout: Types.FloorLayout,
 	floorNumber: number,
@@ -71,17 +73,18 @@ local function spawnMobs(
 		Formulas.mobsPerRoom(floorNumber, Dungeon.mobsPerCombatRoom, Dungeon.extraMobsPerStep, Dungeon.floorsPerMobStep)
 	-- No andar do boss há um teto de mobs no andar inteiro (o desafio principal é o boss).
 	local counts = Formulas.mobDistribution(#mobRooms, perRoom, if isBossFloor then Dungeon.bossFloorMaxMobs else nil)
-	local multiplier = Formulas.floorStatMultiplier(floorNumber, Dungeon.mobStatGrowthPerFloor)
+	-- Rampa do andar (+15% por andar) vezes a força da torre.
+	local multiplier = Formulas.floorStatMultiplier(floorNumber, Dungeon.mobStatGrowthPerFloor) * tower.statMultiplier
 	local spread = Dungeon.roomSize * Dungeon.mobSpawnSpread
 	local total = 0
 	for index, room in mobRooms do
 		local center = built.roomCenters[room]
 		for _ = 1, counts[index] do
-			local mobId = Dungeon.mobPool[rng:NextInteger(1, #Dungeon.mobPool)]
+			local mobId = tower.mobPool[rng:NextInteger(1, #tower.mobPool)]
 			local def = Mobs[mobId]
-			assert(def, `mob desconhecido em Dungeon.mobPool: {mobId}`)
+			assert(def, `mob desconhecido no mobPool da {tower.displayName}: {mobId}`)
 			local offset = Vector3.new(rng:NextNumber(-spread, spread), SPAWN_HEIGHT, rng:NextNumber(-spread, spread))
-			EnemyService.spawn(def, CFrame.new(center + offset), multiplier, mobsFolder)
+			EnemyService.spawn(def, CFrame.new(center + offset), multiplier, mobsFolder, tower.rewardMultiplier)
 			total += 1
 		end
 	end
@@ -113,13 +116,23 @@ function DungeonService.startFloor(run: RunRegistry.Run, floorNumber: number, se
 	RunRegistry.setState(run, Keys.RunAttr.FloorNumber, floorNumber)
 	-- Gerador próprio do conteúdo, derivado da seed (separado do do layout): mesmos mobs e placas ao refazer.
 	local contentRng = Random.new(floorSeed + 1)
-	local mobCount = spawnMobs(built, layout, floorNumber, contentRng, isBossFloor)
+	local tower = Towers.byId[run.towerId]
+	assert(tower, `torre desconhecida: {run.towerId}`)
+	local mobCount = spawnMobs(tower, built, layout, floorNumber, contentRng, isBossFloor)
 	local arena = built.arena
 	if isBossFloor and arena then
 		PuzzleService.clear(run)
-		local bossDef = Bosses.byId[Bosses.towerBossId]
-		assert(bossDef, `boss desconhecido: {Bosses.towerBossId}`)
-		BossService.spawn(run, bossDef, arena, arena.center.Y, built.folder)
+		local bossDef = Bosses.byId[tower.bossId]
+		assert(bossDef, `boss desconhecido na {tower.displayName}: {tower.bossId}`)
+		BossService.spawn(
+			run,
+			bossDef,
+			arena,
+			arena.center.Y,
+			built.folder,
+			tower.statMultiplier,
+			tower.rewardMultiplier
+		)
 	else
 		BossService.clear(run)
 		PuzzleService.setup(run, built.roomCenters[built.goal], built.folder, contentRng)
