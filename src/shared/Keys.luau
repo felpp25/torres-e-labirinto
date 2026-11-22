@@ -30,21 +30,27 @@ Keys.PlayerAttr = table.freeze({
 	SaveStatus = "SaveStatus", -- "ok" = progresso sendo salvo; "offline" = jogando sem salvar (falha no DataStore)
 })
 
--- Attributes do workspace (estado do andar, definidos SÓ pelo servidor; o HUD lê).
-Keys.WorldAttr = table.freeze({
+-- Attributes do Player com o estado da RUN dele (várias runs por servidor: cada participante recebe o estado da
+-- sua; definidos SÓ pelo servidor, server/Runs/RunRegistry; o HUD lê). Fora de uma run ficam nil.
+Keys.RunAttr = table.freeze({
+	RunId = "RunId", -- id da run (nil = no lobby); o espectador só segue quem tem o mesmo
+	TowerId = "TowerId", -- torre da run
 	FloorNumber = "FloorNumber",
 	PlatesActive = "PlatesActive",
 	PlatesTotal = "PlatesTotal",
 	ExitOpen = "ExitOpen",
-	Lives = "Lives", -- vidas do grupo na run atual
-	RunNumber = "RunNumber", -- aumenta a cada game over (o HUD mostra o aviso)
+	Lives = "Lives", -- vidas do grupo
 	IsBossFloor = "IsBossFloor", -- o andar atual é o do boss
 	BossName = "BossName",
 	BossHealth = "BossHealth",
 	BossMaxHealth = "BossMaxHealth", -- 0 = nenhum boss ativo (o HUD esconde a barra)
-	TowersCompleted = "TowersCompleted", -- aumenta ao derrotar o boss (o HUD mostra "TORRE CONCLUÍDA")
-	RunActive = "RunActive", -- há uma torre em andamento (false = todos no lobby)
-	GameOvers = "GameOvers", -- aumenta a cada game over (o HUD mostra o aviso)
+	-- Contadores do jogador (sobrevivem ao fim da run): o HUD avisa quando o número sobe.
+	TowersCompleted = "TowersCompleted", -- torre concluída ("TORRE CONCLUÍDA")
+	GameOvers = "GameOvers", -- game over
+	-- Espera no portal (GDD: um portal por torre, ~10 s para o grupo se formar). nil = não está esperando.
+	QueueTower = "QueueTower", -- torre do portal
+	QueueStartsAt = "QueueStartsAt", -- quando a run começa (workspace:GetServerTimeNow())
+	QueueSize = "QueueSize", -- quantos estão no grupo
 })
 
 -- Quantidade de um item da conta (ex.: "Item_HealthPotion"), replicada no Player para a loja e os atalhos.

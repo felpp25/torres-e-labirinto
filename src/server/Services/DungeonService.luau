@@ -1,10 +1,9 @@
 --!strict
--- Andares da run: gera o layout (MazeGenerator), constrói (RoomBuilder), coloca os mobs e o puzzle e leva os
--- jogadores para a entrada. TUDO do andar (layout, mobs, placas) sai da seed: a mesma seed refaz o mesmo andar.
+-- Andares das runs: gera o layout (MazeGenerator), constrói (RoomBuilder) no ponto da run no mapa, coloca os mobs e
+-- o puzzle e leva os participantes para a entrada. TUDO do andar (layout, mobs, placas) sai da seed: a mesma seed
+-- refaz o mesmo andar. Um andar por run (várias runs por servidor).
 -- O que fazer quando todos morrem (vidas, game over) é decidido pelo RunSessionService.
--- A run começa pelo portal do lobby (RunSessionService chama startFloor(1)).
 
-local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
@@ -17,6 +16,7 @@ local Bosses = require(Shared.Balance.Bosses)
 
 local MazeGenerator = require(script.Parent.Parent.Dungeon.MazeGenerator)
 local RoomBuilder = require(script.Parent.Parent.Dungeon.RoomBuilder)
+local RunRegistry = require(script.Parent.Parent.Runs.RunRegistry)
 local CombatService = require(script.Parent.CombatService)
 local EnemyService = require(script.Parent.EnemyService)
 local LifeService = require(script.Parent.LifeService)
@@ -27,38 +27,27 @@ local BossService = require(script.Parent.BossService)
 local SPAWN_HEIGHT = 4 -- studs acima do piso
 local PLAYER_SPAWN_SPACING = 4
 
+type FloorState = {
+	number: number,
+	seed: number,
+	built: RoomBuilder.BuiltFloor,
+}
+
 local DungeonService = {}
 
-local isParticipant: (Player) -> boolean = function(_: Player): boolean
-	return true
-end
 local seedRng = Random.new() -- só sorteia a seed de cada andar novo
-local currentFloor = 0
-local currentSeed = 0
-local current: RoomBuilder.BuiltFloor? = nil
-local container: Folder? = nil
-
-local function getContainer(): Folder
-	if not container then
-		local folder = Instance.new("Folder")
-		folder.Name = "Dungeon"
-		folder.Parent = workspace
-		container = folder
-	end
-	return container :: Folder
-end
+local floors: { [RunRegistry.Run]: FloorState } = {}
 
 -- Ponto de nascimento na entrada, com um pequeno espaçamento por jogador para não nascerem uns dentro dos outros.
-local function entranceCFrame(index: number): CFrame
-	local built = current
-	assert(built, "nenhum andar construído")
+local function entranceCFrame(floor: FloorState, index: number): CFrame
+	local built = floor.built
 	local center = built.roomCenters[built.entrance]
 	local offset = Vector3.new(((index - 1) % 4 - 1.5) * PLAYER_SPAWN_SPACING, SPAWN_HEIGHT, 0)
 	return CFrame.new(center + offset)
 end
 
-local function playerIndex(player: Player): number
-	return table.find(Players:GetPlayers(), player) or 1
+local function memberIndex(run: RunRegistry.Run, player: Player): number
+	return table.find(run.members, player) or 1
 end
 
 local function spawnMobs(
@@ -99,16 +88,16 @@ local function spawnMobs(
 	return total
 end
 
--- Constrói o andar `floorNumber` (o anterior é destruído, com os mobs dele) e leva os vivos para a entrada.
--- Sem `seed`: andar novo (seed sorteada). Com `seed`: refaz exatamente aquele andar.
-function DungeonService.startFloor(floorNumber: number, seed: number?)
-	if current then
-		current.folder:Destroy()
-		current = nil
+-- Constrói o andar `floorNumber` da run (o anterior é destruído, com os mobs dele) e leva os participantes vivos
+-- para a entrada. Sem `seed`: andar novo (seed sorteada). Com `seed`: refaz exatamente aquele andar.
+function DungeonService.startFloor(run: RunRegistry.Run, floorNumber: number, seed: number?)
+	local previous = floors[run]
+	if previous then
+		previous.built.folder:Destroy()
+		floors[run] = nil
 	end
 
 	local floorSeed = seed or seedRng:NextInteger(1, 2 ^ 31 - 2)
-	currentSeed = floorSeed
 	local isBossFloor = floorNumber >= Dungeon.floorsPerTower
 	local layout = MazeGenerator.generate(floorSeed, floorNumber, Dungeon, isBossFloor)
 	local ok, problems = MazeGenerator.validate(layout, Dungeon)
@@ -116,24 +105,24 @@ function DungeonService.startFloor(floorNumber: number, seed: number?)
 		warn(`[Andar] seed {floorSeed} violou regras: {table.concat(problems, "; ")}`)
 	end
 
-	local built = RoomBuilder.build(layout, Dungeon.floorOrigin, getContainer())
-	current = built
-	currentFloor = floorNumber
+	local built = RoomBuilder.build(layout, run.origin, run.folder)
+	local floor: FloorState = { number = floorNumber, seed = floorSeed, built = built }
+	floors[run] = floor
 	-- IsBossFloor antes de FloorNumber: o HUD lê os dois quando o andar muda.
-	workspace:SetAttribute(Keys.WorldAttr.IsBossFloor, isBossFloor)
-	workspace:SetAttribute(Keys.WorldAttr.FloorNumber, floorNumber)
+	RunRegistry.setState(run, Keys.RunAttr.IsBossFloor, isBossFloor)
+	RunRegistry.setState(run, Keys.RunAttr.FloorNumber, floorNumber)
 	-- Gerador próprio do conteúdo, derivado da seed (separado do do layout): mesmos mobs e placas ao refazer.
 	local contentRng = Random.new(floorSeed + 1)
 	local mobCount = spawnMobs(built, layout, floorNumber, contentRng, isBossFloor)
 	local arena = built.arena
 	if isBossFloor and arena then
-		PuzzleService.clear()
+		PuzzleService.clear(run)
 		local bossDef = Bosses.byId[Bosses.towerBossId]
 		assert(bossDef, `boss desconhecido: {Bosses.towerBossId}`)
-		BossService.spawn(bossDef, arena, arena.center.Y, built.folder)
+		BossService.spawn(run, bossDef, arena, arena.center.Y, built.folder)
 	else
-		BossService.clear()
-		PuzzleService.setup(built.roomCenters[built.goal], built.folder, contentRng)
+		BossService.clear(run)
+		PuzzleService.setup(run, built.roomCenters[built.goal], built.folder, contentRng)
 	end
 
 	local deadEnds = 0
@@ -143,71 +132,76 @@ function DungeonService.startFloor(floorNumber: number, seed: number?)
 		end
 	end
 	local action = if seed then "recomeçado" else "gerado"
-	print(`[Andar] {floorNumber} {action}: seed {floorSeed}, {#layout.rooms} salas, {deadEnds} becos, {mobCount} mobs`)
+	print(
+		`[Andar] run {run.id}: andar {floorNumber} {action} (seed {floorSeed}, {#layout.rooms} salas, {deadEnds} becos, {mobCount} mobs)`
+	)
 
-	-- Só quem está dentro da torre vai para a entrada (quem está no lobby fica no lobby).
-	for _, player in Players:GetPlayers() do
-		if isParticipant(player) and LifeService.isAlive(player) and player.Character then
-			player.Character:PivotTo(entranceCFrame(playerIndex(player)))
+	-- Só os participantes vivos vão para a entrada (os mortos renascem lá pelo spawn provider).
+	for _, player in run.members do
+		if LifeService.isAlive(player) and player.Character then
+			player.Character:PivotTo(entranceCFrame(floor, memberIndex(run, player)))
 		end
 	end
 end
 
--- Ponto de nascimento na entrada do andar atual para este jogador (usado pelo RunSessionService).
-function DungeonService.entranceCFrameFor(player: Player): CFrame
-	return entranceCFrame(playerIndex(player))
+-- Ponto de nascimento na entrada do andar atual da run para este jogador. nil = a run ainda não tem andar.
+function DungeonService.entranceCFrameFor(run: RunRegistry.Run, player: Player): CFrame?
+	local floor = floors[run]
+	if not floor then
+		return nil
+	end
+	return entranceCFrame(floor, memberIndex(run, player))
 end
 
 -- Fim da run: destrói o andar (mobs, boss e puzzle junto) e limpa o estado que o HUD lê.
-function DungeonService.clear()
-	if current then
-		current.folder:Destroy()
-		current = nil
+function DungeonService.clear(run: RunRegistry.Run)
+	local floor = floors[run]
+	if floor then
+		floor.built.folder:Destroy()
+		floors[run] = nil
 	end
-	currentFloor = 0
-	BossService.clear()
-	PuzzleService.clear()
-	workspace:SetAttribute(Keys.WorldAttr.IsBossFloor, false)
-	workspace:SetAttribute(Keys.WorldAttr.FloorNumber, nil)
+	BossService.clear(run)
+	PuzzleService.clear(run)
+	RunRegistry.setState(run, Keys.RunAttr.IsBossFloor, false)
+	RunRegistry.setState(run, Keys.RunAttr.FloorNumber, nil)
 end
 
--- Quem está dentro da torre (o RunSessionService define; padrão: todos).
-function DungeonService.setParticipantFilter(filter: (Player) -> boolean)
-	isParticipant = filter
+-- Andar atual da run (0 = nenhum).
+function DungeonService.getCurrentFloor(run: RunRegistry.Run): number
+	local floor = floors[run]
+	return if floor then floor.number else 0
 end
 
-function DungeonService.getCurrentFloor(): number
-	return currentFloor
-end
-
--- Vai para o andar `floorNumber` (novo): os mortos do grupo renascem na entrada e todos ficam com vida,
--- mana e stamina cheias. Usado no checkpoint e ao começar uma torre nova depois do boss.
-function DungeonService.advanceTo(floorNumber: number)
-	DungeonService.startFloor(floorNumber)
-	LifeService.reviveDead(nil) -- nasce pelo spawn provider: entrada do andar novo
-	for _, member in Players:GetPlayers() do
-		if isParticipant(member) and LifeService.isAlive(member) then
+-- Vai para o andar `floorNumber` (novo): os mortos do grupo renascem na entrada e todos ficam com vida, mana e
+-- stamina cheias. Usado no checkpoint.
+function DungeonService.advanceTo(run: RunRegistry.Run, floorNumber: number)
+	DungeonService.startFloor(run, floorNumber)
+	LifeService.reviveDead(run.members) -- nascem pelo spawn provider: entrada do andar novo
+	for _, member in run.members do
+		if LifeService.isAlive(member) then
 			ProgressionService.restoreHealth(member)
 			CombatService.restoreResources(member)
 		end
 	end
 end
 
--- Checkpoint (GDD > Morte e checkpoint): um jogador vivo passou pela saída aberta -> próximo andar.
-local function onCheckpoint(player: Player)
-	print(`[Andar] {currentFloor} concluído por {player.Name}`)
-	DungeonService.advanceTo(currentFloor + 1)
+-- Checkpoint (GDD > Morte e checkpoint): um participante vivo passou pela saída aberta -> próximo andar.
+local function onCheckpoint(run: RunRegistry.Run, player: Player)
+	local floorNumber = DungeonService.getCurrentFloor(run)
+	print(`[Andar] run {run.id}: andar {floorNumber} concluído por {player.Name}`)
+	DungeonService.advanceTo(run, floorNumber + 1)
 end
 
--- Está dentro da sala de Entrada do andar atual? (zona segura para acordar mobs)
+-- Está dentro da sala de Entrada do andar de alguma run? (zona segura para ACORDAR mobs)
 local function isInEntrance(position: Vector3): boolean
-	local built = current
-	if not built then
-		return false
-	end
-	local center = built.roomCenters[built.entrance]
 	local half = Dungeon.roomSize / 2
-	return math.abs(position.X - center.X) <= half and math.abs(position.Z - center.Z) <= half
+	for _, floor in floors do
+		local center = floor.built.roomCenters[floor.built.entrance]
+		if math.abs(position.X - center.X) <= half and math.abs(position.Z - center.Z) <= half then
+			return true
+		end
+	end
+	return false
 end
 
 function DungeonService.init()
@@ -215,13 +209,15 @@ function DungeonService.init()
 	EnemyService.setWakeSafeZone(isInEntrance)
 end
 
--- O andar 1 é criado quando alguém entra pelo portal do lobby (RunSessionService); onde cada jogador nasce
--- também é decidido lá.
+-- O andar 1 é criado quando um grupo entra pelo portal (RunSessionService).
 function DungeonService.start() end
 
--- Recomeça o andar atual com a mesma seed (mesmo labirinto, mobs e placas no estado inicial).
-function DungeonService.restartCurrentFloor()
-	DungeonService.startFloor(currentFloor, currentSeed)
+-- Recomeça o andar atual da run com a mesma seed (mesmo labirinto, mobs e placas no estado inicial).
+function DungeonService.restartCurrentFloor(run: RunRegistry.Run)
+	local floor = floors[run]
+	if floor then
+		DungeonService.startFloor(run, floor.number, floor.seed)
+	end
 end
 
 return DungeonService

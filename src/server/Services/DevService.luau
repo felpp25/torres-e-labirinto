@@ -24,8 +24,10 @@
 --   dev:Invoke("Equip", player, id) / ("Unequip", player, "Helmet") -- mensagem do resultado (ignora o anti-spam)
 --   Drops: "SampleDrops"(classId, n) (contagem por peça, sem dar nada), "SampleLoot"("BossRare"|"Mob", sorte, n)
 --   (fração sorteada), "RollBossLoot"(player, sorte) (dá de verdade), "ForceMobDrop"(player) (o próximo mob perto
---   dá peça), "GoToFloor"(n) (pula para o andar n numa run ativa), "RejoinRun"(player) (sai e volta à run: devolve
---   se ficou com direito ao boss), "BossEligible"(player)
+--   dá peça), "GoToFloor"(n, player?) (pula a run do jogador, ou a única run ativa, para o andar n), "RejoinRun"(player)
+--   (sai e volta à run: devolve se ficou com direito ao boss), "BossEligible"(player)
+--   Runs (várias por servidor): "Runs"() (JSON: runs ativas, andar, vidas, participantes e esperas nos portais) e
+--   "SetAllFriends"(true/false) (todos contam como amigos: os jogadores de teste do Studio não são amigos).
 --   Forja: "Enhance"(player, id, forçar?) (uma tentativa REAL, cobra Gold; forçar = true/false fixa o sorteio;
 --   ignora a distância e o anti-spam), "SetEnhance"(player, id, nível) (define direto, sem custo),
 --   "TransferEnhance"(player, deId, paraId) (troca real dos níveis, cobra Gold; ignora a distância)
@@ -48,7 +50,6 @@ local Formulas = require(game:GetService("ReplicatedStorage").Shared.Formulas)
 local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local CombatService = require(script.Parent.CombatService)
 local DataService = require(script.Parent.DataService)
-local DungeonService = require(script.Parent.DungeonService)
 local GearService = require(script.Parent.GearService)
 local GemService = require(script.Parent.GemService)
 local ProgressionService = require(script.Parent.ProgressionService)
@@ -308,12 +309,17 @@ local COMMANDS: { [string]: Command } = {
 		return true
 	end,
 
-	GoToFloor = function(floorNumber: number): boolean
-		if workspace:GetAttribute("RunActive") ~= true then
-			return false
-		end
-		DungeonService.advanceTo(floorNumber)
-		return true
+	GoToFloor = function(floorNumber: number, player: Player?): boolean
+		return RunSessionService.debugGoToFloor(floorNumber, player)
+	end,
+
+	SetAllFriends = function(enabled: boolean): boolean
+		RunSessionService.debugSetAllFriends(enabled == true)
+		return enabled == true
+	end,
+
+	Runs = function(): string
+		return HttpService:JSONEncode(RunSessionService.debugSummary())
 	end,
 
 	RejoinRun = function(player: Player): boolean

@@ -6,13 +6,12 @@
 -- - fica na arena; só persegue e ataca jogadores que estão DENTRO dela (fora dela, volta ao centro);
 -- - escolhe um ataque cujo `triggerRange` alcança o alvo, mostra o aviso no chão por `telegraphTime`,
 --   acerta exatamente a área mostrada e fica parado `recovery` segundos (janela para revidar);
--- - não é empurrado; vida escala com o nº de jogadores (coop);
+-- - não é empurrado; vida escala com o nº de participantes da run (coop);
 -- - morto: quem tem direito (filtro do RunSessionService: na run desde antes do andar do boss) recebe o XP e o
---   Gold do boss, e o handler de "boss derrotado" é chamado com a posição dele (o item garantido sai de lá).
--- Vida do boss vai para Attributes do workspace (barra no HUD).
+--   Gold do boss, e o handler de "boss derrotado" é chamado com a run e a posição dele (o item garantido sai de lá).
+-- Um boss por run (várias runs por servidor). A vida dele vai para o estado da run (barra no HUD).
 
 local Debris: Debris = game:GetService("Debris")
-local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
@@ -23,6 +22,7 @@ local Combat = require(Shared.Balance.Combat)
 
 local EnemyFactory = require(script.Parent.Parent.Enemies.EnemyFactory)
 local Telegraph = require(script.Parent.Parent.Enemies.Telegraph)
+local RunRegistry = require(script.Parent.Parent.Runs.RunRegistry)
 local CombatService = require(script.Parent.CombatService)
 local ProgressionService = require(script.Parent.ProgressionService)
 
@@ -34,6 +34,7 @@ export type ArenaBounds = {
 }
 
 type Boss = {
+	run: RunRegistry.Run,
 	def: Types.BossDef,
 	model: Model,
 	humanoid: Humanoid,
@@ -50,20 +51,20 @@ local HOME_TOLERANCE = 4 -- studs: perto o bastante do centro, para de andar
 local BossService = {}
 
 local rng = Random.new()
-local current: Boss? = nil
-local onDefeated: (position: Vector3) -> () = function(_: Vector3) end
-local rewardFilter: (player: Player) -> boolean = function(_: Player): boolean
+local bosses: { [RunRegistry.Run]: Boss } = {}
+local onDefeated: (run: RunRegistry.Run, position: Vector3) -> () = function(_: RunRegistry.Run, _: Vector3) end
+local rewardFilter: (run: RunRegistry.Run, player: Player) -> boolean = function(_: RunRegistry.Run, _: Player): boolean
 	return true
 end
 
-local function publishHealth(boss: Boss?)
+local function publishHealth(run: RunRegistry.Run, boss: Boss?)
 	if boss then
-		workspace:SetAttribute(Keys.WorldAttr.BossName, boss.def.displayName)
-		workspace:SetAttribute(Keys.WorldAttr.BossHealth, math.max(math.floor(boss.humanoid.Health), 0))
-		workspace:SetAttribute(Keys.WorldAttr.BossMaxHealth, boss.humanoid.MaxHealth)
+		RunRegistry.setState(run, Keys.RunAttr.BossName, boss.def.displayName)
+		RunRegistry.setState(run, Keys.RunAttr.BossHealth, math.max(math.floor(boss.humanoid.Health), 0))
+		RunRegistry.setState(run, Keys.RunAttr.BossMaxHealth, boss.humanoid.MaxHealth)
 	else
-		workspace:SetAttribute(Keys.WorldAttr.BossHealth, 0)
-		workspace:SetAttribute(Keys.WorldAttr.BossMaxHealth, 0)
+		RunRegistry.setState(run, Keys.RunAttr.BossHealth, 0)
+		RunRegistry.setState(run, Keys.RunAttr.BossMaxHealth, 0)
 	end
 end
 
@@ -76,11 +77,11 @@ local function flatDistance(a: Vector3, b: Vector3): number
 	return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
 end
 
--- Jogador vivo mais próximo DENTRO da arena.
+-- Participante vivo mais próximo DENTRO da arena.
 local function nearestTarget(boss: Boss): BasePart?
 	local best: BasePart? = nil
 	local bestDistance = math.huge
-	for _, player in Players:GetPlayers() do
+	for _, player in boss.run.members do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -180,12 +181,13 @@ local function runAI(boss: Boss)
 end
 
 local function onDied(boss: Boss)
-	print(`[Boss] {boss.def.displayName} derrotado!`)
-	publishHealth(nil)
+	local run = boss.run
+	print(`[Boss] {boss.def.displayName} derrotado (run {run.id})!`)
+	publishHealth(run, nil)
 	local position = boss.root.Position
-	-- O boss dá o grosso da recompensa da torre: para cada jogador com direito (vivo ou espectando).
-	for _, player in Players:GetPlayers() do
-		if rewardFilter(player) then
+	-- O boss dá o grosso da recompensa da torre: para cada participante com direito (vivo ou espectando).
+	for _, player in RunRegistry.members(run) do
+		if rewardFilter(run, player) then
 			ProgressionService.addXp(player, boss.def.xp)
 			ProgressionService.addGold(player, boss.def.gold)
 			local payload: Remotes.RewardPayload = { xp = boss.def.xp, gold = boss.def.gold, position = position }
@@ -197,15 +199,21 @@ local function onDied(boss: Boss)
 		part.CanCollide = false
 	end
 	Debris:AddItem(boss.model, Combat.corpseLifetime * 2)
-	if current == boss then
-		current = nil
+	if bosses[run] == boss then
+		bosses[run] = nil
 	end
-	onDefeated(position)
+	onDefeated(run, position)
 end
 
--- Cria o boss na arena. A vida escala com o nº de jogadores no servidor (coop).
-function BossService.spawn(def: Types.BossDef, arena: ArenaBounds, groundY: number, parent: Instance)
-	local extraPlayers = math.max(#Players:GetPlayers() - 1, 0)
+-- Cria o boss na arena da run. A vida escala com o nº de participantes da run (coop).
+function BossService.spawn(
+	run: RunRegistry.Run,
+	def: Types.BossDef,
+	arena: ArenaBounds,
+	groundY: number,
+	parent: Instance
+)
+	local extraPlayers = math.max(#run.members - 1, 0)
 	local healthMultiplier = 1 + def.healthPerExtraPlayer * extraPlayers
 	local spawnPosition = arena.bossSpawn + Vector3.new(0, def.body.size.Y / 2 + 3, 0)
 	local model = EnemyFactory.create(def.body, CFrame.new(spawnPosition), healthMultiplier)
@@ -226,6 +234,7 @@ function BossService.spawn(def: Types.BossDef, arena: ArenaBounds, groundY: numb
 	end
 
 	local boss: Boss = {
+		run = run,
 		def = def,
 		model = model,
 		humanoid = humanoid,
@@ -235,38 +244,39 @@ function BossService.spawn(def: Types.BossDef, arena: ArenaBounds, groundY: numb
 		nextAttackAt = os.clock() + 1.5, -- pequena folga ao primeiro contato
 		originalColors = originalColors,
 	}
-	current = boss
-	publishHealth(boss)
+	bosses[run] = boss
+	publishHealth(run, boss)
 	humanoid.HealthChanged:Connect(function()
-		if current == boss then
-			publishHealth(boss)
+		if bosses[run] == boss then
+			publishHealth(run, boss)
 		end
 	end)
 	humanoid.Died:Connect(function()
 		onDied(boss)
 	end)
 	task.spawn(runAI, boss)
-	print(`[Boss] {def.displayName} apareceu com {humanoid.MaxHealth} de vida ({extraPlayers + 1} jogador(es))`)
+	print(
+		`[Boss] {def.displayName} apareceu na run {run.id} com {humanoid.MaxHealth} de vida ({extraPlayers + 1} jogador(es))`
+	)
 end
 
--- Andar sem boss (ou andar trocado): esconde a barra do HUD.
-function BossService.clear()
-	current = nil
-	publishHealth(nil)
+-- Andar sem boss (andar trocado ou run encerrada): esconde a barra do HUD.
+function BossService.clear(run: RunRegistry.Run)
+	bosses[run] = nil
+	publishHealth(run, nil)
 end
 
-function BossService.setDefeatedHandler(handler: (position: Vector3) -> ())
+function BossService.setDefeatedHandler(handler: (run: RunRegistry.Run, position: Vector3) -> ())
 	onDefeated = handler
 end
 
--- Quem recebe o XP e o Gold do boss (padrão: todos). O RunSessionService restringe aos participantes com direito.
-function BossService.setRewardFilter(filter: (player: Player) -> boolean)
+-- Quem recebe o XP e o Gold do boss (padrão: todos os participantes). O RunSessionService restringe aos que têm
+-- direito.
+function BossService.setRewardFilter(filter: (run: RunRegistry.Run, player: Player) -> boolean)
 	rewardFilter = filter
 end
 
-function BossService.init()
-	publishHealth(nil)
-end
+function BossService.init() end
 
 function BossService.start() end
 

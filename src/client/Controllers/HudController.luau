@@ -25,6 +25,7 @@ local Gear = require(Balance:WaitForChild("Gear"))
 local Combat = require(Balance:WaitForChild("Combat"))
 local Abilities = require(Balance:WaitForChild("Abilities"))
 local Classes = require(Balance:WaitForChild("Classes"))
+local Run = require(Balance:WaitForChild("Run"))
 local Hotkeys = require(script.Parent.Parent:WaitForChild("Hotkeys"))
 local ActionBar = require(script.Parent.Parent:WaitForChild("ActionBar"))
 
@@ -69,6 +70,8 @@ local saveWarningLabel: TextLabel? = nil
 local bossFrame: Frame? = nil
 local bossBar: Bar? = nil
 local bossNameLabel: TextLabel? = nil
+local queueFrame: Frame? = nil
+local queueTitle: TextLabel? = nil
 local dodgeIcon: CooldownIcon? = nil
 local abilityIcons: { [string]: CooldownIcon } = {} -- por id da habilidade
 local ultimateIcon: CooldownIcon? = nil
@@ -266,6 +269,34 @@ local function build()
 	back.Size = UDim2.new(1, -16, 0, 18)
 	bossBar = bar
 	bossFrame = boss
+
+	-- Espera no portal (só no lobby; a barra do chefe só aparece na torre): topo central.
+	local queue = Instance.new("Frame")
+	queue.Name = "QueueBanner"
+	queue.BackgroundColor3 = COLORS.panel
+	queue.BackgroundTransparency = 0.25
+	queue.AnchorPoint = Vector2.new(0.5, 0)
+	queue.Position = UDim2.new(0.5, 0, 0, 8)
+	queue.Size = UDim2.fromOffset(420, 52)
+	queue.Visible = false
+	queue.Parent = gui
+	corner(queue, 10)
+	local title = makeText(queue, "", UDim2.new(1, -16, 0, 20), UDim2.fromOffset(8, 5), 17)
+	title.Name = "Title"
+	title.TextXAlignment = Enum.TextXAlignment.Center
+	title.TextColor3 = COLORS.gold
+	queueTitle = title
+	local hint = makeText(
+		queue,
+		"Fique no portal: quem pisar nele agora entra no seu grupo",
+		UDim2.new(1, -16, 0, 16),
+		UDim2.fromOffset(8, 29),
+		12
+	)
+	hint.Name = "Hint"
+	hint.TextXAlignment = Enum.TextXAlignment.Center
+	hint.TextColor3 = COLORS.text
+	queueFrame = queue
 end
 
 local function update()
@@ -291,7 +322,7 @@ local function update()
 		goldLabel.Text = `Gold: {numberAttr(Keys.PlayerAttr.Gold)}`
 	end
 	if livesLabel then
-		local lives = workspace:GetAttribute(Keys.WorldAttr.Lives)
+		local lives = localPlayer:GetAttribute(Keys.RunAttr.Lives)
 		local inRun = localPlayer:GetAttribute(Keys.InRunAttr) == true
 		livesLabel.Text = if inRun and typeof(lives) == "number" then `Vidas: {lives}` else ""
 	end
@@ -299,20 +330,36 @@ local function update()
 		saveWarningLabel.Visible = localPlayer:GetAttribute(Keys.PlayerAttr.SaveStatus) == "offline"
 	end
 	if floorLabel then
-		local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)
+		local floorNumber = localPlayer:GetAttribute(Keys.RunAttr.FloorNumber)
 		local inRun = localPlayer:GetAttribute(Keys.InRunAttr) == true
 		if inRun and typeof(floorNumber) == "number" then
-			local active = workspace:GetAttribute(Keys.WorldAttr.PlatesActive)
-			local total = workspace:GetAttribute(Keys.WorldAttr.PlatesTotal)
-			local exitOpen = workspace:GetAttribute(Keys.WorldAttr.ExitOpen) == true
-			local isBossFloor = workspace:GetAttribute(Keys.WorldAttr.IsBossFloor) == true
+			local active = localPlayer:GetAttribute(Keys.RunAttr.PlatesActive)
+			local total = localPlayer:GetAttribute(Keys.RunAttr.PlatesTotal)
+			local exitOpen = localPlayer:GetAttribute(Keys.RunAttr.ExitOpen) == true
+			local isBossFloor = localPlayer:GetAttribute(Keys.RunAttr.IsBossFloor) == true
+			local tower = localPlayer:GetAttribute(Keys.RunAttr.TowerId)
 			local goal = if isBossFloor
 				then "Chefe"
 				elseif exitOpen then "Saída aberta!"
 				else `Placas {active or 0}/{total or 0}`
-			floorLabel.Text = `Andar {floorNumber}  ·  {goal}`
+			local towerText = if typeof(tower) == "number" then `Torre {tower}  ·  ` else ""
+			floorLabel.Text = `{towerText}Andar {floorNumber}  ·  {goal}`
 		else
 			floorLabel.Text = "Lobby"
+		end
+	end
+	if queueFrame and queueTitle then
+		local tower = localPlayer:GetAttribute(Keys.RunAttr.QueueTower)
+		local startsAt = localPlayer:GetAttribute(Keys.RunAttr.QueueStartsAt)
+		local size = localPlayer:GetAttribute(Keys.RunAttr.QueueSize)
+		local waiting = typeof(tower) == "number"
+			and typeof(startsAt) == "number"
+			and localPlayer:GetAttribute(Keys.InRunAttr) ~= true
+		queueFrame.Visible = waiting
+		if waiting then
+			local seconds = math.max(math.ceil((startsAt :: number) - workspace:GetServerTimeNow()), 0)
+			local count = if typeof(size) == "number" then size else 1
+			queueTitle.Text = `TORRE {tower}  ·  começa em {seconds} s  ·  {count}/{Run.maxGroupSize} no grupo`
 		end
 	end
 	if statsLabel then
@@ -428,23 +475,25 @@ local function warnIfChestFull()
 end
 
 -- Vidas mudaram: perdeu (wipe) ou ganhou (Coração). O game over é avisado por onGameOver.
--- Ao começar uma run nova as vidas voltam ao máximo junto com a troca do nº da run: essa subida não é
--- "+1 VIDA". Espera um instante para os Attributes chegarem e compara o nº da run de agora com o da última vez.
+-- Ao entrar numa run as vidas aparecem junto com a troca do id da run: essa mudança não é "+1 VIDA". Espera um
+-- instante para os Attributes chegarem e compara o id da run de agora com o da última vez.
 -- Fora da torre (no lobby) nada é avisado.
-local livesRunNumber: unknown = nil
+local livesRunId: unknown = nil
 local function onLivesChanged()
 	task.wait(0.2)
-	local lives = workspace:GetAttribute(Keys.WorldAttr.Lives)
-	if typeof(lives) ~= "number" then
+	local lives = localPlayer:GetAttribute(Keys.RunAttr.Lives)
+	local runId = localPlayer:GetAttribute(Keys.RunAttr.RunId)
+	if typeof(lives) ~= "number" or runId == nil then
+		lastLives = nil
+		livesRunId = nil
 		return
 	end
-	local runNumber = workspace:GetAttribute(Keys.WorldAttr.RunNumber)
-	local sameRun = livesRunNumber == nil or runNumber == livesRunNumber
-	livesRunNumber = runNumber
+	local sameRun = livesRunId == nil or runId == livesRunId
+	livesRunId = runId
 	local previous = lastLives
 	lastLives = lives
 	local inRun = localPlayer:GetAttribute(Keys.InRunAttr) == true
-	if previous == nil or not sameRun or not inRun or workspace:GetAttribute(Keys.WorldAttr.RunActive) ~= true then
+	if previous == nil or not sameRun or not inRun then
 		return
 	end
 	if lives < previous then
@@ -457,22 +506,23 @@ end
 
 local lastGameOvers: number? = nil
 local function onGameOver()
-	local count = workspace:GetAttribute(Keys.WorldAttr.GameOvers)
+	local count = localPlayer:GetAttribute(Keys.RunAttr.GameOvers)
 	if typeof(count) ~= "number" then
 		return
 	end
-	local previous = lastGameOvers
+	-- O contador fica no jogador e começa vazio (nil) em cada sessão: o primeiro game over vai de nada para 1.
+	local previous = lastGameOvers or 0
 	lastGameOvers = count
-	if previous ~= nil and count > previous then
+	if count > previous then
 		showToast("GAME OVER", "De volta ao lobby. Seu XP e Gold foram mantidos.", COLORS.health, 0.32)
 	end
 end
 
 local function onFloorChanged()
 	task.wait(0.2) -- o Attribute "InRun" pode chegar logo depois do andar
-	local floorNumber = workspace:GetAttribute(Keys.WorldAttr.FloorNumber)
+	local floorNumber = localPlayer:GetAttribute(Keys.RunAttr.FloorNumber)
 	if typeof(floorNumber) == "number" and localPlayer:GetAttribute(Keys.InRunAttr) == true then
-		local isBossFloor = workspace:GetAttribute(Keys.WorldAttr.IsBossFloor) == true
+		local isBossFloor = localPlayer:GetAttribute(Keys.RunAttr.IsBossFloor) == true
 		local hint = if isBossFloor
 			then "Último andar: o chefe espera na arena vermelha"
 			else "Ative as placas na sala azul para abrir a saída"
@@ -485,16 +535,16 @@ end
 
 local lastTowersCompleted: number? = nil
 local function onTowersCompletedChanged()
-	local count = workspace:GetAttribute(Keys.WorldAttr.TowersCompleted)
+	local count = localPlayer:GetAttribute(Keys.RunAttr.TowersCompleted)
 	if typeof(count) ~= "number" then
 		return
 	end
-	local previous = lastTowersCompleted
+	local previous = lastTowersCompleted or 0
 	lastTowersCompleted = count
-	if previous ~= nil and count > previous then
+	if count > previous then
 		showToast(
 			"TORRE CONCLUÍDA!",
-			"Recompensa do chefe recebida. Uma nova torre começa em instantes.",
+			"Recompensa do chefe recebida. De volta ao lobby em instantes.",
 			COLORS.gold,
 			0.22
 		)
@@ -507,12 +557,12 @@ local function updateBossBar()
 	if not frame then
 		return
 	end
-	local maxHealth = workspace:GetAttribute(Keys.WorldAttr.BossMaxHealth)
-	local health = workspace:GetAttribute(Keys.WorldAttr.BossHealth)
+	local maxHealth = localPlayer:GetAttribute(Keys.RunAttr.BossMaxHealth)
+	local health = localPlayer:GetAttribute(Keys.RunAttr.BossHealth)
 	local active = typeof(maxHealth) == "number" and maxHealth > 0 and typeof(health) == "number" and health > 0
 	frame.Visible = active
 	if active and bossBar and bossNameLabel then
-		local name = workspace:GetAttribute(Keys.WorldAttr.BossName)
+		local name = localPlayer:GetAttribute(Keys.RunAttr.BossName)
 		bossNameLabel.Text = if typeof(name) == "string" then name else "Chefe"
 		setBar(bossBar, health :: number, maxHealth :: number)
 	end
@@ -552,13 +602,13 @@ function HudController.start()
 	task.spawn(moveChatWindow)
 	Remotes.get("LevelUp").OnClientEvent:Connect(showLevelUp)
 	Remotes.get("GearNotice").OnClientEvent:Connect(onGearNotice)
-	workspace:GetAttributeChangedSignal(Keys.WorldAttr.FloorNumber):Connect(onFloorChanged)
+	localPlayer:GetAttributeChangedSignal(Keys.RunAttr.FloorNumber):Connect(onFloorChanged)
 	task.spawn(onFloorChanged)
-	workspace:GetAttributeChangedSignal(Keys.WorldAttr.GameOvers):Connect(onGameOver)
-	workspace:GetAttributeChangedSignal(Keys.WorldAttr.Lives):Connect(onLivesChanged)
+	localPlayer:GetAttributeChangedSignal(Keys.RunAttr.GameOvers):Connect(onGameOver)
+	localPlayer:GetAttributeChangedSignal(Keys.RunAttr.Lives):Connect(onLivesChanged)
 	onGameOver()
 	task.spawn(onLivesChanged)
-	workspace:GetAttributeChangedSignal(Keys.WorldAttr.TowersCompleted):Connect(onTowersCompletedChanged)
+	localPlayer:GetAttributeChangedSignal(Keys.RunAttr.TowersCompleted):Connect(onTowersCompletedChanged)
 	onTowersCompletedChanged()
 	-- Entrou na torre com o baú cheio: avisa (um instante depois, para não cobrir o aviso do andar).
 	localPlayer:GetAttributeChangedSignal(Keys.InRunAttr):Connect(function()

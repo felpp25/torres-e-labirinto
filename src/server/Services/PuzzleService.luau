@@ -1,15 +1,18 @@
 --!strict
 -- Puzzle do andar (GDD > Andares): placas de pressão na sala do Puzzle abrem a saída (escada).
--- - Cada placa, depois de pisada por um jogador vivo, FICA ativada (funciona solo e em grupo).
--- - Com todas ativas, a saída abre. Um jogador vivo pisando na saída aberta = checkpoint (callback do DungeonService).
--- Quem está pisando é verificado pelo servidor (consulta espacial periódica), não pelo cliente.
+-- - Cada placa, depois de pisada por um participante vivo, FICA ativada (funciona solo e em grupo).
+-- - Com todas ativas, a saída abre. Um participante vivo pisando na saída aberta = checkpoint (callback do
+--   DungeonService).
+-- Um puzzle por run (várias runs por servidor). Quem está pisando é verificado pelo servidor (consulta espacial
+-- periódica), não pelo cliente.
 
-local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Keys = require(Shared.Keys)
 local Dungeon = require(Shared.Balance.Dungeon)
+
+local RunRegistry = require(script.Parent.Parent.Runs.RunRegistry)
 
 local PLATE_IDLE_COLOR = Color3.fromRGB(150, 60, 60)
 local PLATE_ACTIVE_COLOR = Color3.fromRGB(80, 220, 110)
@@ -28,8 +31,8 @@ type Puzzle = {
 
 local PuzzleService = {}
 
-local current: Puzzle? = nil
-local onExitReached: (player: Player) -> () = function(_: Player) end
+local puzzles: { [RunRegistry.Run]: Puzzle } = {}
+local onExitReached: (run: RunRegistry.Run, player: Player) -> () = function(_: RunRegistry.Run, _: Player) end
 
 local function makePad(name: string, size: number, position: Vector3, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
@@ -64,9 +67,10 @@ local function makeLabel(part: Part, text: string): TextLabel
 	return label
 end
 
-local function aliveCharacters(): { [Model]: Player }
+-- Personagens vivos dos participantes da run.
+local function aliveCharacters(run: RunRegistry.Run): { [Model]: Player }
 	local result: { [Model]: Player } = {}
-	for _, player in Players:GetPlayers() do
+	for _, player in run.members do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		if character and humanoid and humanoid.Health > 0 then
@@ -100,28 +104,28 @@ local function playerOn(part: Part, characters: { [Model]: Player }): Player?
 	return nil
 end
 
-local function publish(puzzle: Puzzle)
+local function publish(run: RunRegistry.Run, puzzle: Puzzle)
 	local active = 0
 	for _, plate in puzzle.plates do
 		if plate.active then
 			active += 1
 		end
 	end
-	workspace:SetAttribute(Keys.WorldAttr.PlatesActive, active)
-	workspace:SetAttribute(Keys.WorldAttr.PlatesTotal, #puzzle.plates)
-	workspace:SetAttribute(Keys.WorldAttr.ExitOpen, puzzle.exitOpen)
+	RunRegistry.setState(run, Keys.RunAttr.PlatesActive, active)
+	RunRegistry.setState(run, Keys.RunAttr.PlatesTotal, #puzzle.plates)
+	RunRegistry.setState(run, Keys.RunAttr.ExitOpen, puzzle.exitOpen)
 end
 
-local function openExit(puzzle: Puzzle)
+local function openExit(run: RunRegistry.Run, puzzle: Puzzle)
 	puzzle.exitOpen = true
 	puzzle.exit.Color = EXIT_OPEN_COLOR
 	puzzle.exit.Material = Enum.Material.Neon
 	puzzle.exitLabel.Text = "Saída aberta: pise para subir"
-	print("[Puzzle] todas as placas ativas: saída aberta")
+	print(`[Puzzle] run {run.id}: todas as placas ativas, saída aberta`)
 end
 
-local function check(puzzle: Puzzle)
-	local characters = aliveCharacters()
+local function check(run: RunRegistry.Run, puzzle: Puzzle)
+	local characters = aliveCharacters(run)
 	local changed = false
 	for _, plate in puzzle.plates do
 		if not plate.active and playerOn(plate.part, characters) then
@@ -137,23 +141,23 @@ local function check(puzzle: Puzzle)
 			allActive = allActive and plate.active
 		end
 		if allActive and not puzzle.exitOpen then
-			openExit(puzzle)
+			openExit(run, puzzle)
 		end
-		publish(puzzle)
+		publish(run, puzzle)
 	end
 
 	if puzzle.exitOpen and not puzzle.exitUsed then
 		local player = playerOn(puzzle.exit, characters)
 		if player then
 			puzzle.exitUsed = true -- uma vez por andar
-			onExitReached(player)
+			onExitReached(run, player)
 		end
 	end
 end
 
--- Cria placas e saída na sala do puzzle. `center` = centro do piso da sala (altura do topo do piso).
+-- Cria placas e saída na sala do puzzle da run. `center` = centro do piso da sala (altura do topo do piso).
 -- `rng` vem da seed do andar: refazer o andar recria as mesmas placas nos mesmos cantos.
-function PuzzleService.setup(center: Vector3, parent: Instance, rng: Random)
+function PuzzleService.setup(run: RunRegistry.Run, center: Vector3, parent: Instance, rng: Random)
 	local folder = Instance.new("Folder")
 	folder.Name = "Puzzle"
 	folder.Parent = parent
@@ -180,20 +184,20 @@ function PuzzleService.setup(center: Vector3, parent: Instance, rng: Random)
 	local label = makeLabel(exit, `Saída trancada: ative as {count} placas`)
 
 	local puzzle: Puzzle = { plates = plates, exit = exit, exitLabel = label, exitOpen = false, exitUsed = false }
-	current = puzzle
-	publish(puzzle)
+	puzzles[run] = puzzle
+	publish(run, puzzle)
 end
 
--- Andar sem puzzle (andar do boss): nada para verificar e o HUD mostra 0/0.
-function PuzzleService.clear()
-	current = nil
-	workspace:SetAttribute(Keys.WorldAttr.PlatesActive, 0)
-	workspace:SetAttribute(Keys.WorldAttr.PlatesTotal, 0)
-	workspace:SetAttribute(Keys.WorldAttr.ExitOpen, false)
+-- Andar sem puzzle (andar do boss) ou run encerrada: nada para verificar e o HUD mostra 0/0.
+function PuzzleService.clear(run: RunRegistry.Run)
+	puzzles[run] = nil
+	RunRegistry.setState(run, Keys.RunAttr.PlatesActive, 0)
+	RunRegistry.setState(run, Keys.RunAttr.PlatesTotal, 0)
+	RunRegistry.setState(run, Keys.RunAttr.ExitOpen, false)
 end
 
 -- O DungeonService decide o que acontece no checkpoint (sem dependência circular entre os serviços).
-function PuzzleService.setExitHandler(handler: (player: Player) -> ())
+function PuzzleService.setExitHandler(handler: (run: RunRegistry.Run, player: Player) -> ())
 	onExitReached = handler
 end
 
@@ -202,10 +206,11 @@ function PuzzleService.init() end
 function PuzzleService.start()
 	while true do
 		task.wait(Dungeon.puzzleCheckInterval)
-		local puzzle = current
-		-- A sala pode ter sido destruída (andar trocado) entre as verificações.
-		if puzzle and puzzle.exit.Parent then
-			check(puzzle)
+		for run, puzzle in puzzles do
+			-- A sala pode ter sido destruída (andar trocado ou run encerrada) entre as verificações.
+			if run.active and puzzle.exit.Parent then
+				check(run, puzzle)
+			end
 		end
 	end
 end

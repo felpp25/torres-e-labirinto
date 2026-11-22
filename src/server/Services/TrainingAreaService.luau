@@ -87,7 +87,7 @@ function TrainingAreaService.start()
 		spawnDummy(position, dummies)
 	end
 
-	-- Com a run ativa, a onda de treino fica desligada (quem cuida de "todos morreram" é o DungeonService).
+	-- Com a torre ligada, a onda de treino fica desligada (quem cuida de "todos morreram" é a run).
 	if Run.startInDungeon then
 		return
 	end
@@ -95,7 +95,7 @@ function TrainingAreaService.start()
 	wave.Name = "TrainingWave"
 	wave.Parent = workspace
 	spawnWave(wave)
-	LifeService.setAllDeadHandler(function()
+	LifeService.setLobbyAllDeadHandler(function()
 		restartTraining(wave)
 	end)
 end

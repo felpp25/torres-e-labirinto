@@ -117,10 +117,13 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - No datamodel `Edit`, `require` fica em CACHE: depois de mudar um módulo já carregado num teste anterior, o
   `require` devolve a versão VELHA. Para testar a nova: `local c = mod:Clone(); c.Parent = mod.Parent;
   local M = require(c); c:Destroy()`.
-- **Fluxo do jogo:** o jogador nasce no LOBBY (perto da origem; loja à esquerda com a forja atrás dela, portal da
-  torre à direita). Para
-  testar a torre pelo MCP: levar o personagem até `workspace.Lobby.TowerPortal` (a run começa) ou usar
+- **Fluxo do jogo:** o jogador nasce no LOBBY (perto da origem; loja à esquerda com a forja atrás dela, portais das
+  torres à direita). Para testar a torre pelo MCP: levar o personagem até `workspace.Lobby.TowerPortal_1` e
+  **esperar ~10 s parado em cima** (espera do grupo; sair do portal cancela) ou usar
   `Players:GetPlayers()[1]:GetAttribute("InRun")` para saber onde ele está. Game over / torre concluída = lobby.
+  - **Várias runs por servidor** (`server/Runs/RunRegistry`): cada grupo tem a sua run em `workspace.Runs.Run_<id>`,
+    a 1000 studs da anterior. O estado da run (andar, vidas, placas, chefão) fica em Attributes de cada
+    participante (`Keys.RunAttr`), não no workspace. Serviços da run recebem a `run` como parâmetro.
 - **Salvamento (DataService):** no Studio usa o DataStore `PlayerData_Studio` (separado do jogo publicado,
   `PlayerData`). Precisa de "Enable Studio Access to API Services" ligado (Configurações da Experiência >
   Segurança; já ligado). Sem acesso, o jogo roda "sem salvar" (aviso no HUD) e nunca grava. O personagem de teste
@@ -148,7 +151,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `"DamagePreview"(player, 100)` (dano real de um golpe base 100, sem crítico e sem a Defesa do alvo).
   Equipamento: `"ListGear"`, `"GiveGear"(player, defId, "Rare")`, `"FillChest"(player, n, defId?, raridade?)`,
   `"Equip"(player, id)`, `"Unequip"(player, slot)`. Drops: `"SampleDrops"`, `"SampleLoot"`, `"RollBossLoot"`,
-  `"ForceMobDrop"`, `"GoToFloor"(n)` (numa run ativa), `"RejoinRun"`, `"BossEligible"`.
+  `"ForceMobDrop"`, `"GoToFloor"(n, player?)` (a run do jogador, ou a única ativa), `"RejoinRun"`, `"BossEligible"`.
+  Runs: `"Runs"()` (JSON das runs e das esperas nos portais) e `"SetAllFriends"(true)` (todos contam como amigos,
+  para testar "amigo entra no meio da run": os jogadores de teste do Studio não são amigos).
   Forja: `"Enhance"(player, id, forçar?)` (tentativa real, cobra Gold; `true`/`false` fixa o sorteio) e
   `"SetEnhance"(player, id, nível)` (direto, sem custo). `"TransferEnhance"(player, deId, paraId)` (troca real dos
   níveis, cobra Gold).

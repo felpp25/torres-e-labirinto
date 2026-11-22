@@ -38,8 +38,11 @@ local Dungeon = table.freeze({
 	exitSize = 8, -- lado da saída (escada) no centro da sala do puzzle
 	puzzleCheckInterval = 0.15, -- s entre verificações de quem está pisando nas placas/saída
 
-	-- Onde os andares são construídos: longe do lobby (os mobs do andar não enxergam o lobby e vice-versa)
+	-- Onde os andares são construídos: longe do lobby (os mobs do andar não enxergam o lobby e vice-versa).
+	-- Várias runs no mesmo servidor: a run N fica em floorOrigin + (0, 0, (N - 1) × runSpacing). O andar ocupa até
+	-- ~340 studs (5 salas + a extensão da arena); 1000 deixa longe o alcance dos mobs, dos avisos e do XP.
 	floorOrigin = Vector3.new(1000, 50, 0),
+	runSpacing = 1000,
 })
 
 return Dungeon

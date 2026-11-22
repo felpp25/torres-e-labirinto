@@ -5,6 +5,9 @@
 
 local ContextActionService: ContextActionService = game:GetService("ContextActionService")
 local Players: Players = game:GetService("Players")
+local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Keys = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Keys"))
 
 local localPlayer = Players.LocalPlayer
 
@@ -18,12 +21,15 @@ local spectating = false
 local spectateIndex = 0
 local label: TextLabel? = nil
 
+-- Aliados vivos da MESMA run (várias runs por servidor: os outros grupos não contam).
 local function aliveAllies(): { Player }
 	local result: { Player } = {}
+	local runId = localPlayer:GetAttribute(Keys.RunAttr.RunId)
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		if player ~= localPlayer and humanoid and humanoid.Health > 0 then
+		local sameRun = runId ~= nil and player:GetAttribute(Keys.RunAttr.RunId) == runId
+		if player ~= localPlayer and sameRun and humanoid and humanoid.Health > 0 then
 			table.insert(result, player)
 		end
 	end

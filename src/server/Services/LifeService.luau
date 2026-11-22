@@ -1,25 +1,32 @@
 --!strict
 -- Vida e morte dos jogadores (GDD > Morte e checkpoint):
 -- - o Roblox NÃO renasce ninguém automaticamente (CharacterAutoLoads = false);
--- - quem morre fica morto (o cliente passa a espectar um aliado vivo);
--- - se todos morrem, chama o handler de "todos mortos" depois de um tempo
---   (padrão: renasce todo mundo; o DungeonService troca por "reiniciar a run no andar 1");
--- - onde nascer vem do "spawn provider" (o DungeonService aponta para a entrada do andar atual);
--- - reviveDead(): usado pelo checkpoint para trazer os mortos de volta.
+-- - quem morre numa run fica morto (o cliente passa a espectar um aliado vivo da mesma run);
+-- - se todos os participantes de UMA run morrem, chama o handler de "run sem ninguém vivo" daquela run depois de um
+--   tempo (o RunSessionService gasta uma vida e recomeça o andar, ou dá game over);
+-- - quem morre no lobby renasce no lobby depois de um tempo (ou o handler do modo de treino decide);
+-- - onde nascer vem do "spawn provider" (o RunSessionService aponta a entrada do andar da run ou o lobby);
+-- - reviveDead(jogadores): usado pelo checkpoint para trazer os mortos da run de volta.
 
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Run = require(ReplicatedStorage.Shared.Balance.Run)
 
+local RunRegistry = require(script.Parent.Parent.Runs.RunRegistry)
 local ProgressionService = require(script.Parent.ProgressionService)
 
 local LifeService = {}
 
-local restartScheduled = false
+local wipeScheduled: { [RunRegistry.Run]: boolean } = {}
+local lobbyRestartScheduled = false
 local spawnProvider: (Player) -> CFrame? = function(_: Player): CFrame?
 	return nil -- nil = SpawnLocation padrão do lobby
 end
+local runAllDeadHandler: (run: RunRegistry.Run) -> () = function(_: RunRegistry.Run) end
+-- Modo de treino (Balance/Run.startInDungeon = false): todos do lobby mortos -> recomeça a onda. nil = cada um
+-- renasce sozinho.
+local lobbyAllDeadHandler: (() -> ())? = nil
 
 function LifeService.isAlive(player: Player): boolean
 	local character = player.Character
@@ -27,28 +34,14 @@ function LifeService.isAlive(player: Player): boolean
 	return humanoid ~= nil and humanoid.Health > 0
 end
 
--- Quem conta para o "todos morreram": por padrão todos; com lobby, só quem está dentro da torre
--- (o RunSessionService define). Um jogador parado no lobby não pode impedir o wipe do grupo.
-local isParticipant: (Player) -> boolean = function(_: Player): boolean
-	return true
-end
-
-function LifeService.setParticipantFilter(filter: (Player) -> boolean)
-	isParticipant = filter
-end
-
-local function anyAlive(): boolean
-	for _, player in Players:GetPlayers() do
-		if isParticipant(player) and LifeService.isAlive(player) then
+-- Algum participante da run está vivo? (também usado quando alguém sai do jogo no meio da run)
+function LifeService.anyAliveIn(run: RunRegistry.Run): boolean
+	for _, player in run.members do
+		if LifeService.isAlive(player) then
 			return true
 		end
 	end
 	return false
-end
-
--- Os participantes estão todos mortos? (também usado quando alguém sai do jogo no meio da run)
-function LifeService.allParticipantsDead(): boolean
-	return not anyAlive()
 end
 
 -- Cria um personagem novo e, se houver, leva para o ponto indicado (`at` ou o spawn provider).
@@ -71,32 +64,78 @@ function LifeService.respawnAll()
 	end
 end
 
-local allDeadHandler: () -> () = LifeService.respawnAll
-
-function LifeService.setAllDeadHandler(handler: () -> ())
-	allDeadHandler = handler
+function LifeService.setRunAllDeadHandler(handler: (run: RunRegistry.Run) -> ())
+	runAllDeadHandler = handler
 end
 
--- Traz de volta só quem está morto (checkpoint), na posição indicada ou, sem ela, no spawn provider.
-function LifeService.reviveDead(cframe: CFrame?)
-	for _, player in Players:GetPlayers() do
-		if not LifeService.isAlive(player) then
+function LifeService.setLobbyAllDeadHandler(handler: () -> ())
+	lobbyAllDeadHandler = handler
+end
+
+-- Traz de volta só quem está morto entre `players` (checkpoint), na posição indicada ou, sem ela, no spawn
+-- provider.
+function LifeService.reviveDead(players: { Player }, cframe: CFrame?)
+	for _, player in players do
+		if player.Parent and not LifeService.isAlive(player) then
 			task.spawn(spawnPlayer, player, cframe)
 		end
 	end
 end
 
-local function onPlayerDied(player: Player)
-	print(`[Vida] {player.Name} morreu`)
-	if restartScheduled or not isParticipant(player) or anyAlive() then
+-- Agenda o handler da run quando ninguém dela está vivo (uma vez por "wipe"). Também chamado pelo
+-- RunSessionService quando alguém sai do jogo e sobram só mortos.
+function LifeService.scheduleWipeIfAllDead(run: RunRegistry.Run)
+	if wipeScheduled[run] or not run.active or LifeService.anyAliveIn(run) then
 		return
 	end
-	restartScheduled = true
-	print(`[Vida] todos morreram: reiniciando em {Run.allDeadRestartDelay}s`)
+	wipeScheduled[run] = true
+	print(`[Vida] run {run.id}: todos morreram, reiniciando em {Run.allDeadRestartDelay}s`)
 	task.delay(Run.allDeadRestartDelay, function()
-		restartScheduled = false
-		allDeadHandler()
+		wipeScheduled[run] = nil
+		if run.active then
+			runAllDeadHandler(run)
+		end
 	end)
+end
+
+local function anyAliveInLobby(): boolean
+	for _, player in Players:GetPlayers() do
+		if RunRegistry.runOf(player) == nil and LifeService.isAlive(player) then
+			return true
+		end
+	end
+	return false
+end
+
+local function onLobbyDeath(player: Player)
+	local handler = lobbyAllDeadHandler
+	if handler then
+		if lobbyRestartScheduled or anyAliveInLobby() then
+			return
+		end
+		lobbyRestartScheduled = true
+		task.delay(Run.allDeadRestartDelay, function()
+			lobbyRestartScheduled = false
+			handler()
+		end)
+		return
+	end
+	task.delay(Run.allDeadRestartDelay, function()
+		-- Ainda morto e ainda fora de uma run (o spawn provider aponta o lobby).
+		if player.Parent and not LifeService.isAlive(player) and RunRegistry.runOf(player) == nil then
+			spawnPlayer(player, nil)
+		end
+	end)
+end
+
+local function onPlayerDied(player: Player)
+	print(`[Vida] {player.Name} morreu`)
+	local run = RunRegistry.runOf(player)
+	if run then
+		LifeService.scheduleWipeIfAllDead(run)
+	else
+		onLobbyDeath(player)
+	end
 end
 
 local function onPlayerAdded(player: Player)
@@ -108,8 +147,8 @@ local function onPlayerAdded(player: Player)
 			end)
 		end
 	end)
-	-- Entrou agora: nasce (mesmo com a run em andamento), mas só DEPOIS de os dados salvos carregarem:
-	-- senão o progresso feito antes do carregamento seria perdido (sobrescrito pelos dados salvos).
+	-- Entrou agora: nasce, mas só DEPOIS de os dados salvos carregarem: senão o progresso feito antes do
+	-- carregamento seria perdido (sobrescrito pelos dados salvos).
 	ProgressionService.waitUntilLoaded(player)
 	if not player.Parent then
 		return
@@ -121,7 +160,7 @@ function LifeService.init()
 	Players.CharacterAutoLoads = false
 end
 
--- No start (não no init): o DungeonService já gerou o andar e definiu o spawn provider.
+-- No start (não no init): o RunSessionService já definiu o spawn provider.
 function LifeService.start()
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	for _, player in Players:GetPlayers() do
