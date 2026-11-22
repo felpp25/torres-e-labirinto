@@ -7,7 +7,7 @@
 --   inventory      itens da CONTA (ex.: poções): { [itemId] = quantidade }
 --   activeSlot     personagem em uso
 --   characters     lista de personagens; cada um com classe, nível, XP, atributos, pontos livres e equipamento
---   gear           TODAS as peças de equipamento da conta (baú + equipadas): { id, defId, rarity }
+--   gear           TODAS as peças de equipamento da conta (baú + equipadas): { id, defId, rarity, enhance }
 --   nextGearId     próximo id de peça (só cresce; um id nunca é reutilizado)
 --   session        trava de sessão (qual servidor está com os dados e desde quando); nil = livre
 -- Decisões do designer: vários personagens por conta; Gold GLOBAL da conta (trocar de personagem no lobby para
@@ -28,8 +28,10 @@
 --   3  Inventário da conta (poções). Migração: inventário vazio.
 --   4  Equipamento: peças da conta (gear) e 7 slots por personagem (equipped). Migração: todo personagem cuja
 --      classe tem arma inicial ganha a arma Comum equipada (Lutador: Luvas de Couro).
+--   5  Fortalecimento da peça (enhance, 0 a 10). Migração: todas as peças ficam +0.
+--      Peça fortalecida não é vendida na loja (decisão do designer).
 --
--- REGRA: todo campo NOVO salvo (mesmo opcional, ex.: fortalecimento ou gema da peça) e todo VALOR novo num campo
+-- REGRA: todo campo NOVO salvo (mesmo opcional, ex.: a gema da peça) e todo VALOR novo num campo
 -- que o reconcile valida (ex.: raridade "Epic", classe ou slot novos) aumenta VERSION. O servidor que encontra dados
 -- de uma versão MAIOR que a dele recusa carregar (DataService) em vez de apagar o que não conhece.
 -- PUBLICAÇÃO: ao publicar um VERSION novo, feche os servidores antigos ("Shut Down All Servers" ou "Migrate to
@@ -44,6 +46,7 @@ local Classes = require(Shared.Balance.Classes)
 local Progression = require(Shared.Balance.Progression)
 local Shop = require(Shared.Balance.Shop)
 local Gear = require(Shared.Balance.Gear)
+local Forge = require(Shared.Balance.Forge)
 
 export type Character = {
 	classId: string,
@@ -80,11 +83,11 @@ export type EquipOutcome =
 	| "ChestFull"
 	| "OtherCharacterWeapon"
 export type UnequipOutcome = "Unequipped" | "Empty" | "WeaponLocked" | "ChestFull"
-export type SellOutcome = "Sold" | "NotFound" | "InUse"
+export type SellOutcome = "Sold" | "NotFound" | "InUse" | "Enhanced"
 
 local PlayerSchema = {}
 
-PlayerSchema.VERSION = 4
+PlayerSchema.VERSION = 5
 
 local WEAPON_SLOT: Types.EquipSlot = "Weapon"
 local MAX_DEF_ID_LENGTH = 64 -- defId salvo maior que isto é lixo (os ids do catálogo são curtos)
@@ -175,7 +178,7 @@ function PlayerSchema.addGear(profile: Profile, defId: string, rarity: Types.Rar
 	assert(Gear.byId[defId] ~= nil, `PlayerSchema.addGear: peça desconhecida {defId}`)
 	local id = profile.nextGearId
 	assert(Formulas.parseGearId(id) ~= nil, `PlayerSchema.addGear: nextGearId inválido ({id})`)
-	local piece: Types.OwnedGear = { id = id, defId = defId, rarity = rarity }
+	local piece: Types.OwnedGear = { id = id, defId = defId, rarity = rarity, enhance = 0 }
 	table.insert(profile.gear, piece)
 	profile.nextGearId = id + 1
 	return piece
@@ -244,7 +247,7 @@ function PlayerSchema.unequip(profile: Profile, charIndex: number, slot: Types.E
 	return "Unequipped"
 end
 
--- Tira uma peça do BAÚ da conta (venda). Peça equipada ou inerte não sai. Devolve a peça removida.
+-- Tira uma peça do BAÚ da conta (venda). Peça equipada, fortalecida ou inerte não sai. Devolve a peça removida.
 function PlayerSchema.sell(profile: Profile, id: number): (SellOutcome, Types.OwnedGear?)
 	local index = indexOfGear(profile, id)
 	if index == nil then
@@ -256,6 +259,9 @@ function PlayerSchema.sell(profile: Profile, id: number): (SellOutcome, Types.Ow
 	end
 	if PlayerSchema.ownerOf(profile, id) ~= nil then
 		return "InUse", nil
+	end
+	if piece.enhance > 0 then
+		return "Enhanced", nil
 	end
 	table.remove(profile.gear, index)
 	return "Sold", piece
@@ -322,7 +328,9 @@ local function reconcileGear(data: { [string]: unknown }, profile: Profile, rawC
 				end
 			end
 			if id ~= nil and rarity ~= nil and defId ~= nil and byId[id] == nil then
-				local piece: Types.OwnedGear = { id = id, defId = defId, rarity = rarity }
+				-- Fortalecimento (v5+): ausente (migração da v4) ou inválido = +0.
+				local enhance = wholeNumber((rawPiece :: { [string]: unknown }).enhance, 0, Forge.maxEnhance, 0)
+				local piece: Types.OwnedGear = { id = id, defId = defId, rarity = rarity, enhance = enhance }
 				table.insert(profile.gear, piece)
 				byId[id] = piece
 				maxId = math.max(maxId, id)

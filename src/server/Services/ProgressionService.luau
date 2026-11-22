@@ -88,9 +88,10 @@ local function computeGearBonus(profile: PlayerSchema.Profile, data: PlayerData)
 		local piece = if id ~= nil then PlayerSchema.findGear(profile, id) else nil
 		local def = if piece then PlayerSchema.defOf(piece) else nil
 		if piece and def then
-			bonus.attributes = Formulas.addAttributes(bonus.attributes, Formulas.gearAttributes(def, piece.rarity))
+			bonus.attributes =
+				Formulas.addAttributes(bonus.attributes, Formulas.gearAttributes(def, piece.rarity, piece.enhance))
 			if slot == "Weapon" then
-				bonus.power = Formulas.gearPower(def, piece.rarity)
+				bonus.power = Formulas.gearPower(def, piece.rarity, piece.enhance)
 				bonus.damageType = def.damageType
 			end
 		end

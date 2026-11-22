@@ -1,7 +1,8 @@
 --!strict
 -- Painel da loja (GDD > Lobby e loja). Abre ao acionar o prompt "Loja" do balcão do lobby
 -- (tecla F / direcional para cima no controle / toque no celular) e fecha sozinho ao se afastar.
--- Abas: Comprar (poções e reset de atributos) e Vender (peças de equipamento do baú; as equipadas não aparecem).
+-- Abas: Comprar (poções e reset de atributos) e Vender (peças de equipamento do baú; as equipadas e as
+-- fortalecidas não aparecem: peça fortalecida não é vendida, decisão do designer).
 -- O cliente só PEDE (BuyItem / ResetAttributes / SellGear); o servidor valida e responde por ShopResult.
 
 local Players: Players = game:GetService("Players")
@@ -145,7 +146,7 @@ local function refresh()
 	end
 end
 
--- Lista de venda: só peças do baú (as equipadas não aparecem), por slot, Rara primeiro, nome e id.
+-- Lista de venda: só peças do baú sem fortalecimento, por slot, Rara primeiro, nome e id.
 local function rebuildSellRows()
 	local list = sellList
 	if not list then
@@ -160,30 +161,14 @@ local function rebuildSellRows()
 
 	local chest: { Types.GearEntry } = {}
 	for _, entry in snapshot.gear do
-		if not entry.inUse then
+		if not entry.inUse and entry.enhance == 0 then
 			table.insert(chest, entry)
 		end
 	end
-	local slotOrder: { [string]: number } = {}
-	for index, slot in Gear.slots do
-		slotOrder[slot] = index
-	end
-	table.sort(chest, function(a: Types.GearEntry, b: Types.GearEntry): boolean
-		local defA, defB = Gear.byId[a.defId], Gear.byId[b.defId]
-		if slotOrder[defA.slot] ~= slotOrder[defB.slot] then
-			return slotOrder[defA.slot] < slotOrder[defB.slot]
-		end
-		if a.rarity ~= b.rarity then
-			return a.rarity == "Rare"
-		end
-		if defA.displayName ~= defB.displayName then
-			return defA.displayName < defB.displayName
-		end
-		return a.id < b.id
-	end)
+	GearSnapshot.sortEntries(chest)
 
 	if #chest == 0 then
-		local empty = makeText(list, "Nada para vender: o baú está vazio.", UDim2.new(1, -8, 0, 30), UDim2.new(), 13)
+		local empty = makeText(list, "Nada para vender no baú.", UDim2.new(1, -8, 0, 30), UDim2.new(), 13)
 		empty.TextColor3 = COLORS.dim
 		empty.LayoutOrder = 1
 	end
@@ -318,7 +303,7 @@ end
 local function buildSellPage(page: Frame)
 	local hint = makeText(
 		page,
-		"Equipadas não aparecem aqui (tire no painel Personagem, tecla C)",
+		"Equipadas e fortalecidas não aparecem aqui (equipamento: tecla C)",
 		UDim2.new(1, -28, 0, 14),
 		UDim2.fromOffset(14, HEADER_HEIGHT),
 		11

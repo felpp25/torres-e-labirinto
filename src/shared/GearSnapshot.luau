@@ -8,6 +8,7 @@ local HttpService: HttpService = game:GetService("HttpService")
 local Types = require(script.Parent.Types)
 local Formulas = require(script.Parent.Formulas)
 local Gear = require(script.Parent.Balance.Gear)
+local Forge = require(script.Parent.Balance.Forge)
 
 local GearSnapshot = {}
 
@@ -40,16 +41,24 @@ function GearSnapshot.decode(raw: unknown): Types.GearSnapshot
 				local rarity: Types.Rarity? = Formulas.parseRarity(entry.rarity)
 				local defId = entry.defId
 				local inUse = entry.inUse
+				local enhance = entry.enhance
 				if
 					id ~= nil
 					and rarity ~= nil
 					and typeof(defId) == "string"
 					and Gear.byId[defId] ~= nil
 					and typeof(inUse) == "boolean"
+					and typeof(enhance) == "number"
+					and enhance % 1 == 0
+					and enhance >= 0
+					and enhance <= Forge.maxEnhance
 					and not known[id]
 				then
 					known[id] = true
-					table.insert(snapshot.gear, { id = id, defId = defId, rarity = rarity, inUse = inUse })
+					table.insert(
+						snapshot.gear,
+						{ id = id, defId = defId, rarity = rarity, enhance = enhance, inUse = inUse }
+					)
 				end
 			end
 		end
@@ -73,6 +82,31 @@ function GearSnapshot.find(snapshot: Types.GearSnapshot, id: number): Types.Gear
 		end
 	end
 	return nil
+end
+
+-- Ordem de exibição nas grades e listas (mochila, venda, forja): por slot, Rara primeiro, mais fortalecida
+-- primeiro, nome e id. Ordena a lista recebida (no lugar).
+function GearSnapshot.sortEntries(entries: { Types.GearEntry })
+	local slotOrder: { [string]: number } = {}
+	for index, slot in Gear.slots do
+		slotOrder[slot] = index
+	end
+	table.sort(entries, function(a: Types.GearEntry, b: Types.GearEntry): boolean
+		local defA, defB = Gear.byId[a.defId], Gear.byId[b.defId]
+		if slotOrder[defA.slot] ~= slotOrder[defB.slot] then
+			return slotOrder[defA.slot] < slotOrder[defB.slot]
+		end
+		if a.rarity ~= b.rarity then
+			return a.rarity == "Rare"
+		end
+		if a.enhance ~= b.enhance then
+			return a.enhance > b.enhance
+		end
+		if defA.displayName ~= defB.displayName then
+			return defA.displayName < defB.displayName
+		end
+		return a.id < b.id
+	end)
 end
 
 -- Peças no baú (nenhum personagem usa).

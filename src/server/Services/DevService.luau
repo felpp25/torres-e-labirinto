@@ -16,6 +16,7 @@
 --   dev:Invoke("DamagePreview", player, 100)    -- dano de um golpe base 100 (sem crítico e sem a Defesa do alvo)
 --   dev:Invoke("SnapshotProfile", player)       -- guarda o perfil (conta inteira) antes de um teste
 --   dev:Invoke("RestoreProfile", player)        -- devolve o perfil guardado (no lugar: Gold, itens, equipamento...)
+--   dev:Invoke("RestoreFromJson", player, json) -- idem, a partir do JSON de um ReadStored (teste que reinicia o Play)
 --   Equipamento (passa pelas regras REAIS do GearService):
 --   dev:Invoke("ListGear", player)                          -- JSON: peças da conta, dono de cada uma, baú
 --   dev:Invoke("GiveGear", player, "GuardianHelm", "Rare")  -- dá uma peça (aviso na tela; baú cheio = Gold)
@@ -25,6 +26,8 @@
 --   (fração sorteada), "RollBossLoot"(player, sorte) (dá de verdade), "ForceMobDrop"(player) (o próximo mob perto
 --   dá peça), "GoToFloor"(n) (pula para o andar n numa run ativa), "RejoinRun"(player) (sai e volta à run: devolve
 --   se ficou com direito ao boss), "BossEligible"(player)
+--   Forja: "Enhance"(player, id, forçar?) (uma tentativa REAL, cobra Gold; forçar = true/false fixa o sorteio;
+--   ignora a distância e o anti-spam), "SetEnhance"(player, id, nível) (define direto, sem custo)
 
 local DataStoreService: DataStoreService = game:GetService("DataStoreService")
 local HttpService: HttpService = game:GetService("HttpService")
@@ -189,6 +192,14 @@ local COMMANDS: { [string]: Command } = {
 		return restoreInPlace(player, saved)
 	end,
 
+	-- Devolve um perfil a partir do JSON de um backup (ex.: o "ReadStored" feito antes do teste). Para testes que
+	-- reiniciam o Play: o SnapshotProfile vive só na sessão de Play em que foi feito. Passa pelo reconcile (migra
+	-- versões antigas). Depois, "SaveNow" para gravar.
+	RestoreFromJson = function(player: Player, json: string): boolean
+		local saved = PlayerSchema.reconcile(HttpService:JSONDecode(json))
+		return restoreInPlace(player, saved)
+	end,
+
 	ListGear = function(player: Player): string
 		local profile, _ = ProgressionService.getLoadedProfile(player)
 		assert(profile, "DevTools: perfil ainda não carregado")
@@ -199,6 +210,7 @@ local COMMANDS: { [string]: Command } = {
 				id = piece.id,
 				defId = piece.defId,
 				rarity = piece.rarity,
+				enhance = piece.enhance,
 				owner = owner,
 				slot = slot,
 				known = PlayerSchema.defOf(piece) ~= nil,
@@ -291,6 +303,15 @@ local COMMANDS: { [string]: Command } = {
 		assert(parsed, `DevTools: slot inválido {slot}`)
 		local ok, message = GearService.tryUnequip(player, parsed)
 		return `{if ok then "ok" else "recusado"}: {message or "(sem mensagem)"}`
+	end,
+
+	Enhance = function(player: Player, id: number, forced: boolean?): string
+		local outcome, message = GearService.tryEnhance(player, id, forced)
+		return `{outcome}: {message}`
+	end,
+
+	SetEnhance = function(player: Player, id: number, enhance: number): boolean
+		return GearService.debugSetEnhance(player, id, enhance)
 	end,
 }
 

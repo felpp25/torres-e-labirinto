@@ -202,7 +202,13 @@ local function build()
 	local livesText = makeText(panel, "", UDim2.fromOffset(90, 16), UDim2.fromOffset(170, 76), 14)
 	livesText.TextColor3 = COLORS.health
 	livesLabel = livesText
-	statsLabel = makeText(panel, "", UDim2.new(1, -16, 0, 14), UDim2.fromOffset(8, 94), 11)
+	local stats = makeText(panel, "", UDim2.new(1, -16, 0, 14), UDim2.fromOffset(8, 94), 11)
+	-- Com o fortalecimento os atributos têm décimos (FOR 16,8): a linha encolhe para caber no painel.
+	stats.TextScaled = true
+	local sizeLimit = Instance.new("UITextSizeConstraint")
+	sizeLimit.MaxTextSize = 11
+	sizeLimit.Parent = stats
+	statsLabel = stats
 	floorLabel = makeText(panel, "", UDim2.new(1, -16, 0, 16), UDim2.fromOffset(8, 112), 13)
 
 	-- Aviso quando o progresso NÃO está sendo salvo (falha ao carregar do DataStore). Abaixo do botão de pontos.
@@ -311,7 +317,7 @@ local function update()
 		-- Valores EFETIVOS: pontos distribuídos + equipamento (o painel Personagem mostra a divisão).
 		for _, stat in STAT_LABELS do
 			local value = numberAttr(Keys.statAttr(stat.key)) + numberAttr(Keys.gearStatAttr(stat.key))
-			table.insert(parts, `{stat.short} {value}`)
+			table.insert(parts, `{stat.short} {GearInfo.formatNumber(value)}`) -- fortalecimento dá décimos
 		end
 		statsLabel.Text = table.concat(parts, "  ")
 	end

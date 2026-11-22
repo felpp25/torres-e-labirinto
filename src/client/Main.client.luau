@@ -24,12 +24,14 @@ local CONTROLLERS: { [string]: Controller } = {
 	HudController = require(Controllers:WaitForChild("HudController")),
 	CharacterController = require(Controllers:WaitForChild("CharacterController")),
 	ShopController = require(Controllers:WaitForChild("ShopController")),
+	ForgeController = require(Controllers:WaitForChild("ForgeController")),
 	PotionController = require(Controllers:WaitForChild("PotionController")),
 }
 local CONTROLLER_ORDER: { string } = {
 	"HudController",
 	"CharacterController",
 	"ShopController",
+	"ForgeController",
 	"PotionController",
 	"CombatFeedbackController",
 	"InputController",

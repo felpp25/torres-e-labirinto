@@ -183,14 +183,16 @@ export type GearDef = {
 	power: number, -- Poder da arma Comum (0,05 = +5% de dano); 0 nas outras peças
 	attributes: Attributes, -- pontos da peça Comum
 	minLevel: number, -- nível mínimo do personagem para equipar
+	tower: number, -- torre em que a peça cai: define a base do custo do fortalecimento (Balance/Forge)
 }
 
 -- Peça que a conta possui (o que vai para o save). Pontos, Poder, nome e preço vêm do catálogo.
--- Fortalecimento e gema (etapas 2 e 3 do GDD) entram aqui depois, com um novo VERSION do save.
+-- A gema (etapa 3 do GDD) entra aqui depois, com um novo VERSION do save.
 export type OwnedGear = {
 	id: number, -- único na conta e nunca reutilizado
 	defId: string,
 	rarity: Rarity,
+	enhance: number, -- fortalecimento: 0 (sem) a 10 (save v5)
 }
 
 -- Visão do cliente (atributo GearData; formato em Shared/GearSnapshot).
@@ -198,6 +200,7 @@ export type GearEntry = {
 	id: number,
 	defId: string,
 	rarity: Rarity,
+	enhance: number, -- fortalecimento (0 a 10)
 	inUse: boolean, -- equipada por algum personagem da conta: não conta no baú e não pode ser vendida
 }
 

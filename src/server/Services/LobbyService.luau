@@ -1,8 +1,8 @@
 --!strict
 -- Lobby (GDD > Lobby e loja): onde o jogador nasce, compra e entra na torre.
 -- Construído por código (greybox), em volta do spawn do Baseplate:
--- - Loja: balcão com ProximityPrompt (o prompt nativo do Roblox funciona com tecla, controle e toque);
---   o cliente abre o painel ao acionar; as compras são validadas no servidor (inclusive a distância).
+-- - Loja e Forja: balcões com ProximityPrompt (o prompt nativo do Roblox funciona com tecla, controle e toque);
+--   o cliente abre o painel ao acionar; os pedidos são validados no servidor (inclusive a distância).
 -- - Portal da torre: placa no chão; pisar nela (vivo, fora da run) chama o handler do RunSessionService.
 
 local Players: Players = game:GetService("Players")
@@ -11,14 +11,21 @@ local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage"
 local Shared = ReplicatedStorage.Shared
 local Keys = require(Shared.Keys)
 local Shop = require(Shared.Balance.Shop)
+local Forge = require(Shared.Balance.Forge)
 
 local SPAWN_POSITION = Vector3.new(0, 4, 4)
 local SHOP_POSITION = Vector3.new(-24, 0, 6) -- base do balcão (chão do Baseplate em y = 0)
+-- Atrás da loja, do mesmo lado. Longe o bastante para as duas janelas não ficarem abertas juntas: cada uma fecha a
+-- 20 studs do seu balcão (alcance + 6), e quem está no prompt de um fica a mais de 20 do outro (medido: a 22 de
+-- distância, loja e forja abriam juntas).
+local FORGE_POSITION = Vector3.new(-24, 0, -30)
 local PORTAL_POSITION = Vector3.new(24, 0, 6)
 local PORTAL_SIZE = 10
 local PLAYER_SPACING = 4
 local CHECK_INTERVAL = 0.2
-local PROMPT_NAME = "ShopPrompt" -- o ShopController (cliente) procura por este nome
+-- Os controllers do cliente procuram por estes nomes.
+local SHOP_PROMPT_NAME = "ShopPrompt"
+local FORGE_PROMPT_NAME = "ForgePrompt"
 
 local LobbyService = {}
 
@@ -56,6 +63,20 @@ local function makeSign(part: BasePart, text: string, color: Color3, height: num
 	label.Parent = gui
 end
 
+local function makePrompt(parent: BasePart, name: string, actionText: string, objectText: string, range: number)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = name
+	prompt.ActionText = actionText
+	prompt.ObjectText = objectText
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = range - 2
+	prompt.RequiresLineOfSight = false
+	-- Teclas que não conflitam com o combate (E = Poção de Vida; X no controle = painel Personagem).
+	prompt.KeyboardKeyCode = Enum.KeyCode.F
+	prompt.GamepadKeyCode = Enum.KeyCode.DPadUp -- L1 é a ultimate
+	prompt.Parent = parent
+end
+
 local function build()
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"
@@ -70,17 +91,28 @@ local function build()
 		folder
 	)
 	makeSign(counter, "LOJA", Color3.fromRGB(255, 205, 70), 5)
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = PROMPT_NAME
-	prompt.ActionText = "Abrir loja"
-	prompt.ObjectText = "Loja"
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = Shop.shopRange - 2
-	prompt.RequiresLineOfSight = false
-	-- Teclas que não conflitam com o combate (E = Poção de Vida; X no controle = painel Personagem).
-	prompt.KeyboardKeyCode = Enum.KeyCode.F
-	prompt.GamepadKeyCode = Enum.KeyCode.DPadUp -- L1 é a ultimate
-	prompt.Parent = counter
+	makePrompt(counter, SHOP_PROMPT_NAME, "Abrir loja", "Loja", Shop.shopRange)
+
+	-- Forja (greybox: bigorna escura com brasa)
+	local forge = makePart(
+		"ForgeCounter",
+		Vector3.new(8, 4, 4),
+		CFrame.new(FORGE_POSITION + Vector3.new(0, 2, 0)),
+		Color3.fromRGB(70, 70, 78),
+		folder
+	)
+	forge.Material = Enum.Material.Slate
+	local ember = makePart(
+		"Ember",
+		Vector3.new(3, 0.4, 2),
+		CFrame.new(FORGE_POSITION + Vector3.new(0, 4.2, 0)),
+		Color3.fromRGB(255, 120, 40),
+		folder
+	)
+	ember.Material = Enum.Material.Neon
+	ember.CanCollide = false
+	makeSign(forge, "FORJA", Color3.fromRGB(255, 150, 70), 5)
+	makePrompt(forge, FORGE_PROMPT_NAME, "Abrir forja", "Forja", Forge.forgeRange)
 
 	-- Portal da torre
 	local portal = makePart(
@@ -102,15 +134,24 @@ function LobbyService.spawnCFrame(player: Player): CFrame
 	return CFrame.new(SPAWN_POSITION + offset)
 end
 
--- Usado pela loja para validar compras: o jogador precisa estar perto do balcão.
-function LobbyService.isNearShop(player: Player): boolean
+local function isNear(player: Player, position: Vector3, range: number): boolean
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not root or not root:IsA("BasePart") then
 		return false
 	end
-	local flat = Vector3.new(root.Position.X - SHOP_POSITION.X, 0, root.Position.Z - SHOP_POSITION.Z)
-	return flat.Magnitude <= Shop.shopRange and math.abs(root.Position.Y - SHOP_POSITION.Y) < 12
+	local flat = Vector3.new(root.Position.X - position.X, 0, root.Position.Z - position.Z)
+	return flat.Magnitude <= range and math.abs(root.Position.Y - position.Y) < 12
+end
+
+-- Usado pela loja para validar compras: o jogador precisa estar perto do balcão.
+function LobbyService.isNearShop(player: Player): boolean
+	return isNear(player, SHOP_POSITION, Shop.shopRange)
+end
+
+-- Usado pela Forja: o jogador precisa estar perto da bigorna.
+function LobbyService.isNearForge(player: Player): boolean
+	return isNear(player, FORGE_POSITION, Forge.forgeRange)
 end
 
 function LobbyService.setPortalHandler(handler: (player: Player) -> ())

@@ -1,6 +1,7 @@
 --!strict
--- Equipamento (GDD > Equipamentos): baú da conta, equipar e trocar peças (SÓ no lobby), dar peças novas e os
--- sorteios de drop (quem recebe e com que Sorte é decisão do RunSessionService).
+-- Equipamento (GDD > Equipamentos): baú da conta, equipar e trocar peças (SÓ no lobby), dar peças novas, os
+-- sorteios de drop (quem recebe e com que Sorte é decisão do RunSessionService), a venda (ShopService) e o
+-- fortalecimento (ForgeService). Loja e Forja conferem a distância do balcão; o resto é conferido aqui.
 -- As regras (slot certo, classe da arma, baú de 50, arma nunca vazia...) são funções puras do PlayerSchema; aqui
 -- ficam o que depende do jogo: lobby, anti-spam, mensagens, recalcular atributos e avisar o cliente.
 -- O cliente só PEDE (EquipGear / UnequipGear); tudo é validado. Ele recebe o estado pelo Attribute GearData
@@ -17,6 +18,7 @@ local Remotes = require(Shared.Remotes)
 local GearInfo = require(Shared.GearInfo)
 local GearSnapshot = require(Shared.GearSnapshot)
 local Gear = require(Shared.Balance.Gear)
+local Forge = require(Shared.Balance.Forge)
 
 local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local ProgressionService = require(script.Parent.ProgressionService)
@@ -24,6 +26,7 @@ local ProgressionService = require(script.Parent.ProgressionService)
 local REQUEST_COOLDOWN = 0.15 -- s entre pedidos de equipar/tirar do mesmo jogador (anti-spam; técnico)
 
 export type GrantSource = "Boss" | "Mob" | "Dev"
+export type EnhanceOutcome = "Success" | "Fail" | "Refused"
 export type GrantResult = {
 	stored: boolean, -- true = foi para o baú; false = baú cheio, virou Gold
 	id: number?,
@@ -45,7 +48,7 @@ end
 local function nameOf(piece: Types.OwnedGear?): string
 	local def = if piece then PlayerSchema.defOf(piece) else nil
 	if piece and def then
-		return GearInfo.fullName(def, piece.rarity)
+		return GearInfo.fullName(def, piece.rarity, piece.enhance)
 	end
 	return "peça"
 end
@@ -60,10 +63,13 @@ function GearService.publish(player: Player)
 	local entries: { Types.GearEntry } = {}
 	for _, piece in profile.gear do
 		if PlayerSchema.defOf(piece) ~= nil then -- peça inerte não aparece
-			table.insert(
-				entries,
-				{ id = piece.id, defId = piece.defId, rarity = piece.rarity, inUse = used[piece.id] == true }
-			)
+			table.insert(entries, {
+				id = piece.id,
+				defId = piece.defId,
+				rarity = piece.rarity,
+				enhance = piece.enhance,
+				inUse = used[piece.id] == true,
+			})
 		end
 	end
 	local snapshot: Types.GearSnapshot = { gear = entries, equipped = table.clone(data.equipped) }
@@ -251,8 +257,65 @@ function GearService.trySell(player: Player, id: number): (boolean, string)
 			return false, "Arma em uso: troque por outra antes de vender"
 		end
 		return false, "Item em uso: tire antes de vender"
+	elseif outcome == "Enhanced" then
+		return false, "Peça fortalecida não pode ser vendida"
 	end
 	return false, "Item não encontrado"
+end
+
+-- ===== Fortalecimento (GDD > Fortalecimento; a Forja já conferiu a distância do balcão) =====
+
+-- Uma tentativa de fortalecer a peça `id` (de qualquer personagem da conta, ou do baú). Cobra o Gold da tentativa,
+-- sorteia no servidor e aplica o resultado (Formulas.enhanceResult). Devolve (resultado, mensagem):
+-- "Success"/"Fail" = houve sorteio (Gold gasto); "Refused" = nada mudou.
+-- `forced` = SÓ testes no Studio (DevService): força o resultado do sorteio.
+function GearService.tryEnhance(player: Player, id: number, forced: boolean?): (EnhanceOutcome, string)
+	local profile = ProgressionService.getLoadedProfile(player)
+	if not profile then
+		return "Refused", "Aguarde, carregando seus dados"
+	end
+	if inRun(player) then
+		return "Refused", "Fortalecimento só no lobby"
+	end
+	local piece = PlayerSchema.findGear(profile, id)
+	local def = if piece then PlayerSchema.defOf(piece) else nil
+	if not piece or not def then
+		return "Refused", "Item não encontrado"
+	end
+	if piece.enhance >= Forge.maxEnhance then
+		return "Refused", `Já está no máximo (+{Forge.maxEnhance})`
+	end
+	local target = piece.enhance + 1
+	local cost = Formulas.enhanceCost(def, target)
+	if not ProgressionService.trySpendGold(player, cost) then
+		return "Refused", `Gold insuficiente (custa {cost})`
+	end
+	local success = if forced ~= nil then forced else rng:NextNumber() < Formulas.enhanceChance(target)
+	local before = piece.enhance
+	piece.enhance = Formulas.enhanceResult(before, success)
+	afterChange(player)
+	print(
+		`[Forja] {player.Name}: {def.displayName} (id {id}) +{before} -> +{piece.enhance}`
+			.. ` ({if success then "sucesso" else "falha"}, {cost} Gold)`
+	)
+	if success then
+		return "Success", `Sucesso! {GearInfo.displayName(def, piece.enhance)}`
+	elseif piece.enhance < before then
+		return "Fail", `Falhou: caiu para +{piece.enhance}`
+	end
+	return "Fail", `Falhou: continua +{piece.enhance} (o Gold foi gasto)`
+end
+
+-- SÓ TESTES no Studio (DevService): define o fortalecimento direto, sem custo nem sorteio.
+function GearService.debugSetEnhance(player: Player, id: number, enhance: number): boolean
+	local profile = ProgressionService.getLoadedProfile(player)
+	local piece = if profile then PlayerSchema.findGear(profile, id) else nil
+	if not piece then
+		return false
+	end
+	piece.enhance = math.clamp(math.floor(enhance), 0, Forge.maxEnhance)
+	afterChange(player)
+	return true
 end
 
 -- Anti-spam por jogador (os pedidos acima do ritmo são ignorados em silêncio).

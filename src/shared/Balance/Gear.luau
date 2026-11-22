@@ -6,6 +6,7 @@
 -- Cada peça é declarada com o tipo exato e só depois entra na tabela geral (mesmo padrão de Balance/Abilities).
 
 local Types = require(script.Parent.Parent.Types)
+local Forge = require(script.Parent.Forge)
 
 -- Atributos parciais: os que faltam valem 0 (Types.Attributes exige os 7 campos).
 type PartialAttributes = {
@@ -39,6 +40,7 @@ local COMBATANT_HEADBAND: Types.GearDef = {
 	power = 0,
 	attributes = points({ Strength = 2 }),
 	minLevel = 1,
+	tower = 1,
 }
 local COMBATANT_JERKIN: Types.GearDef = {
 	id = "CombatantJerkin",
@@ -48,6 +50,7 @@ local COMBATANT_JERKIN: Types.GearDef = {
 	power = 0,
 	attributes = points({ Strength = 2, Vitality = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 local COMBATANT_PANTS: Types.GearDef = {
 	id = "CombatantPants",
@@ -57,6 +60,7 @@ local COMBATANT_PANTS: Types.GearDef = {
 	power = 0,
 	attributes = points({ Strength = 1, Vitality = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 local COMBATANT_BOOTS: Types.GearDef = {
 	id = "CombatantBoots",
@@ -66,6 +70,7 @@ local COMBATANT_BOOTS: Types.GearDef = {
 	power = 0,
 	attributes = points({ Strength = 1, Vitality = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 local COMBATANT_BRACELET: Types.GearDef = {
 	id = "CombatantBracelet",
@@ -75,6 +80,7 @@ local COMBATANT_BRACELET: Types.GearDef = {
 	power = 0,
 	attributes = points({ Strength = 1, Luck = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 local COMBATANT_NECKLACE: Types.GearDef = {
 	id = "CombatantNecklace",
@@ -84,6 +90,7 @@ local COMBATANT_NECKLACE: Types.GearDef = {
 	power = 0,
 	attributes = points({ Vitality = 1, Luck = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 
 -- Linha Guardião: Defesa ++, Vitalidade + (tank).
@@ -95,6 +102,7 @@ local GUARDIAN_HELM: Types.GearDef = {
 	power = 0,
 	attributes = points({ Defense = 2 }),
 	minLevel = 1,
+	tower = 1,
 }
 local GUARDIAN_CUIRASS: Types.GearDef = {
 	id = "GuardianCuirass",
@@ -104,6 +112,7 @@ local GUARDIAN_CUIRASS: Types.GearDef = {
 	power = 0,
 	attributes = points({ Defense = 2, Vitality = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 local GUARDIAN_GREAVES: Types.GearDef = {
 	id = "GuardianGreaves",
@@ -113,6 +122,7 @@ local GUARDIAN_GREAVES: Types.GearDef = {
 	power = 0,
 	attributes = points({ Defense = 1, Vitality = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 local GUARDIAN_BOOTS: Types.GearDef = {
 	id = "GuardianBoots",
@@ -122,6 +132,7 @@ local GUARDIAN_BOOTS: Types.GearDef = {
 	power = 0,
 	attributes = points({ Defense = 1, Vitality = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 local GUARDIAN_BRACELET: Types.GearDef = {
 	id = "GuardianBracelet",
@@ -131,6 +142,7 @@ local GUARDIAN_BRACELET: Types.GearDef = {
 	power = 0,
 	attributes = points({ Defense = 1, Luck = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 local GUARDIAN_NECKLACE: Types.GearDef = {
 	id = "GuardianNecklace",
@@ -140,6 +152,7 @@ local GUARDIAN_NECKLACE: Types.GearDef = {
 	power = 0,
 	attributes = points({ Vitality = 1, Luck = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 
 -- Armas do Lutador (GDD > Armas): Luvas = inicial (todo Lutador começa com elas), Soco Inglês = intermediária
@@ -153,6 +166,7 @@ local LEATHER_GLOVES: Types.GearDef = {
 	power = 0.05,
 	attributes = points({ Strength = 1, Dexterity = 2 }),
 	minLevel = 1,
+	tower = 1,
 }
 local IRON_KNUCKLES: Types.GearDef = {
 	id = "IronKnuckles",
@@ -163,6 +177,7 @@ local IRON_KNUCKLES: Types.GearDef = {
 	power = 0.10,
 	attributes = points({ Strength = 1 }),
 	minLevel = 1,
+	tower = 1,
 }
 
 local LIST: { Types.GearDef } = {
@@ -228,6 +243,7 @@ for _, def in LIST do
 		assert(def.slot == "Bracelet" or def.slot == "Necklace", `Gear: Sorte só em acessórios ({def.id})`)
 	end
 	assert(table.find(SLOTS, def.slot) ~= nil, `Gear: slot desconhecido em {def.id}`)
+	assert(Forge.enhanceBaseCost[def.tower] ~= nil, `Gear: a torre {def.tower} de {def.id} não tem custo na Forja`)
 end
 for classId, defId in STARTING_WEAPON do
 	local def = BY_ID[defId]

@@ -7,6 +7,7 @@ local Combat = require(script.Parent.Balance.Combat)
 local Progression = require(script.Parent.Balance.Progression)
 local Luck = require(script.Parent.Balance.Luck)
 local Gear = require(script.Parent.Balance.Gear)
+local Forge = require(script.Parent.Balance.Forge)
 
 local Formulas = {}
 
@@ -101,19 +102,54 @@ function Formulas.addAttributes(a: Types.Attributes, b: Types.Attributes): Types
 	return result
 end
 
--- Pontos que uma peça dá na raridade dela (a Rara multiplica os valores da Comum). Tabela nova.
-function Formulas.gearAttributes(def: Types.GearDef, rarity: Types.Rarity): Types.Attributes
-	local multiplier = Gear.rarityMultiplier[rarity] or 1
+-- Multiplicador do fortalecimento: +10% por nível (+10 = o dobro). Nível fora de 0..máximo é limitado.
+function Formulas.enhanceFactor(enhance: number?): number
+	return 1 + Forge.enhanceStep * math.clamp(enhance or 0, 0, Forge.maxEnhance)
+end
+
+-- Tira o resíduo de ponto flutuante (1 × 1,3 = 1,3000000000000003): os valores do equipamento são décimos de
+-- ponto (e décimos de % no Poder), então 4 casas sobram.
+local function tidy(value: number): number
+	return math.round(value * 10000) / 10000
+end
+
+-- Pontos que uma peça dá na raridade e no fortalecimento dela (a Rara multiplica os valores da Comum; cada + soma
+-- 10% dos pontos base). Pode ter decimais (decisão do designer). Tabela nova.
+function Formulas.gearAttributes(def: Types.GearDef, rarity: Types.Rarity, enhance: number?): Types.Attributes
+	local multiplier = (Gear.rarityMultiplier[rarity] or 1) * Formulas.enhanceFactor(enhance)
 	local result = Formulas.emptyAttributes()
 	for _, name in ATTRIBUTE_ORDER do
-		result[name] = def.attributes[name] * multiplier
+		result[name] = tidy(def.attributes[name] * multiplier)
 	end
 	return result
 end
 
--- Poder de uma arma na raridade dela (0 nas peças que não são arma).
-function Formulas.gearPower(def: Types.GearDef, rarity: Types.Rarity): number
-	return def.power * (Gear.rarityMultiplier[rarity] or 1)
+-- Poder de uma arma na raridade e no fortalecimento dela (0 nas peças que não são arma).
+function Formulas.gearPower(def: Types.GearDef, rarity: Types.Rarity, enhance: number?): number
+	return tidy(def.power * (Gear.rarityMultiplier[rarity] or 1) * Formulas.enhanceFactor(enhance))
+end
+
+-- ===== Fortalecimento (GDD > Fortalecimento). `target` = nível que a tentativa quer alcançar (1 a 10). =====
+
+function Formulas.enhanceChance(target: number): number
+	return Forge.successChance[target] or 0
+end
+
+-- Gold de UMA tentativa: base da torre da peça × 2^(target − 1).
+function Formulas.enhanceCost(def: Types.GearDef, target: number): number
+	local base = Forge.enhanceBaseCost[def.tower] or 0
+	return base * 2 ^ (math.max(target, 1) - 1)
+end
+
+-- Nível depois da tentativa. Sucesso sobe 1; falha nas tentativas de +8 a +10 tira 1 nível; antes disso, fica.
+function Formulas.enhanceResult(current: number, success: boolean): number
+	local target = current + 1
+	if success then
+		return math.min(target, Forge.maxEnhance)
+	elseif target >= Forge.dropOnFailFrom then
+		return math.max(current - 1, 0)
+	end
+	return current
 end
 
 function Formulas.isScaling(classDef: Types.ClassDef, attribute: Types.AttributeName): boolean

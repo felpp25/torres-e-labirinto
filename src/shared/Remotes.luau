@@ -22,6 +22,8 @@
 --   GearNotice      servidor -> 1 cliente (GearNoticePayload)      ganhou uma peça (ou Gold, com o baú cheio)
 --   SellGear        cliente -> servidor  (gearId: number)          quero vender esta peça do baú (perto da loja;
 --                                                                  resposta em ShopResult)
+--   EnhanceGear     cliente -> servidor  (gearId: number)          quero tentar fortalecer esta peça (perto da forja)
+--   ForgeResult     servidor -> 1 cliente (ForgeResultPayload)     resultado da forja (sucesso, falha ou recusa)
 -- O equipamento em si (peças da conta e slots) chega pelo Attribute "GearData" do Player (Shared/GearSnapshot).
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -45,6 +47,8 @@ export type RemoteName =
 	| "GearResult"
 	| "GearNotice"
 	| "SellGear"
+	| "EnhanceGear"
+	| "ForgeResult"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -84,6 +88,8 @@ local REMOTE_NAMES: { RemoteName } = {
 	"GearResult",
 	"GearNotice",
 	"SellGear",
+	"EnhanceGear",
+	"ForgeResult",
 }
 
 export type GearResultPayload = {
@@ -102,6 +108,12 @@ export type GearNoticePayload = {
 export type ShopResultPayload = {
 	ok: boolean,
 	message: string, -- ex.: "Comprou Poção de Vida" / "Gold insuficiente"
+}
+
+export type ForgeResultPayload = {
+	ok: boolean, -- true = o fortalecimento deu certo; false = falhou ou foi recusado
+	rolled: boolean, -- true = houve sorteio (Gold gasto: sucesso ou falha); false = recusado, nada mudou
+	message: string, -- ex.: "Sucesso! Gibão do Combatente +5" / "Falhou: caiu para +6" / "Gold insuficiente"
 }
 local FOLDER_NAME = "Remotes"
 local CLIENT_WAIT_TIMEOUT = 30

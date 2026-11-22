@@ -28,11 +28,22 @@ local RARITY_COLORS: { [string]: Color3 } = {
 	Rare = Color3.fromRGB(80, 150, 255),
 }
 
-local function formatNumber(value: number): string
-	if value % 1 == 0 then
-		return string.format("%d", value)
+-- Número para a tela: no máximo 1 casa decimal, com vírgula (12 -> "12"; 9,1 -> "9,1"; 281,25 -> "281,3").
+-- Atributos do equipamento fortalecido têm décimos (Calças +1 FOR no +5 = +1,5).
+function GearInfo.formatNumber(value: number): string
+	local rounded = math.round(value * 10) / 10
+	if rounded % 1 == 0 then
+		return string.format("%d", rounded)
 	end
-	return string.format("%.1f", value)
+	local text = string.gsub(string.format("%.1f", rounded), "%.", ",") -- gsub devolve (texto, nº): fica o texto
+	return text
+end
+
+local formatNumber = GearInfo.formatNumber
+
+-- "+5" (ou "" sem fortalecimento).
+function GearInfo.enhanceLabel(enhance: number?): string
+	return if enhance and enhance > 0 then `+{enhance}` else ""
 end
 
 function GearInfo.slotLabel(slot: Types.EquipSlot): string
@@ -47,14 +58,20 @@ function GearInfo.rarityColor(rarity: Types.Rarity): Color3
 	return RARITY_COLORS[rarity] or Color3.new(1, 1, 1)
 end
 
--- Ex.: "Faixa do Combatente (Raro)".
-function GearInfo.fullName(def: Types.GearDef, rarity: Types.Rarity): string
-	return `{def.displayName} ({GearInfo.rarityLabel(rarity)})`
+-- Nome com o fortalecimento: "Gibão do Combatente +5" (sem a raridade).
+function GearInfo.displayName(def: Types.GearDef, enhance: number?): string
+	local label = GearInfo.enhanceLabel(enhance)
+	return if label == "" then def.displayName else `{def.displayName} {label}`
 end
 
--- Ex.: "+2 FOR, +1 VIT" ou "+1 FOR, +2 DES  ·  Poder +5%" (valores já com a raridade).
-function GearInfo.describe(def: Types.GearDef, rarity: Types.Rarity): string
-	local attributes = Formulas.gearAttributes(def, rarity)
+-- Ex.: "Faixa do Combatente (Raro)" ou "Gibão do Combatente +5 (Comum)".
+function GearInfo.fullName(def: Types.GearDef, rarity: Types.Rarity, enhance: number?): string
+	return `{GearInfo.displayName(def, enhance)} ({GearInfo.rarityLabel(rarity)})`
+end
+
+-- Ex.: "+2 FOR, +1 VIT" ou "+1 FOR, +2 DES  ·  Poder +5%" (valores já com a raridade e o fortalecimento).
+function GearInfo.describe(def: Types.GearDef, rarity: Types.Rarity, enhance: number?): string
+	local attributes = Formulas.gearAttributes(def, rarity, enhance)
 	local parts: { string } = {}
 	for _, info in AttributeInfo do
 		local value = attributes[info.key]
@@ -63,9 +80,9 @@ function GearInfo.describe(def: Types.GearDef, rarity: Types.Rarity): string
 		end
 	end
 	local text = table.concat(parts, ", ")
-	local power = Formulas.gearPower(def, rarity)
+	local power = Formulas.gearPower(def, rarity, enhance)
 	if power > 0 then
-		local powerText = `Poder +{formatNumber(math.round(power * 1000) / 10)}%`
+		local powerText = `Poder +{formatNumber(power * 100)}%`
 		text = if text == "" then powerText else `{text}  ·  {powerText}`
 	end
 	return text

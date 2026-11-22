@@ -83,10 +83,13 @@ local COLORS = {
 	openButton = Color3.fromRGB(50, 50, 62),
 	selected = Color3.fromRGB(255, 255, 255),
 	emptyStroke = Color3.fromRGB(60, 60, 74),
+	enhance = Color3.fromRGB(255, 170, 80), -- "+5" no canto da peça fortalecida
 }
 
 type Row = { value: TextLabel, preview: TextLabel, plus: TextButton }
-type SlotView = { button: TextButton, label: TextLabel, stroke: UIStroke }
+type SlotView = { button: TextButton, label: TextLabel, badge: TextLabel, stroke: UIStroke }
+
+local fmt = GearInfo.formatNumber
 
 local CharacterController = {}
 
@@ -176,11 +179,11 @@ local function preview(key: Types.AttributeName, attributes: Types.Attributes, c
 		local damage = Formulas.damage(100, "Magical", attributes, classDef, weaponPowerFor("Magical"))
 		return `Dano mágico +{math.round(damage - 100)}%`
 	elseif key == "Vitality" then
-		return `Vida máx {Formulas.maxHealth(classDef, attributes)}`
+		return `Vida máx {fmt(Formulas.maxHealth(classDef, attributes))}`
 	elseif key == "Wisdom" then
-		return `Mana máx {Formulas.maxMana(classDef, attributes)}`
+		return `Mana máx {fmt(Formulas.maxMana(classDef, attributes))}`
 	elseif key == "Dexterity" then
-		return `Stamina máx {Formulas.maxStamina(classDef, attributes)}`
+		return `Stamina máx {fmt(Formulas.maxStamina(classDef, attributes))}`
 	elseif key == "Defense" then
 		return `Reduz dano em {percent(Formulas.defenseReduction(attributes.Defense))}`
 	else
@@ -273,24 +276,18 @@ local function chestEntries(): { Types.GearEntry }
 			table.insert(chest, entry)
 		end
 	end
-	local slotOrder: { [string]: number } = {}
-	for index, slot in Gear.slots do
-		slotOrder[slot] = index
-	end
-	table.sort(chest, function(a: Types.GearEntry, b: Types.GearEntry): boolean
-		local defA, defB = Gear.byId[a.defId], Gear.byId[b.defId]
-		if slotOrder[defA.slot] ~= slotOrder[defB.slot] then
-			return slotOrder[defA.slot] < slotOrder[defB.slot]
-		end
-		if a.rarity ~= b.rarity then
-			return a.rarity == "Rare"
-		end
-		if defA.displayName ~= defB.displayName then
-			return defA.displayName < defB.displayName
-		end
-		return a.id < b.id
-	end)
+	GearSnapshot.sortEntries(chest)
 	return chest
+end
+
+-- "+5" pequeno no canto superior direito da peça (some sem fortalecimento).
+local function makeBadge(parent: GuiObject, textSize: number): TextLabel
+	local badge = makeText(parent, "", UDim2.new(1, -4, 0, textSize + 2), UDim2.fromOffset(0, 2), textSize)
+	badge.Name = "Enhance"
+	badge.TextXAlignment = Enum.TextXAlignment.Right
+	badge.TextColor3 = COLORS.enhance
+	badge.TextStrokeTransparency = 0.4
+	return badge
 end
 
 local function equippedEntry(slot: Types.EquipSlot): Types.GearEntry?
@@ -355,11 +352,11 @@ local function refreshDetail()
 	local def = if entry then Gear.byId[entry.defId] else nil
 	if entry and def then
 		local rarity: Types.Rarity = entry.rarity
-		nameLabel.Text =
-			`<font color="{hexColor(GearInfo.rarityColor(rarity))}">{def.displayName}</font>  ·  {GearInfo.rarityLabel(
-				rarity
-			)}`
-		statsLabel.Text = `{GearInfo.slotLabel(def.slot)}  ·  {GearInfo.describe(def, rarity)}`
+		-- Nome na cor da raridade; a raridade por extenso vai na linha de baixo (com o "+N" não cabia ao lado).
+		local color = hexColor(GearInfo.rarityColor(rarity))
+		nameLabel.Text = `<font color="{color}">{GearInfo.displayName(def, entry.enhance)}</font>`
+		local slotText = `{GearInfo.rarityLabel(rarity)}  ·  {GearInfo.slotLabel(def.slot)}`
+		statsLabel.Text = `{slotText}  ·  {GearInfo.describe(def, rarity, entry.enhance)}`
 	elseif emptySlot then
 		nameLabel.Text = `{GearInfo.slotLabel(emptySlot)}: vazio`
 		statsLabel.Text = "Escolha uma peça deste tipo na mochila"
@@ -399,11 +396,13 @@ local function refreshSlots()
 			if entry then
 				view.label.Text = SLOT_SHORT[slot]
 				view.label.TextColor3 = COLORS.text
+				view.badge.Text = GearInfo.enhanceLabel(entry.enhance)
 				view.button.BackgroundColor3 = COLORS.cell
 				view.stroke.Color = GearInfo.rarityColor(entry.rarity)
 			else
 				view.label.Text = GearInfo.slotLabel(slot)
 				view.label.TextColor3 = COLORS.dim
+				view.badge.Text = ""
 				view.button.BackgroundColor3 = COLORS.cellEmpty
 				view.stroke.Color = COLORS.emptyStroke
 			end
@@ -436,7 +435,7 @@ local function refreshStats()
 		if label then
 			local extra = bonus[info.key]
 			local value = if extra > 0
-				then `{distributed[info.key]}<font color="{hexColor(COLORS.bonus)}">+{extra}</font>`
+				then `{distributed[info.key]}<font color="{hexColor(COLORS.bonus)}">+{fmt(extra)}</font>`
 				else tostring(distributed[info.key])
 			label.Text = `<font color="{hexColor(COLORS.dim)}">{info.short}</font>  {value}`
 		end
@@ -444,12 +443,12 @@ local function refreshStats()
 	local derived = derivedLabel
 	if derived then
 		local damage = Formulas.damage(100, "Physical", effective, classDef, weaponPowerFor("Physical"))
-		derived.Text = `Vida {Formulas.maxHealth(classDef, effective)}  ·  Stamina {Formulas.maxStamina(
-			classDef,
-			effective
-		)}` .. `  ·  Mana {Formulas.maxMana(classDef, effective)}  ·  Dano +{math.round(damage - 100)}%` .. `  ·  Defesa {percent(
-			Formulas.defenseReduction(effective.Defense)
-		)}`
+		local health = fmt(Formulas.maxHealth(classDef, effective))
+		local stamina = fmt(Formulas.maxStamina(classDef, effective))
+		local mana = fmt(Formulas.maxMana(classDef, effective))
+		local defense = percent(Formulas.defenseReduction(effective.Defense))
+		derived.Text = `Vida {health}  ·  Stamina {stamina}  ·  Mana {mana}  ·  Dano +{math.round(damage - 100)}%`
+			.. `  ·  Defesa {defense}`
 	end
 	local header = headerLabel
 	if header then
@@ -509,6 +508,7 @@ local function rebuildChest()
 			local def = Gear.byId[entry.defId]
 			local label = makeText(cell, SLOT_SHORT[def.slot], UDim2.fromScale(1, 1), UDim2.new(), 13)
 			label.TextXAlignment = Enum.TextXAlignment.Center
+			makeBadge(cell, 11).Text = GearInfo.enhanceLabel(entry.enhance)
 			stroke.Color = GearInfo.rarityColor(entry.rarity)
 			cellStrokes[entry.id] = stroke
 			local id = entry.id
@@ -556,7 +556,7 @@ refresh = function()
 			if row then
 				local extra = bonus[info.key]
 				row.value.Text = if extra > 0
-					then `{distributed[info.key]} <font color="{hexColor(COLORS.bonus)}">+{extra}</font>`
+					then `{distributed[info.key]} <font color="{hexColor(COLORS.bonus)}">+{fmt(extra)}</font>`
 					else tostring(distributed[info.key])
 				row.preview.Text = preview(info.key, effective, classDef)
 				row.plus.BackgroundColor3 = if points > 0 then COLORS.plus else COLORS.disabled
@@ -624,13 +624,14 @@ local function buildSlotColumn(parent: Frame, slots: { Types.EquipSlot }, x: num
 		local label = makeText(button, "", UDim2.fromScale(1, 1), UDim2.new(), 12)
 		label.TextXAlignment = Enum.TextXAlignment.Center
 		label.TextWrapped = true
+		local badge = makeBadge(button, 13)
 		button.Activated:Connect(function()
 			selectedSlot = slot
 			selectedId = nil
 			showMessage("", true)
 			refresh()
 		end)
-		slotViews[slot] = { button = button, label = label, stroke = stroke }
+		slotViews[slot] = { button = button, label = label, badge = badge, stroke = stroke }
 	end
 end
 
