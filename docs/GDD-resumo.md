@@ -194,17 +194,19 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
   - **Reset de atributos:** devolve todos os pontos para redistribuir; preço cresce com o nível.
   - **Vender equipamento** (aba Vender): peças do baú (as equipadas não aparecem), Comum 10 e Raro 50 Gold; peça
     Rara pede um segundo clique para confirmar. **Peça fortalecida não é vendida** (decisão do designer): ela nem
-    aparece na lista.
-- **Forja** (bigorna no lobby, atrás da loja): fortalecimento hoje; gemas depois (ver "Equipamentos > Forja").
+    aparece na lista. **Peça com gema também não** (decisão do designer): extraia a gema antes.
+  - **Gemas** (aba Gemas): gema Nv1 de cada um dos 6 atributos (1.000 Gold) e o Removedor Nv1 (100 Gold).
+- **Forja** (bigorna no lobby, atrás da loja): fortalecimento e gemas (ver "Equipamentos > Forja").
 - *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
 
-## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapas 1 e 2 construídas)
+## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapas 1 a 3 construídas)
 
 *Implementado (etapa 1):* catálogo da Torre 1, baú da conta (50), 7 slots, equipar/trocar no lobby (painel
 Personagem > Equipamento), atributos e Poder do equipamento no combate, item garantido do chefe, drop dos mobs, aviso
 de item novo e venda na loja.
-*Implementado (etapa 2):* Forja no lobby com o fortalecimento +1 a +10 (sem itens de bênção, adiados). Gemas ainda
-não existem.
+*Implementado (etapa 2):* Forja no lobby com o fortalecimento +1 a +10 (sem itens de bênção, adiados).
+*Implementado (etapa 3):* gemas. Gema Nv1 e Removedor Nv1 na loja; incrustar, extrair e fundir na Forja. As gemas Nv2
+a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o DevService.
 
 ### O que o equipamento dá
 - **Pontos nos 7 atributos** (os mesmos do personagem), somados aos pontos distribuídos. As fórmulas não mudam e a
@@ -440,12 +442,27 @@ não existem.
 - A gema extraída sai **inteira** e pode ir para qualquer equipamento do personagem ou da conta. **Intenção:** o
   jogador pensa a build antes de encaixar (errar custa Gold), mas tem liberdade total para colocar a gema onde achar
   melhor.
+- **Onde ficam (decisão do designer): no baú de 50.** Gemas soltas e Removedores empilham por tipo (atributo + nível;
+  Removedor por nível) e **cada pilha ocupa 1 espaço** do baú (máximo de 99 por pilha, trava técnica). Com o baú
+  cheio, a loja não vende um tipo novo, a extração e a fusão que criariam uma pilha nova são recusadas; somar a uma
+  pilha que já existe continua permitido. Aparecem na mochila do painel Personagem.
+  - Descartados: bolsa à parte (sem limite de espaços) e bolsa com espaços próprios.
+- **Peça com gema não é vendida** (decisão do designer), como a fortalecida: extraia antes (com Removedor).
+  - Descartados: a gema voltar de graça na venda (todo mundo venderia a peça velha para tirar a gema sem Removedor,
+    100 Gold no Nv1 e 2.000 no Nv5) e a gema sumir junto (perder uma gema cara num clique).
+- **Removedores na loja hoje: só o Nv1** (decisão do designer). Os Nv2 a Nv5 entram junto com as gemas Nv2+ (torres
+  5+); antes disso o jogador gastaria Gold num item sem uso.
+- *Implementado:* incrustar custa **500 Gold** (qualquer nível); para trocar a gema de uma peça, extraia antes. O
+  fortalecimento **não** multiplica a gema (cada + dá 10% dos atributos **base** da peça). Como o equipamento, a gema
+  soma por fora dos pontos distribuídos e vale 1,5× num atributo de scaling da classe.
 
 ### Forja (no lobby)
 - **Funções do início:** **incrustar gemas** (~500 Gold), **fundir gemas**, **fortalecimento** e **extração de
   gemas** (com Removedor).
-- *Implementado:* bigorna atrás da loja (mesmo lado), com a aba **Fortalecer**; as abas das gemas entram na etapa 3.
-  Fica longe o bastante da loja para as duas janelas não abrirem juntas.
+- *Implementado:* bigorna atrás da loja (mesmo lado), com as abas **Fortalecer**, **Gemas** (incrustar uma gema do
+  baú na peça escolhida, ou extrair a que está nela) e **Fundir** (as gemas do baú; 3 iguais viram 1 do nível
+  seguinte). A gema encaixada aparece como um quadradinho da cor do atributo, com o nível, no canto da peça. Fica
+  longe o bastante da loja para as duas janelas não abrirem juntas.
 - *Futuro:* fabricação (receitas e fragmentos) e **encantamento** (boost de atributo no equipamento).
 
 ### A definir
@@ -459,18 +476,20 @@ não existem.
   - um **teto para a Sorte** nos achados (hoje um único personagem com muita Sorte multiplica os drops do grupo
     inteiro; ex.: Sorte 300 = chances ×7);
   - nível mínimo para usar cada gema;
-  - uma bolsa de gemas (empilhável, fora do baú de 50 espaços) e o que acontece com ela cheia;
+  - o que acontece com a gema que cai do chefão com o baú cheio (a peça vira Gold; a gema não tem preço de venda);
   - quem entra no meio da run sorteia gema do chefão? (o item garantido já segue a regra: só quem entrou antes do
     andar do chefe);
-  - o que acontece com a gema encaixada quando o item é vendido ou vira Gold com o baú cheio;
   - a renda de Gold das torres 2 a 10 e os multiplicadores dos modos (as contas usaram hipóteses).
+- Gemas e Removedores sobrando: hoje não dá para vender nem descartar (ocupam espaço no baú).
+- O custo de incrustar é o mesmo (500 Gold) em todo nível de gema; rever quando existirem as gemas Nv2+ e a renda das
+  torres 5+.
 
 ### Ordem de construção
 1. ~~Baú da conta, 7 slots, equipar e drop do boss (atributos somando).~~ **Feito** (mais o drop dos mobs, a venda
    na loja e o painel Personagem).
 2. ~~Forja no lobby + fortalecimento.~~ **Feito** (sem itens de bênção, adiados).
-3. Gemas: nível 1 e removedores na loja; incrustar, fundir e extrair na Forja (a fusão só tem gemas para fundir
-   quando existirem as torres 5+; até lá, testar com um comando do DevService).
+3. ~~Gemas: nível 1 e removedores na loja; incrustar, fundir e extrair na Forja.~~ **Feito** (a fusão só tem gemas
+   para fundir quando existirem as torres 5+; até lá, testar com o DevService: "GiveGems").
 4. Depois: fabricação (depende dos modos Avançado e Pesadelo) e encantamento.
 
 ## Dificuldades (futuro)

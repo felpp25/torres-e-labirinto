@@ -39,13 +39,14 @@ src/
   shared/   -> ReplicatedStorage/Shared        (módulos usados pelos dois lados)
     Types.luau      tipos compartilhados
     Balance/        TODOS os números de balanceamento (combate, classes, habilidades, mobs, progressão, andares,
-                    equipamentos: Balance/Gear, forja/fortalecimento: Balance/Forge)
+                    equipamentos: Balance/Gear, forja/fortalecimento: Balance/Forge, gemas: Balance/Gems)
     Formulas.luau   fórmulas puras (dano, defesa, crítico, XP...): servidor decide, cliente só mostra
     Remotes.luau    RemoteEvents com nome tipado (servidor cria; cliente espera)
-    GearInfo.luau / GearSnapshot.luau  textos das peças e o formato do Attribute GearData (equipamento do jogador)
+    GearInfo.luau / GearSnapshot.luau  textos das peças e gemas e o formato do Attribute GearData (peças, slots e
+                    as pilhas de gemas e Removedores do baú)
   server/Main.server.luau   bootstrap: init() de todos os serviços, depois start()
   server/Services/          um serviço por sistema (combate, inimigos, boss, andares, puzzle, run, vida,
-                            equipamento = GearService, forja = ForgeService...)
+                            equipamento = GearService, gemas = GemService, forja = ForgeService...)
   server/Dungeon/           MazeGenerator (layout puro por seed) e RoomBuilder (peças)
   server/Enemies/           EnemyFactory (modelo greybox) e Telegraph (avisos de ataque e quem é atingido)
   client/Main.client.luau   bootstrap dos controllers (mesmo padrão)
@@ -129,6 +130,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     contra o `PlayerData_Studio`: o código antigo apagaria o equipamento ao carregar.
   - Formato **v5**: fortalecimento de cada peça (`enhance`, 0 a 10). Um servidor v4 que encontra dados v5 recusa
     carregar (joga "sem salvar") e não apaga nada.
+  - Formato **v6**: gema encaixada na peça (`gem`) e as pilhas do baú (`gems` com chave `"Strength:1"`, `removers`
+    com chave `"1"`: texto de propósito, chave numérica viraria lista no JSON). Cada pilha ocupa 1 espaço do baú.
   - **Todo campo novo salvo aumenta `PlayerSchema.VERSION`** (mesmo opcional), e também todo valor novo num campo
     validado (ex.: raridade "Epic"). O servidor que acha dados de versão maior recusa carregar (joga "sem salvar")
     em vez de apagar o que não conhece.
@@ -148,6 +151,10 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `"ForceMobDrop"`, `"GoToFloor"(n)` (numa run ativa), `"RejoinRun"`, `"BossEligible"`.
   Forja: `"Enhance"(player, id, forçar?)` (tentativa real, cobra Gold; `true`/`false` fixa o sorteio) e
   `"SetEnhance"(player, id, nível)` (direto, sem custo).
+  Gemas (regras reais, sem distância): `"BuyGem"(player, "Strength")`, `"BuyRemover"(player, nível)`,
+  `"SocketGem"(player, id, atributo, nível)`, `"ExtractGem"(player, id)`, `"FuseGems"(player, atributo, nível)`; sem
+  custo: `"GiveGems"(player, atributo, nível, n)` (qualquer nível: as Nv2+ ainda não caem) e
+  `"GiveRemovers"(player, nível, n)`.
   **Testes que mexem no personagem: `"SnapshotProfile"(player)` no início e `"RestoreProfile"(player)` +
   `"SaveNow"` no fim** (devolve Gold, itens, equipamento e atributos; o personagem de teste é o save do usuário).
   O snapshot vive só na sessão de Play em que foi feito: teste que PARA e reinicia o Play (ex.: conferir o que foi
@@ -173,6 +180,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `user_mouse_input`; uma captura de tela entre eles passa dos 3 s e o segundo clique só pede confirmação de novo.
 - Cliques do `user_mouse_input`: prefira `instance_path` (ex.: `LocalPlayer.PlayerGui.ShopGui.Panel.SellTab`). As
   coordenadas x/y não batem com as da `screen_capture` (medido: o clique caiu ~46 px abaixo, na linha seguinte).
+  Item fora da área visível de um ScrollingFrame: role antes (`scrollDown` com o mouse sobre a lista).
+- Texto cortado na interface: `execute_luau` no datamodel `Client` lendo `TextLabel.TextFits` acha o problema sem
+  depender da captura de tela (achou o detalhe da peça com gema estourando a caixa no painel Personagem).
 - Luau (verificador de tipos): local SEM anotação alarga união de literais para `string` (ex.: `local slot =
   def.slot` perde o `EquipSlot`; idem laço `for _, slot in Gear.slots`). Anote: `local slot: Types.EquipSlot = ...`,
   `for _, slot: Types.EquipSlot in ...`. Módulo que devolve tabela com campos desse tipo: declare o tipo do módulo.
