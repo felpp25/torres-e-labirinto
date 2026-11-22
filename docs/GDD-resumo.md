@@ -590,6 +590,10 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   - **Missão:** o caminho garantido (série de eventos, conversas com NPCs), com tamanho de ~15 vitórias. Conteúdo a
     definir com o designer.
   - Descartados: só a chave (azar sem saída) e só a missão.
+- *Implementado:* portal da Torre 2 no lobby (à direita, atrás do da Torre 1). Quem pisa sem os requisitos vê
+  "TORRE 2 TRANCADA" e o que falta (nível, chave ou missão); a chave cai no chefão da Torre 1 com o aviso "TORRE 2
+  LIBERADA!". O acesso fica no save da conta (v7). Nome da chave provisório: "Chave da Torre 2". A missão ainda não
+  existe. Os avisos que chegam juntos (nível, torre concluída, item, torre liberada) se empilham sem se cobrir.
 
 ### Números da Torre 2
 - **Teto de nível: 20** (+10 por torre). Do 10 ao 20 são 40.648 XP: ~8,5 runs (2,6 h).
@@ -631,8 +635,9 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 - A definir: os nomes das peças da Torre 2, o nome da chave e o conteúdo da missão.
 
 ### Ordem de construção da fase
-1. Runs separadas (várias por servidor), ainda só com a Torre 1.
-2. Portais por torre com espera, amigos no meio, acesso (nível + chave), save novo com as torres liberadas da conta.
+1. ~~Runs separadas (várias por servidor), portal com espera, amigos no meio.~~ **Feito.**
+2. ~~Portal da Torre 2, acesso (nível + chave), save novo com as torres liberadas da conta.~~ **Feito** (a run da
+   Torre 2 ainda usa o conteúdo da Torre 1 até a etapa 3).
 3. Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, equipamento de torre mais baixa a 50%.
 4. Arremessador.
 5. Geomante das Rochas.

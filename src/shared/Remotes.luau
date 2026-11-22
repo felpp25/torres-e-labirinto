@@ -39,6 +39,7 @@
 --                                                                  da mochila e confirmei; resposta em GearResult)
 --   DestroyGems     cliente -> servidor  (attribute, level)        quero destruir a pilha inteira dessas gemas (idem)
 --   DestroyRemovers cliente -> servidor  (level: number)           quero destruir a pilha inteira de Removedores (idem)
+--   TowerUnlocked   servidor -> 1 cliente (TowerUnlockedPayload)   sua conta liberou uma torre (chave ou missão)
 -- O equipamento em si (peças da conta, slots, gemas e Removedores do baú) chega pelo Attribute "GearData" do Player
 -- (Shared/GearSnapshot).
 
@@ -76,6 +77,7 @@ export type RemoteName =
 	| "DestroyGems"
 	| "DestroyRemovers"
 	| "TransferEnhance"
+	| "TowerUnlocked"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -128,6 +130,12 @@ local REMOTE_NAMES: { RemoteName } = {
 	"DestroyGems",
 	"DestroyRemovers",
 	"TransferEnhance",
+	"TowerUnlocked",
+}
+
+export type TowerUnlockedPayload = {
+	towerId: number,
+	source: string, -- "Key" | "Quest" | "Dev"
 }
 
 export type GearResultPayload = {

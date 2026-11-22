@@ -51,7 +51,14 @@ Keys.RunAttr = table.freeze({
 	QueueTower = "QueueTower", -- torre do portal
 	QueueStartsAt = "QueueStartsAt", -- quando a run começa (workspace:GetServerTimeNow())
 	QueueSize = "QueueSize", -- quantos estão no grupo
+	PortalBlocked = "PortalBlocked", -- em cima de um portal trancado: o motivo (texto); nil = não está
+	PortalBlockedTower = "PortalBlockedTower", -- torre desse portal
 })
+
+-- O acesso da conta à torre (true = liberada pela chave ou pela missão). Só torres que exigem acesso.
+function Keys.towerAccessAttr(towerId: number): string
+	return `TowerAccess_{towerId}`
+end
 
 -- Quantidade de um item da conta (ex.: "Item_HealthPotion"), replicada no Player para a loja e os atalhos.
 function Keys.itemAttr(itemId: string): string

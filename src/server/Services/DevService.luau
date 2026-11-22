@@ -28,6 +28,8 @@
 --   (sai e volta à run: devolve se ficou com direito ao boss), "BossEligible"(player)
 --   Runs (várias por servidor): "Runs"() (JSON: runs ativas, andar, vidas, participantes e esperas nos portais) e
 --   "SetAllFriends"(true/false) (todos contam como amigos: os jogadores de teste do Studio não são amigos).
+--   Torres: "UnlockTower"(player, torre) (acesso real: salva e avisa), "LockTower"(player, torre) (tira o acesso),
+--   "ForceKeyDrop"(player) (a próxima chave sorteada cai), "SetLevel"(player, nível) (só o nível; XP zerado).
 --   Forja: "Enhance"(player, id, forçar?) (uma tentativa REAL, cobra Gold; forçar = true/false fixa o sorteio;
 --   ignora a distância e o anti-spam), "SetEnhance"(player, id, nível) (define direto, sem custo),
 --   "TransferEnhance"(player, deId, paraId) (troca real dos níveis, cobra Gold; ignora a distância)
@@ -54,6 +56,7 @@ local GearService = require(script.Parent.GearService)
 local GemService = require(script.Parent.GemService)
 local ProgressionService = require(script.Parent.ProgressionService)
 local RunSessionService = require(script.Parent.RunSessionService)
+local TowerService = require(script.Parent.TowerService)
 
 local function store(): DataStore
 	return DataStoreService:GetDataStore(DataService.getStoreName())
@@ -82,6 +85,7 @@ local function restoreInPlace(player: Player, saved: PlayerSchema.Profile): bool
 	profile.gear = copy.gear
 	profile.gems = copy.gems
 	profile.removers = copy.removers
+	profile.towers = copy.towers
 	-- O contador nunca volta: os ids dados durante o teste não são reutilizados depois.
 	profile.nextGearId = math.max(profile.nextGearId, copy.nextGearId)
 	for index, savedCharacter in copy.characters do
@@ -96,6 +100,7 @@ local function restoreInPlace(player: Player, saved: PlayerSchema.Profile): bool
 	end
 	ProgressionService.refreshEquipment(player)
 	GearService.publish(player)
+	TowerService.publish(player)
 	return true
 end
 
@@ -320,6 +325,23 @@ local COMMANDS: { [string]: Command } = {
 
 	Runs = function(): string
 		return HttpService:JSONEncode(RunSessionService.debugSummary())
+	end,
+
+	UnlockTower = function(player: Player, towerId: number): boolean
+		return TowerService.unlock(player, towerId, "Dev")
+	end,
+
+	LockTower = function(player: Player, towerId: number): boolean
+		return TowerService.debugLock(player, towerId)
+	end,
+
+	ForceKeyDrop = function(player: Player): boolean
+		TowerService.debugForceNextKey(player)
+		return true
+	end,
+
+	SetLevel = function(player: Player, level: number): number
+		return ProgressionService.debugSetLevel(player, level)
 	end,
 
 	RejoinRun = function(player: Player): boolean

@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage.Shared
 local Keys = require(Shared.Keys)
 local Shop = require(Shared.Balance.Shop)
 local Forge = require(Shared.Balance.Forge)
+local Towers = require(Shared.Balance.Towers)
 
 local SPAWN_POSITION = Vector3.new(0, 4, 4)
 local SHOP_POSITION = Vector3.new(-24, 0, 6) -- base do balcão (chão do Baseplate em y = 0)
@@ -24,6 +25,7 @@ local FORGE_POSITION = Vector3.new(-24, 0, -30)
 type PortalDef = { towerId: number, position: Vector3, color: Color3 }
 local PORTALS: { PortalDef } = {
 	{ towerId = 1, position = Vector3.new(24, 0, 6), color = Color3.fromRGB(140, 80, 230) },
+	{ towerId = 2, position = Vector3.new(24, 0, -16), color = Color3.fromRGB(230, 120, 50) },
 }
 local PORTAL_SIZE = 10
 local PLAYER_SPACING = 4
@@ -121,6 +123,8 @@ local function build()
 
 	-- Portais das torres
 	for _, def in PORTALS do
+		local tower = Towers.byId[def.towerId]
+		assert(tower, `Lobby: portal de uma torre que não existe ({def.towerId})`)
 		local portal = makePart(
 			`TowerPortal_{def.towerId}`,
 			Vector3.new(PORTAL_SIZE, 0.4, PORTAL_SIZE),
@@ -129,7 +133,13 @@ local function build()
 			folder
 		)
 		portal.Material = Enum.Material.Neon
-		makeSign(portal, `TORRE {def.towerId}`, Color3.fromRGB(220, 190, 255), 6)
+		local title = string.upper(tower.displayName)
+		makeSign(
+			portal,
+			if tower.minLevel > 1 then `{title} · NÍVEL {tower.minLevel}` else title,
+			Color3.fromRGB(220, 190, 255),
+			6
+		)
 		portalParts[def.towerId] = portal
 	end
 end

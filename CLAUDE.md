@@ -118,7 +118,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `require` devolve a versão VELHA. Para testar a nova: `local c = mod:Clone(); c.Parent = mod.Parent;
   local M = require(c); c:Destroy()`.
 - **Fluxo do jogo:** o jogador nasce no LOBBY (perto da origem; loja à esquerda com a forja atrás dela, portais das
-  torres à direita). Para testar a torre pelo MCP: levar o personagem até `workspace.Lobby.TowerPortal_1` e
+  torres à direita: `TowerPortal_1` e, atrás dele, `TowerPortal_2`, que pede nível 10 + acesso da conta). Para
+  testar a torre pelo MCP: levar o personagem até `workspace.Lobby.TowerPortal_1` e
   **esperar ~10 s parado em cima** (espera do grupo; sair do portal cancela) ou usar
   `Players:GetPlayers()[1]:GetAttribute("InRun")` para saber onde ele está. Game over / torre concluída = lobby.
   - **Várias runs por servidor** (`server/Runs/RunRegistry`): cada grupo tem a sua run em `workspace.Runs.Run_<id>`,
@@ -135,6 +136,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     carregar (joga "sem salvar") e não apaga nada.
   - Formato **v6**: gema encaixada na peça (`gem`) e as pilhas do baú (`gems` com chave `"Strength:1"`, `removers`
     com chave `"1"`: texto de propósito, chave numérica viraria lista no JSON). Cada pilha ocupa 1 espaço do baú.
+  - Formato **v7**: torres liberadas da conta (`towers`, lista de ids, ex.: `[2]`). Ids de 2 a 99 são aceitos mesmo
+    se o servidor não conhece a torre: uma torre nova no catálogo (`Balance/Towers`) não exige versão nova.
   - **Todo campo novo salvo aumenta `PlayerSchema.VERSION`** (mesmo opcional), e também todo valor novo num campo
     validado (ex.: raridade "Epic"). O servidor que acha dados de versão maior recusa carregar (joga "sem salvar")
     em vez de apagar o que não conhece.
@@ -154,6 +157,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `"ForceMobDrop"`, `"GoToFloor"(n, player?)` (a run do jogador, ou a única ativa), `"RejoinRun"`, `"BossEligible"`.
   Runs: `"Runs"()` (JSON das runs e das esperas nos portais) e `"SetAllFriends"(true)` (todos contam como amigos,
   para testar "amigo entra no meio da run": os jogadores de teste do Studio não são amigos).
+  Torres (TowerService): `"UnlockTower"(player, 2)` (acesso real, salva e avisa), `"LockTower"(player, 2)`,
+  `"ForceKeyDrop"(player)` (a próxima chave sorteada no chefão cai) e `"SetLevel"(player, n)` (testar o portal
+  trancado por nível; o `RestoreProfile` devolve o nível).
   Forja: `"Enhance"(player, id, forçar?)` (tentativa real, cobra Gold; `true`/`false` fixa o sorteio) e
   `"SetEnhance"(player, id, nível)` (direto, sem custo). `"TransferEnhance"(player, deId, paraId)` (troca real dos
   níveis, cobra Gold).

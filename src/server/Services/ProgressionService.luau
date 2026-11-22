@@ -220,6 +220,16 @@ function ProgressionService.refreshEquipment(player: Player)
 	afterAttributesChanged(player, getData(player))
 end
 
+-- SÓ PARA TESTES no Studio (DevService): define o nível do personagem ativo (XP zerado; os pontos ficam como estão).
+-- Devolve o nível aplicado.
+function ProgressionService.debugSetLevel(player: Player, level: number): number
+	local data = getData(player)
+	data.level = math.clamp(math.floor(level), 1, Progression.maxLevel)
+	data.xp = 0
+	replicate(player, data)
+	return data.level
+end
+
 -- SÓ PARA TESTES no Studio (chamado pelo DevService, que não existe fora do Studio): define atributos direto.
 -- `values` = { Defense = 100, ... }; nomes inválidos são ignorados; atributos não citados ficam como estão.
 function ProgressionService.debugSetAttributes(player: Player, values: { [string]: number })

@@ -11,7 +11,8 @@
 --   nextGearId     próximo id de peça (só cresce; um id nunca é reutilizado)
 --   gems           gemas soltas no baú da conta: { ["Strength:1"] = quantidade } (atributo:nível)
 --   removers       Removedores no baú da conta: { ["1"] = quantidade } (nível; chave texto, ver removerKey)
---   session        trava de sessão (qual servidor está com os dados e desde quando); nil = livre
+--   towers         torres LIBERADAS na conta (acesso vitalício, chave ou missão): lista de ids, ex.: { 2 }
+--   session       trava de sessão (qual servidor está com os dados e desde quando); nil = livre
 -- Decisões do designer: vários personagens por conta; Gold GLOBAL da conta (trocar de personagem no lobby para
 -- atender o grupo sem recomeçar a economia); run em andamento NÃO é salva.
 --
@@ -35,6 +36,8 @@
 --      (A peça fortalecida não era vendida; depois a loja passou a comprá-la, sem mudar o formato.)
 --   6  Gemas: a gema encaixada na peça (gem) e as pilhas de gemas e Removedores do baú (gems, removers).
 --      Migração: sem gemas. Peça com gema não é vendida (decisão do designer: extraia antes).
+--   7  Acesso às torres da conta (towers). Migração: nenhuma torre liberada (a Torre 1 é livre). Ids de torres que
+--      este servidor ainda não conhece (2 a 99) são mantidos: uma torre nova no catálogo não exige versão nova.
 --
 -- REGRA: todo campo NOVO salvo (mesmo opcional, ex.: a gema da peça) e todo VALOR novo num campo
 -- que o reconcile valida (ex.: raridade "Epic", classe ou slot novos) aumenta VERSION. O servidor que encontra dados
@@ -78,6 +81,7 @@ export type Profile = {
 	nextGearId: number,
 	gems: { [string]: number }, -- PlayerSchema.gemKey(atributo, nível) -> quantidade (só pilhas não vazias)
 	removers: { [string]: number }, -- PlayerSchema.removerKey(nível) -> quantidade (só pilhas não vazias)
+	towers: { number }, -- torres liberadas na conta (ids em ordem crescente, sem repetir; a Torre 1 não entra)
 	session: Session?,
 }
 
@@ -106,9 +110,10 @@ export type FuseOutcome = "Fused" | "CannotFuse" | "NotEnough" | "ChestFull" | "
 
 local PlayerSchema = {}
 
-PlayerSchema.VERSION = 6
+PlayerSchema.VERSION = 7
 
 local WEAPON_SLOT: Types.EquipSlot = "Weapon"
+local MAX_TOWER_ID = 99 -- ids de torre aceitos no save (mesmo os que este servidor ainda não conhece)
 local MAX_DEF_ID_LENGTH = 64 -- defId salvo maior que isto é lixo (os ids do catálogo são curtos)
 
 function PlayerSchema.newCharacter(classId: string): Character
@@ -134,8 +139,34 @@ local function baseProfile(): Profile
 		nextGearId = 1,
 		gems = {},
 		removers = {},
+		towers = {},
 		session = nil,
 	}
+end
+
+-- A conta já liberou esta torre (chave ou missão)?
+function PlayerSchema.hasTowerAccess(profile: Profile, towerId: number): boolean
+	return table.find(profile.towers, towerId) ~= nil
+end
+
+-- Libera a torre para a conta. Devolve false se ela já estava liberada.
+function PlayerSchema.unlockTower(profile: Profile, towerId: number): boolean
+	if PlayerSchema.hasTowerAccess(profile, towerId) then
+		return false
+	end
+	table.insert(profile.towers, towerId)
+	table.sort(profile.towers)
+	return true
+end
+
+-- SÓ TESTES: tira o acesso. Devolve false se a torre não estava liberada.
+function PlayerSchema.lockTower(profile: Profile, towerId: number): boolean
+	local index = table.find(profile.towers, towerId)
+	if not index then
+		return false
+	end
+	table.remove(profile.towers, index)
+	return true
 end
 
 -- Chaves das pilhas no save. Texto também nos Removedores: uma tabela com chaves numéricas 1..n viraria lista no
@@ -711,6 +742,17 @@ function PlayerSchema.reconcile(raw: unknown): Profile
 			local count = wholeNumber(rawRemovers[key], 0, Gems.stackMax, 0)
 			if count > 0 then
 				profile.removers[key] = count
+			end
+		end
+	end
+
+	-- Torres liberadas (v7+). Só ids inteiros de 2 a 99, sem repetir; na migração da v6 (sem o campo), nenhuma.
+	if typeof(data.towers) == "table" then
+		local rawTowers = data.towers :: { unknown }
+		for i = 1, #rawTowers do
+			local id = rawTowers[i]
+			if typeof(id) == "number" and id == math.floor(id) and id >= 2 and id <= MAX_TOWER_ID then
+				PlayerSchema.unlockTower(profile, id)
 			end
 		end
 	end

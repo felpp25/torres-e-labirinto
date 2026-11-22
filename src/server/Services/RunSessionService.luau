@@ -3,7 +3,8 @@
 -- - VÁRIAS runs no mesmo servidor: cada grupo (1 a 4) tem a sua, num ponto separado do mapa (RunRegistry).
 -- - Um portal por torre, com ESPERA: pisar no portal abre uma espera de `Run.queueSeconds`; quem pisar no mesmo
 --   portal nesse tempo entra no grupo; com o grupo cheio (ou o tempo acabado) a run começa. Sair do portal sai da
---   espera.
+--   espera. Portal trancado (nível ou acesso da conta, TowerService): quem pisa vê o motivo e não entra.
+-- - Chefão derrotado: além do item, quem tem direito e não tem o acesso à próxima torre sorteia a chave dela.
 -- - Entrar no meio: só AMIGOS. Quem pisa no portal com um amigo numa run daquela torre (com vaga) entra nela, no
 --   andar atual. Decisão do designer: quem entra (ou volta) só no andar do boss não ganha o item, o XP e o Gold do
 --   boss, e a Sorte dele não conta no sorteio do Raro.
@@ -37,6 +38,7 @@ local GearService = require(script.Parent.GearService)
 local LifeService = require(script.Parent.LifeService)
 local LobbyService = require(script.Parent.LobbyService)
 local ProgressionService = require(script.Parent.ProgressionService)
+local TowerService = require(script.Parent.TowerService)
 
 local HEART_COLOR = Color3.fromRGB(255, 60, 90)
 local HEART_SIZE = 2
@@ -55,6 +57,7 @@ local queues: { [number]: Queue } = {}
 local hearts: { [RunRegistry.Run]: { Part } } = {}
 local ending: { [RunRegistry.Run]: boolean } = {} -- torre concluída: esperando para voltar ao lobby
 local bossLootGiven: { [RunRegistry.Run]: boolean } = {}
+local blockedOn: { [Player]: number } = {} -- em cima de um portal trancado: torre do portal
 local friendCache: { [string]: boolean } = {}
 local friendPending: { [string]: boolean } = {}
 local debugAllFriends = false -- SÓ TESTES (DevService): todo mundo conta como amigo
@@ -187,8 +190,37 @@ local function publishQueue(queue: Queue)
 	end
 end
 
+local function clearBlocked(player: Player)
+	blockedOn[player] = nil
+	player:SetAttribute(Keys.RunAttr.PortalBlocked, nil)
+	player:SetAttribute(Keys.RunAttr.PortalBlockedTower, nil)
+end
+
 -- Chamado pelo LobbyService a cada verificação, com quem está em cima do portal da torre (vivo, fora de run).
 local function onPortalTick(towerId: number, onPortal: { Player })
+	-- Portal trancado (nível ou acesso): quem saiu dele deixa de ver o aviso; quem está em cima vê o motivo e não
+	-- entra na espera nem na run de um amigo (no portal, cada um do grupo precisa do nível e do acesso).
+	for player, blockedTower in blockedOn do
+		if blockedTower == towerId and not table.find(onPortal, player) then
+			clearBlocked(player)
+		end
+	end
+	local allowed: { Player } = {}
+	for _, player in onPortal do
+		local ok, reason = TowerService.canEnter(player, towerId)
+		if ok then
+			if blockedOn[player] then
+				clearBlocked(player)
+			end
+			table.insert(allowed, player)
+		elseif player:GetAttribute(Keys.RunAttr.PortalBlocked) ~= reason then
+			blockedOn[player] = towerId
+			player:SetAttribute(Keys.RunAttr.PortalBlockedTower, towerId)
+			player:SetAttribute(Keys.RunAttr.PortalBlocked, reason)
+		end
+	end
+	onPortal = allowed
+
 	local queue = queues[towerId]
 	-- Quem saiu do portal (ou do jogo) sai da espera.
 	if queue then
@@ -276,7 +308,8 @@ local function safeLoot(kind: string, player: Player, roll: (Player, number) -> 
 	end
 end
 
--- Item garantido do boss: 1 por participante com direito (vivo ou espectando), uma vez por run.
+-- Prêmio do boss, uma vez por run, para cada participante com direito (vivo ou espectando): o item garantido e o
+-- sorteio da chave da próxima torre (só quem ainda não tem o acesso). A Sorte é a maior entre os que têm direito.
 local function grantBossLoot(run: RunRegistry.Run, position: Vector3)
 	if bossLootGiven[run] then
 		return
@@ -285,10 +318,19 @@ local function grantBossLoot(run: RunRegistry.Run, position: Vector3)
 	local luck = bestLuckNear(run, position, function(player: Player): boolean
 		return isBossEligible(run, player)
 	end)
+	local eligible: { Player } = {}
 	for _, player in RunRegistry.members(run) do
 		if player.Parent and isBossEligible(run, player) then
+			table.insert(eligible, player)
 			safeLoot("do boss", player, GearService.rollBossLoot, luck)
 		end
+	end
+	local ok, err = pcall(function(): string?
+		TowerService.rollKeys(run.towerId, eligible, luck)
+		return nil
+	end)
+	if not ok then
+		warn(`[Torre] falha no sorteio da chave: {err}`)
 	end
 end
 
@@ -432,6 +474,7 @@ end
 -- Alguém saiu do jogo: sai da espera; na run, se ninguém sobrou, a run acaba; se os que sobraram estão todos
 -- mortos, conta como wipe (senão eles ficariam espectando para sempre).
 local function onPlayerRemoving(player: Player)
+	blockedOn[player] = nil
 	for _, queue in queues do
 		local index = table.find(queue.members, player)
 		if index then

@@ -11,6 +11,7 @@ local RunService: RunService = game:GetService("RunService")
 local StarterGui: StarterGui = game:GetService("StarterGui")
 local TextChatService: TextChatService = game:GetService("TextChatService")
 local TweenService: TweenService = game:GetService("TweenService")
+local TextService: TextService = game:GetService("TextService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Balance = Shared:WaitForChild("Balance")
@@ -26,6 +27,10 @@ local Combat = require(Balance:WaitForChild("Combat"))
 local Abilities = require(Balance:WaitForChild("Abilities"))
 local Classes = require(Balance:WaitForChild("Classes"))
 local Run = require(Balance:WaitForChild("Run"))
+local Towers = require(Balance:WaitForChild("Towers"))
+
+local QUEUE_HINT = "Fique no portal: quem pisar nele agora entra no seu grupo"
+local QUEUE_WIDTH = 420
 local Hotkeys = require(script.Parent.Parent:WaitForChild("Hotkeys"))
 local ActionBar = require(script.Parent.Parent:WaitForChild("ActionBar"))
 
@@ -72,6 +77,7 @@ local bossBar: Bar? = nil
 local bossNameLabel: TextLabel? = nil
 local queueFrame: Frame? = nil
 local queueTitle: TextLabel? = nil
+local queueHint: TextLabel? = nil
 local dodgeIcon: CooldownIcon? = nil
 local abilityIcons: { [string]: CooldownIcon } = {} -- por id da habilidade
 local ultimateIcon: CooldownIcon? = nil
@@ -277,7 +283,7 @@ local function build()
 	queue.BackgroundTransparency = 0.25
 	queue.AnchorPoint = Vector2.new(0.5, 0)
 	queue.Position = UDim2.new(0.5, 0, 0, 8)
-	queue.Size = UDim2.fromOffset(420, 52)
+	queue.Size = UDim2.fromOffset(QUEUE_WIDTH, 52)
 	queue.Visible = false
 	queue.Parent = gui
 	corner(queue, 10)
@@ -286,16 +292,14 @@ local function build()
 	title.TextXAlignment = Enum.TextXAlignment.Center
 	title.TextColor3 = COLORS.gold
 	queueTitle = title
-	local hint = makeText(
-		queue,
-		"Fique no portal: quem pisar nele agora entra no seu grupo",
-		UDim2.new(1, -16, 0, 16),
-		UDim2.fromOffset(8, 29),
-		12
-	)
+	-- Até 2 linhas: o motivo do portal trancado pode ser longo (nível e chave). O quadro cresce nesse caso.
+	local hint = makeText(queue, QUEUE_HINT, UDim2.new(1, -16, 0, 32), UDim2.fromOffset(8, 29), 12)
 	hint.Name = "Hint"
 	hint.TextXAlignment = Enum.TextXAlignment.Center
+	hint.TextYAlignment = Enum.TextYAlignment.Top
+	hint.TextWrapped = true
 	hint.TextColor3 = COLORS.text
+	queueHint = hint
 	queueFrame = queue
 end
 
@@ -348,18 +352,28 @@ local function update()
 			floorLabel.Text = "Lobby"
 		end
 	end
-	if queueFrame and queueTitle then
+	if queueFrame and queueTitle and queueHint then
+		local inRun = localPlayer:GetAttribute(Keys.InRunAttr) == true
 		local tower = localPlayer:GetAttribute(Keys.RunAttr.QueueTower)
 		local startsAt = localPlayer:GetAttribute(Keys.RunAttr.QueueStartsAt)
 		local size = localPlayer:GetAttribute(Keys.RunAttr.QueueSize)
-		local waiting = typeof(tower) == "number"
-			and typeof(startsAt) == "number"
-			and localPlayer:GetAttribute(Keys.InRunAttr) ~= true
-		queueFrame.Visible = waiting
+		local blocked = localPlayer:GetAttribute(Keys.RunAttr.PortalBlocked)
+		local blockedTower = localPlayer:GetAttribute(Keys.RunAttr.PortalBlockedTower)
+		local waiting = typeof(tower) == "number" and typeof(startsAt) == "number" and not inRun
+		local locked = typeof(blocked) == "string" and not inRun
+		queueFrame.Visible = waiting or locked
 		if waiting then
 			local seconds = math.max(math.ceil((startsAt :: number) - workspace:GetServerTimeNow()), 0)
 			local count = if typeof(size) == "number" then size else 1
 			queueTitle.Text = `TORRE {tower}  ·  começa em {seconds} s  ·  {count}/{Run.maxGroupSize} no grupo`
+			queueTitle.TextColor3 = COLORS.gold
+			queueHint.Text = QUEUE_HINT
+			queueFrame.Size = UDim2.fromOffset(QUEUE_WIDTH, 52)
+		elseif locked then
+			queueTitle.Text = if typeof(blockedTower) == "number" then `TORRE {blockedTower} TRANCADA` else "TRANCADA"
+			queueTitle.TextColor3 = COLORS.health
+			queueHint.Text = blocked :: string
+			queueFrame.Size = UDim2.fromOffset(QUEUE_WIDTH, 68)
 		end
 	end
 	if statsLabel then
@@ -402,22 +416,90 @@ local function update()
 	end
 end
 
--- Aviso grande no centro da tela que some sozinho (subiu de nível, andar novo).
+-- Avisos na tela agora (faixa vertical ocupada, em pixels): um aviso novo não cobre os outros.
+type ToastSpace = { top: number, bottom: number }
+local activeToasts: { ToastSpace } = {}
+local TOAST_WIDTH = 500
+local TOAST_TITLE_HEIGHT = 50
+local TOAST_DETAIL_SIZE = 20
+local TOAST_GAP = 6
+local TOAST_MIN_TOP = 70 -- abaixo da barra do chefe / aviso do portal
+local TOAST_BOTTOM_MARGIN = 100 -- acima da barra de ações
+
+local function toastFits(top: number, height: number, screenHeight: number): boolean
+	if top < TOAST_MIN_TOP or top + height > screenHeight - TOAST_BOTTOM_MARGIN then
+		return false
+	end
+	for _, other in activeToasts do
+		if top < other.bottom + TOAST_GAP and top + height + TOAST_GAP > other.top then
+			return false
+		end
+	end
+	return true
+end
+
+-- Onde pôr um aviso de altura `height`: a altura preferida, se estiver livre; senão o lugar livre mais perto dela
+-- (logo abaixo ou logo acima de algum aviso na tela). Sem lugar livre, a preferida mesmo.
+local function toastTop(preferred: number, height: number, screenHeight: number): number
+	if toastFits(preferred, height, screenHeight) then
+		return preferred
+	end
+	local best: number? = nil
+	for _, other in activeToasts do
+		for _, candidate in { other.bottom + TOAST_GAP, other.top - TOAST_GAP - height } do
+			local closer = best == nil or math.abs(candidate - preferred) < math.abs((best :: number) - preferred)
+			if closer and toastFits(candidate, height, screenHeight) then
+				best = candidate
+			end
+		end
+	end
+	return best or preferred
+end
+
+-- Aviso grande no centro da tela que some sozinho (subiu de nível, andar novo). `heightScale` = altura preferida
+-- (fração da tela); se outro aviso já ocupa ali (ex.: no fim da torre chegam o nível, a torre concluída, a peça do
+-- chefe e a chave juntos), este vai para o lugar livre mais perto.
 local function showToast(title: string, detailText: string, color: Color3, heightScale: number)
 	local gui = screenGui
 	if not gui then
 		return
 	end
-	local toast = makeText(gui, title, UDim2.fromOffset(500, 50), UDim2.new(0.5, -250, heightScale, 0), 40)
+	-- O detalhe quebra em até 2 linhas (ex.: o aviso de baú cheio explica como liberar espaço).
+	local detailHeight =
+		TextService:GetTextSize(detailText, TOAST_DETAIL_SIZE, FONT, Vector2.new(TOAST_WIDTH, TOAST_DETAIL_SIZE * 3)).Y
+	local height = TOAST_TITLE_HEIGHT + detailHeight
+	local screenHeight = gui.AbsoluteSize.Y
+	local top = toastTop(heightScale * screenHeight, height, screenHeight)
+	local space: ToastSpace = { top = top, bottom = top + height }
+	table.insert(activeToasts, space)
+
+	local toast = makeText(
+		gui,
+		title,
+		UDim2.fromOffset(TOAST_WIDTH, TOAST_TITLE_HEIGHT),
+		UDim2.new(0.5, -TOAST_WIDTH / 2, 0, top),
+		40
+	)
 	toast.TextXAlignment = Enum.TextXAlignment.Center
 	toast.TextColor3 = color
 	toast.TextStrokeTransparency = 0
-	local detail = makeText(toast, detailText, UDim2.new(1, 0, 0, 48), UDim2.fromOffset(0, 50), 20)
+	local detail = makeText(
+		toast,
+		detailText,
+		UDim2.new(1, 0, 0, detailHeight),
+		UDim2.fromOffset(0, TOAST_TITLE_HEIGHT),
+		TOAST_DETAIL_SIZE
+	)
 	detail.TextXAlignment = Enum.TextXAlignment.Center
 	detail.TextYAlignment = Enum.TextYAlignment.Top
-	detail.TextWrapped = true -- até 2 linhas (o aviso de baú cheio explica como liberar espaço)
+	detail.TextWrapped = true
 
 	task.delay(1.8, function()
+		-- Começou a sumir: o espaço já fica livre para o próximo aviso.
+		local index = table.find(activeToasts, space)
+		if index then
+			table.remove(activeToasts, index)
+		end
 		local info = TweenInfo.new(0.6)
 		TweenService:Create(toast, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 		TweenService:Create(detail, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
@@ -463,6 +545,23 @@ local function onGearNotice(payload: unknown)
 	else
 		showToast("ITEM NOVO!", `{name} foi para o baú`, GearInfo.rarityColor(rarity), 0.42)
 	end
+end
+
+-- A conta liberou uma torre (chave do chefão ou missão).
+local function onTowerUnlocked(payload: unknown)
+	if typeof(payload) ~= "table" then
+		return
+	end
+	local data = payload :: { [string]: unknown }
+	local towerId = data.towerId
+	local def = if typeof(towerId) == "number" then Towers.byId[towerId] else nil
+	if not def then
+		return
+	end
+	local detail = if data.source == "Key" and def.keyName
+		then `Você achou a {def.keyName}! O acesso vale para toda a conta (nível {def.minLevel}+).`
+		else `O acesso vale para toda a conta (nível {def.minLevel}+).`
+	showToast(`{string.upper(def.displayName)} LIBERADA!`, detail, COLORS.gold, 0.32)
 end
 
 -- Baú cheio ao entrar na torre ou ao chegar no andar do chefe: avisa ANTES de o drop virar Gold (decisão do
@@ -602,6 +701,7 @@ function HudController.start()
 	task.spawn(moveChatWindow)
 	Remotes.get("LevelUp").OnClientEvent:Connect(showLevelUp)
 	Remotes.get("GearNotice").OnClientEvent:Connect(onGearNotice)
+	Remotes.get("TowerUnlocked").OnClientEvent:Connect(onTowerUnlocked)
 	localPlayer:GetAttributeChangedSignal(Keys.RunAttr.FloorNumber):Connect(onFloorChanged)
 	task.spawn(onFloorChanged)
 	localPlayer:GetAttributeChangedSignal(Keys.RunAttr.GameOvers):Connect(onGameOver)
