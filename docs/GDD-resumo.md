@@ -194,7 +194,8 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
   - **Reset de atributos:** devolve todos os pontos para redistribuir; preço cresce com o nível.
   - **Vender equipamento** (aba Vender): peças do baú (as equipadas não aparecem), Comum 10 e Raro 50 Gold; peça
     Rara pede um segundo clique para confirmar. **Peça fortalecida não é vendida** (decisão do designer): ela nem
-    aparece na lista. **Peça com gema também não** (decisão do designer): extraia a gema antes.
+    aparece na lista. **Peça com gema também não** (decisão do designer): extraia a gema antes. Gemas e Removedores
+    sobrando também são vendidos aqui, **a 10% do preço** (ver "Gemas").
   - **Gemas** (aba Gemas): gema Nv1 de cada um dos 6 atributos (1.000 Gold) e o Removedor Nv1 (100 Gold).
 - **Forja** (bigorna no lobby, atrás da loja): fortalecimento e gemas (ver "Equipamentos > Forja").
 - *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
@@ -318,8 +319,15 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 - **Nível mínimo** em cada item (o da torre em que cai): um personagem novo não herda o equipamento do fim de jogo.
 - **Trocar equipamento só no lobby.** Na run, o item que cai vai para o baú (evita trocar para peças de Sorte na hora
   do drop).
-- **Item sobrando:** vende na loja (Comum 10 Gold, Raro 50 Gold). **Baú cheio:** o drop vira Gold (preço de venda),
-  com aviso.
+- **Item sobrando:** vende na loja (Comum 10 Gold, Raro 50 Gold) ou **destrói arrastando para fora da mochila**
+  (decisão do designer). Destruir pede confirmação, vale também dentro da torre (para abrir espaço antes do chefe) e
+  aceita a peça fortalecida (que não é vendida); a peça com gema não (extraia antes). Uma pilha de gemas ou
+  Removedores some inteira (é o que libera o espaço do baú). *Implementado:* "fora" = fora da janela Personagem
+  inteira (soltar em cima do personagem não destrói nada); no celular, segurar a célula um instante antes de arrastar
+  (arrastar logo de cara rola a mochila).
+  - Descartados: destruir a peça com gema junto com a gema; destruir uma unidade da pilha por vez.
+- **Baú cheio:** o drop vira Gold (preço de venda), com aviso que explica como liberar espaço (vender ou destruir). O
+  aviso também aparece **ao entrar na torre e ao chegar no andar do chefe** com o baú cheio, antes de o drop se perder.
 - **Interface (layout provisório, inspirado na mochila do DDTank; arte depois):** janela "Personagem" na tecla C com o
   personagem em 3D ao meio, o corpo à esquerda (Capacete, Armadura, Calças, Botas), arma e acessórios à direita
   (Arma, Pulseira, Colar), os atributos embaixo e a **mochila** (baú da conta) em grade ao lado. Clicar numa peça
@@ -372,7 +380,8 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 - **Ritmo de referência** (média com falhas, sem bênção, na torre de origem): +5 ≈ 8 runs, +7 ≈ 42 runs,
   +10 ≈ 1.400 runs, **por peça** (o conjunto de 7 peças no +7 ≈ 290 runs). O +10 é meta de longo prazo; os 3
   últimos níveis são ~97% do custo.
-- **Peça fortalecida não é vendida** na loja (decisão do designer).
+- **Peça fortalecida não é vendida** na loja (decisão do designer). Para se livrar dela, o jogador a **destrói**
+  (arrasta para fora da mochila; o fortalecimento se perde junto).
 - *Implementado:* janela da **Forja** (bigorna no lobby, tecla F / toque): à esquerda todas as peças da conta (as
   equipadas primeiro, marcadas com "E"); à direita a peça escolhida com o que dá agora e no próximo nível, a chance, o
   custo e o que acontece se falhar. As tentativas de +8 a +10 (as que podem tirar um nível) pedem um segundo clique.
@@ -452,6 +461,15 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
     100 Gold no Nv1 e 2.000 no Nv5) e a gema sumir junto (perder uma gema cara num clique).
 - **Removedores na loja hoje: só o Nv1** (decisão do designer). Os Nv2 a Nv5 entram junto com as gemas Nv2+ (torres
   5+); antes disso o jogador gastaria Gold num item sem uso.
+- **Sobras (decisão do designer):** gemas e Removedores são vendidos na loja **a 10%**: gema = **100 Gold por nível**
+  (Nv1 = 100, Nv5 = 500), Removedor = 10% do preço (Nv1 = 10, Nv5 = 200). Um por clique; gema Nv2+ pede confirmação
+  (vale mais do que a venda paga). Vender rende sempre bem menos que comprar: não vira fonte de Gold. Também dá para
+  destruir a pilha inteira (arrastar para fora da mochila).
+  - Descartados: 5% (Nv1 = 50) e 10 Gold fixo (uma Nv5 valeria o mesmo que uma Nv1).
+- **Gema do chefão com o baú cheio** (torres 5+; decisão do designer): **vira Gold** pelo preço de venda, com o aviso
+  de baú cheio, igual à peça de equipamento.
+  - Descartados: ficar guardada esperando espaço (mais um lugar para as coisas se acumularem) e se perder (uma Nv5
+    perdida são ~36 h de Pesadelo).
 - *Implementado:* incrustar custa **500 Gold** (qualquer nível); para trocar a gema de uma peça, extraia antes. O
   fortalecimento **não** multiplica a gema (cada + dá 10% dos atributos **base** da peça). Como o equipamento, a gema
   soma por fora dos pontos distribuídos e vale 1,5× num atributo de scaling da classe.
@@ -470,17 +488,14 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   protótipo).
 - Itens de bênção e pedra de fortalecimento: se entram, quanto somam e como se obtêm (adiados; análise em
   "Fortalecimento").
-- O que o jogador faz com uma peça fortalecida que não quer mais: ela não pode ser vendida e ocupa espaço no baú
-  (descartar? transferir o fortalecimento para outra peça?).
+- Transferir o fortalecimento de uma peça para outra (hoje a peça fortalecida que sobra só pode ser destruída).
 - Gemas, para quando as torres 5 a 10 forem construídas:
   - um **teto para a Sorte** nos achados (hoje um único personagem com muita Sorte multiplica os drops do grupo
     inteiro; ex.: Sorte 300 = chances ×7);
   - nível mínimo para usar cada gema;
-  - o que acontece com a gema que cai do chefão com o baú cheio (a peça vira Gold; a gema não tem preço de venda);
   - quem entra no meio da run sorteia gema do chefão? (o item garantido já segue a regra: só quem entrou antes do
     andar do chefe);
   - a renda de Gold das torres 2 a 10 e os multiplicadores dos modos (as contas usaram hipóteses).
-- Gemas e Removedores sobrando: hoje não dá para vender nem descartar (ocupam espaço no baú).
 - O custo de incrustar é o mesmo (500 Gold) em todo nível de gema; rever quando existirem as gemas Nv2+ e a renda das
   torres 5+.
 

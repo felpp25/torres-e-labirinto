@@ -154,7 +154,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   Gemas (regras reais, sem distância): `"BuyGem"(player, "Strength")`, `"BuyRemover"(player, nível)`,
   `"SocketGem"(player, id, atributo, nível)`, `"ExtractGem"(player, id)`, `"FuseGems"(player, atributo, nível)`; sem
   custo: `"GiveGems"(player, atributo, nível, n)` (qualquer nível: as Nv2+ ainda não caem) e
-  `"GiveRemovers"(player, nível, n)`.
+  `"GiveRemovers"(player, nível, n)`. Sobras: `"SellGem"(player, atributo, nível)`, `"SellRemover"(player, nível)`.
+  Destruir (o que o arrastar para fora da mochila pede): `"DestroyGear"(player, id)`, `"DestroyGems"(player,
+  atributo, nível)` e `"DestroyRemovers"(player, nível)` (pilha inteira).
   **Testes que mexem no personagem: `"SnapshotProfile"(player)` no início e `"RestoreProfile"(player)` +
   `"SaveNow"` no fim** (devolve Gold, itens, equipamento e atributos; o personagem de teste é o save do usuário).
   O snapshot vive só na sessão de Play em que foi feito: teste que PARA e reinicia o Play (ex.: conferir o que foi
@@ -181,6 +183,10 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - Cliques do `user_mouse_input`: prefira `instance_path` (ex.: `LocalPlayer.PlayerGui.ShopGui.Panel.SellTab`). As
   coordenadas x/y não batem com as da `screen_capture` (medido: o clique caiu ~46 px abaixo, na linha seguinte).
   Item fora da área visível de um ScrollingFrame: role antes (`scrollDown` com o mouse sobre a lista).
+- Arrastar (destruir da mochila): no `user_mouse_input`, `moveTo` com `instance_path` da célula + `mouseButtonDown`,
+  dois `moveTo` com x/y (um perto, um bem fora da janela) e `mouseButtonUp`, na mesma chamada. Janelas se sobrepõem
+  pela `DisplayOrder` (loja e forja 6 > Personagem 5 > HUD 0): feche a loja antes, senão a confirmação fica escondida
+  atrás dela (os avisos do HUD também ficam atrás das janelas abertas).
 - Texto cortado na interface: `execute_luau` no datamodel `Client` lendo `TextLabel.TextFits` acha o problema sem
   depender da captura de tela (achou o detalhe da peça com gema estourando a caixa no painel Personagem).
 - Luau (verificador de tipos): local SEM anotação alarga união de literais para `string` (ex.: `local slot =
