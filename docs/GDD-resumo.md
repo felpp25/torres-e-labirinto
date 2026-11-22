@@ -235,7 +235,19 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 - **Referência de força** (números finais em `Balance`, ajustados no playtest): um conjunto completo Comum ≈ metade
   dos pontos do nível 10 (~14); um conjunto Raro ≈ os 27 pontos do nível 10.
 - **Raridades:** **Comum** (cinza) e **Raro** (azul, o DOBRO dos pontos e do Poder do Comum) na Torre 1 Normal.
-  Épico e acima vêm com os modos Avançado/Pesadelo e a forja.
+  **Épico** e **Lendário** vêm com os modos Avançado/Pesadelo (torres 6 a 10) e a fabricação da Forja; entram no
+  código junto com esses modos (decisão do designer).
+  - **Escala linear (decisão do designer):** Comum ×1, Raro ×2, **Épico ×3**, **Lendário ×4** nos pontos e no Poder
+    (cada raridade soma "mais um Comum"). O fortalecimento multiplica por cima (+10 = o dobro da peça).
+  - Efeito (mesmo exemplo de "Armas": Lutador nível 10, conjunto Combatente + Soco Inglês): Comum +29% de dano, Raro
+    +61%, Épico +96%, Lendário +135%. Cada degrau dá um salto parecido: +25%, +22% e +20% de dano sobre a raridade
+    anterior. Vida: 270 / 310 / 350 / 390 (230 sem nada). Lendário +10: conjunto = 4× os pontos do personagem, Poder do
+    Soco Inglês 80%.
+  - Um Épico +0 (×3) fica abaixo de um Raro +7 (×3,4); a transferência na mesma torre leva o + junto, então trocar
+    de raridade nunca perde o fortalecimento.
+  - Descartados: ×1,5 depois do Raro (1/2/3/4,5: Lendário +155%, 30% sobre o Épico) e dobrar a cada degrau
+    (1/2/4/8: Lendário +323%, e o Lendário +10 valeria 8,3× os pontos do personagem; subir de nível quase deixaria
+    de importar).
 - **Pontos por slot** (Comum / Raro): Arma = Poder + 1 a 3 pts / dobro; Capacete 2 / 4; Armadura 3 / 6; Calças 2 / 4;
   Botas 2 / 4; Pulseira e Colar 2 / 4 (metade da linha, metade Sorte). Conjunto completo: ~14 / ~28.
 
@@ -540,6 +552,8 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   "Fortalecimento").
 - Item de subir de torre (com a renda da Torre 2): nome, de onde vem (drop raro, evento; compra com Robux foi
   cogitada) e a chance de drop. Um conjunto de 7 peças pede 7 itens por troca de torre.
+- Épico e Lendário (com os modos Avançado/Pesadelo): chance de cada raridade por modo e por torre, preço de venda
+  (hoje Comum 10, Raro 50), cores (sugestão: roxo e laranja) e o que a fabricação faz.
 - Gemas, para quando as torres 5 a 10 forem construídas:
   - um **teto para a Sorte** nos achados (hoje um único personagem com muita Sorte multiplica os drops do grupo
     inteiro; ex.: Sorte 300 = chances ×7);
@@ -557,7 +571,8 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 3. ~~Gemas: nível 1 e removedores na loja; incrustar, fundir e extrair na Forja.~~ **Feito** (a fusão só tem gemas
    para fundir quando existirem as torres 5+; até lá, testar com o DevService: "GiveGems").
 4. Com a Torre 2: o item de subir de torre (ver "Fortalecimento").
-5. Depois: fabricação (depende dos modos Avançado e Pesadelo) e encantamento.
+5. Depois: fabricação (depende dos modos Avançado e Pesadelo), raridades Épico e Lendário (junto com esses modos) e
+   encantamento.
 
 ## Dificuldades (futuro)
 
