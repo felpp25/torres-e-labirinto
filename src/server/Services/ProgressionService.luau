@@ -39,6 +39,7 @@ type GearBonus = {
 	attributes: Types.Attributes,
 	power: number,
 	damageType: Types.DamageType?,
+	resonance: number, -- peças equipadas que ressoam na run em que o jogador está (0 fora de run)
 }
 
 local LOAD_WAIT_TIMEOUT = 60 -- s: o DataService pode esperar uma trava de outro servidor (~30 s) antes de desistir
@@ -81,34 +82,25 @@ function ProgressionService.waitUntilLoaded(player: Player): boolean
 	return loaded[player] == true
 end
 
-local function scaled(attributes: Types.Attributes, factor: number): Types.Attributes
-	if factor == 1 then
-		return attributes
-	end
-	local result = Formulas.emptyAttributes()
-	for _, name in Formulas.attributeNames() do
-		result[name] = attributes[name] * factor
-	end
-	return result
-end
-
 -- Soma o equipamento do personagem ativo (peças e as gemas encaixadas nelas). Peça inerte (fora do catálogo) ou id
--- que sumiu não conta. `runTower` = torre da run em que o jogador está (nil = lobby): peça de torre mais baixa vale
--- a eficiência de Balance/Gear (decisão do designer: 50%); a gema vale inteira.
+-- que sumiu não conta. Os atributos valem sempre inteiros; `runTower` = torre da run em que o jogador está (nil =
+-- lobby) só decide quais peças ressoam (Balance/Gear: bônus de dano e de redução de dano na run).
 local function computeGearBonus(profile: PlayerSchema.Profile, data: PlayerData, runTower: number?): GearBonus
-	local bonus: GearBonus = { attributes = Formulas.emptyAttributes(), power = 0, damageType = nil }
+	local bonus: GearBonus = { attributes = Formulas.emptyAttributes(), power = 0, damageType = nil, resonance = 0 }
 	for _, slot: Types.EquipSlot in Gear.slots do
 		local id = data.equipped[slot]
 		local piece = if id ~= nil then PlayerSchema.findGear(profile, id) else nil
 		local def = if piece then PlayerSchema.defOf(piece) else nil
 		if piece and def then
-			local efficiency = Formulas.gearEfficiency(def, runTower)
-			local pieceAttributes = Formulas.gearAttributes(def, piece.rarity, piece.enhance)
-			bonus.attributes = Formulas.addAttributes(bonus.attributes, scaled(pieceAttributes, efficiency))
+			bonus.attributes =
+				Formulas.addAttributes(bonus.attributes, Formulas.gearAttributes(def, piece.rarity, piece.enhance))
 			bonus.attributes = Formulas.addAttributes(bonus.attributes, Formulas.gemAttributes(piece.gem))
 			if slot == "Weapon" then
-				bonus.power = Formulas.gearPower(def, piece.rarity, piece.enhance) * efficiency
+				bonus.power = Formulas.gearPower(def, piece.rarity, piece.enhance)
 				bonus.damageType = def.damageType
+			end
+			if Formulas.resonates(def, runTower) then
+				bonus.resonance += 1
 			end
 		end
 	end
@@ -141,6 +133,7 @@ local function replicate(player: Player, data: PlayerData)
 		player:SetAttribute(Keys.gearStatAttr(name), bonus.attributes[name]) -- do equipamento
 	end
 	player:SetAttribute(Keys.PlayerAttr.WeaponPower, bonus.power)
+	player:SetAttribute(Keys.PlayerAttr.Resonance, bonus.resonance)
 end
 
 function ProgressionService.getClass(player: Player): Types.ClassDef
@@ -168,6 +161,11 @@ end
 function ProgressionService.getWeaponPower(player: Player, damageType: Types.DamageType): number
 	local bonus = getGearBonus(player)
 	return if bonus.damageType == damageType then bonus.power else 0
+end
+
+-- Peças equipadas que ressoam na run em que o jogador está (0 no lobby e na Torre 1).
+function ProgressionService.getResonance(player: Player): number
+	return getGearBonus(player).resonance
 end
 
 -- Perfil e personagem ativo JÁ CARREGADOS (nil antes do carregamento ou depois que o jogador saiu). Toda alteração

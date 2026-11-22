@@ -328,7 +328,9 @@ export type GearBalance = {
 	startingWeapon: { [string]: string },
 	rarityMultiplier: { [string]: number },
 	sellPrice: { [string]: number },
-	lowerTowerEfficiency: number,
+	resonanceFromTower: number,
+	resonanceDamagePerPiece: number,
+	resonanceReductionPerPiece: number,
 	chestCapacity: number,
 	bossRareChance: number,
 	mobDropChance: number,
@@ -343,9 +345,13 @@ local GEAR: GearBalance = {
 	-- Gold pago pela loja ao vender uma peça da Torre 1 (e quando o baú está cheio no drop). Nas outras torres, vezes
 	-- a recompensa da torre (Balance/Towers; Torre 2: o dobro, 20 / 100).
 	sellPrice = table.freeze(SELL_PRICE),
-	-- Peça numa run de torre ACIMA da dela vale isto (pontos, Poder e fortalecimento; a gema vale inteira). Decisão
-	-- do designer: dá para jogar os primeiros andares com o equipamento velho, mas o chefão pede o da torre atual.
-	lowerTowerEfficiency = 0.5,
+	-- Ressonância (GDD > Torre 2 e escolha de torre; decisão do designer): numa run da Torre 2 em diante, cada peça
+	-- equipada da torre em que se está (ou de uma acima) dá +dano e -dano recebido; o conjunto completo (7 peças) dá
+	-- +50% / -25%. A peça de torre mais baixa vale inteira, só não ressoa: dá para jogar os primeiros andares com o
+	-- equipamento velho, mas o chefão pede o da torre atual. A Torre 1 fica como foi validada (sem ressonância).
+	resonanceFromTower = 2,
+	resonanceDamagePerPiece = 0.5 / 7,
+	resonanceReductionPerPiece = 0.25 / 7,
 	chestCapacity = 50, -- peças no baú da conta (as equipadas não contam)
 	bossRareChance = 0.35, -- item garantido do chefão: chance de ser Raro (com a Sorte do grupo)
 	mobDropChance = 0.005, -- chance de cada mob dar uma peça Comum (com a Sorte do grupo)

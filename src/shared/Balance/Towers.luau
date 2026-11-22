@@ -40,9 +40,10 @@ local TOWER_2: TowerDef = {
 	keyName = "Chave da Torre 2", -- nome provisório
 	-- 5%: em média 20 vitórias na Torre 1; 10% dos jogadores passariam de 45 (por isso existe a missão).
 	keyChance = 0.05,
-	-- ×1,75: o andar 1 tem a força do andar 5 da Torre 1 (com o equipamento ×2, a dificuldade em relação ao poder
-	-- esperado do jogador repete a da Torre 1). ×2: ~4.760 XP e ~900 Gold por run solo.
-	statMultiplier = 1.75,
+	-- ×2,25 (decisão do designer, com a Ressonância de Balance/Gear): com o equipamento da Torre 1 dá para jogar os
+	-- primeiros andares, mas o chefão não; com o conjunto Comum da Torre 2 ressoando, sim. ×2: ~4.760 XP e ~900 Gold
+	-- por run solo.
+	statMultiplier = 2.25,
 	rewardMultiplier = 2,
 	bossId = "TowerGuardian", -- provisório: o Geomante das Rochas entra na etapa 5
 	mobPool = { "Brute" }, -- provisório: o Arremessador entra na etapa 4

@@ -93,8 +93,8 @@ end
 
 -- ===== Participantes =====
 
--- Entrou numa run: o equipamento é recalculado para a torre dela (peça de torre mais baixa vale menos) e vida,
--- mana e stamina enchem.
+-- Entrou numa run: a Ressonância é recalculada para a torre dela (peças da torre ou de cima ressoam) e vida, mana
+-- e stamina enchem.
 local function restoreForRun(player: Player)
 	ProgressionService.refreshEquipment(player)
 	ProgressionService.restoreHealth(player)
@@ -175,7 +175,7 @@ local function endRun(run: RunRegistry.Run, reason: string)
 	RunRegistry.destroy(run)
 	for _, player in members do
 		if player.Parent then
-			ProgressionService.refreshEquipment(player) -- fora da torre o equipamento vale inteiro
+			ProgressionService.refreshEquipment(player) -- fora da torre nada ressoa
 		end
 		if player.Parent and LifeService.isAlive(player) and player.Character then
 			player.Character:PivotTo(LobbyService.spawnCFrame(player))

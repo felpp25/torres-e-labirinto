@@ -199,6 +199,7 @@ local COMMANDS: { [string]: Command } = {
 			maxHealth = if humanoid then humanoid.MaxHealth else -1,
 			maxStamina = player:GetAttribute("MaxStamina"),
 			maxMana = player:GetAttribute("MaxMana"),
+			resonance = ProgressionService.getResonance(player),
 		})
 	end,
 

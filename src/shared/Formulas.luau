@@ -243,13 +243,21 @@ function Formulas.gearSellPrice(def: Types.GearDef, rarity: Types.Rarity, enhanc
 	return math.round(base) + Formulas.enhanceSellBonus(def, enhance)
 end
 
--- Quanto a peça vale numa run da torre `runTower` (nil = fora de run): numa torre ACIMA da dela, a fração de
--- Balance/Gear (pontos, Poder e fortalecimento; a gema não entra aqui: vale inteira).
-function Formulas.gearEfficiency(def: Types.GearDef, runTower: number?): number
-	if runTower ~= nil and runTower > def.tower then
-		return Gear.lowerTowerEfficiency
-	end
-	return 1
+-- ===== Ressonância (Balance/Gear): a peça da torre em que se está (ou de uma acima) dá bônus na run =====
+
+-- A peça ressoa numa run da torre `runTower`? (nil = fora de run: nunca; Torre 1: nunca.)
+function Formulas.resonates(def: Types.GearDef, runTower: number?): boolean
+	return runTower ~= nil and runTower >= Gear.resonanceFromTower and def.tower >= runTower
+end
+
+-- Multiplicador do dano causado com `count` peças ressoando (7 = +50%).
+function Formulas.resonanceDamage(count: number): number
+	return 1 + Gear.resonanceDamagePerPiece * count
+end
+
+-- Fração do dano recebido que a ressonância corta (7 peças = 25%).
+function Formulas.resonanceReduction(count: number): number
+	return Gear.resonanceReductionPerPiece * count
 end
 
 -- ===== Transferir o fortalecimento (decisões do designer): as duas peças TROCAM os níveis =====

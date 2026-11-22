@@ -21,6 +21,7 @@ Keys.PlayerAttr = table.freeze({
 	DamageBonusUntil = "DamageBonusUntil", -- até quando (relógio do servidor) o bônus vale
 	UltimateCharge = "UltimateCharge", -- barra de ultimate, 0 a 100
 	WeaponPower = "WeaponPower", -- Poder da arma equipada (0,05 = +5% de dano do tipo dela); 0 = sem arma
+	Resonance = "Resonance", -- peças equipadas que ressoam na run atual (Balance/Gear); 0 no lobby e na Torre 1
 	GearData = "GearData", -- JSON com as peças da conta e os slots do personagem ativo (Shared/GearSnapshot)
 	Level = "Level",
 	XP = "XP", -- XP dentro do nível atual

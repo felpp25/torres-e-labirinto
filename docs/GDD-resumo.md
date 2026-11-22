@@ -431,14 +431,15 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
     20% do custo de refazer; grátis; qualquer tipo de peça; qualquer torre.
   - *Implementado:* aba **Transferir** da Forja: a peça escolhida à esquerda, à direita as peças compatíveis, como as
     duas ficam depois da troca e o custo; sempre pede um segundo clique.
-- **Equipamento de torre mais baixa (decisões do designer):** a peça vai junto para qualquer torre, mas numa torre
-  acima da dela vale **50%** (pontos, Poder e fortalecimento; a mesma porcentagem a qualquer distância). A **gema vale
-  inteira** (é do nível dela, não da torre). Dá para jogar os primeiros andares com o equipamento velho, mas o chefão
-  pede o da torre atual. Contas em "Torre 2 e escolha de torre".
+- **Equipamento de torre mais baixa (decisões do designer):** a peça vai junto para qualquer torre e **vale inteira**
+  (atributos, Poder, fortalecimento e gema). O que leva o jogador a trocar é a **Ressonância** (ver "Torre 2 e escolha
+  de torre"): só as peças da torre em que ele está dão o bônus dela.
   - O fortalecimento continua sem subir de torre na transferência (só para a mesma torre ou uma mais baixa).
   - **Descartado: o Pergaminho de Ascensão** (item raro que levava o +7 para a peça da torre nova): a peça velha
-    valendo 50% e a chave de acesso fazem esse papel (decisão do designer). Também descartado: custo de fortalecer
-    igual em todas as torres (na Torre 5 o +7 sairia por 3 a 8 runs e o fortalecimento deixaria de segurar o Gold).
+    continuar valendo e a chave de acesso fazem esse papel (decisão do designer). Também descartados: custo de
+    fortalecer igual em todas as torres (na Torre 5 o +7 sairia por 3 a 8 runs e o fortalecimento deixaria de segurar
+    o Gold) e a peça velha valer **50%** numa torre acima (decisão do designer: atributos que caem na tela parecem
+    punição).
 - *Implementado:* janela da **Forja** (bigorna no lobby, tecla F / toque): à esquerda todas as peças da conta (as
   equipadas primeiro, marcadas com "E"); à direita a peça escolhida com o que dá agora e no próximo nível, a chance, o
   custo e o que acontece se falhar. As tentativas de +8 a +10 (as que podem tirar um nível) pedem um segundo clique.
@@ -563,7 +564,7 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 2. ~~Forja no lobby + fortalecimento.~~ **Feito** (sem itens de bênção, adiados).
 3. ~~Gemas: nível 1 e removedores na loja; incrustar, fundir e extrair na Forja.~~ **Feito** (a fusão só tem gemas
    para fundir quando existirem as torres 5+; até lá, testar com o DevService: "GiveGems").
-4. Com a Torre 2: o equipamento de torre mais baixa valendo 50% (ver "Fortalecimento") e o catálogo da Torre 2.
+4. ~~Com a Torre 2: o catálogo da Torre 2 e a Ressonância.~~ **Feito** (ver "Torre 2 e escolha de torre").
 5. Depois: fabricação (depende dos modos Avançado e Pesadelo), raridades Épico e Lendário (junto com esses modos) e
    encantamento.
 
@@ -601,44 +602,51 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   - Descartados: teto 15 (chega na primeira vitória) e 30 (~180 runs com a curva atual).
 - **Recompensa ×2** (XP e Gold por run): ~4.760 XP e ~900 Gold solo; chefão 3.000 XP e 600 Gold. **Base da Forja da
   Torre 2 = 200** (o +7 continua em ~42 runs). Descartados: ×1,5 e ×3.
-- **Mobs e chefão ×1,75** (vida e dano): o andar 1 da Torre 2 tem a força do andar 5 da Torre 1 (e a rampa de +15% por
-  andar continua dentro da torre). Descartados: ×1,5 (mais fácil que o fim da Torre 1) e ×2 (continuar a rampa).
+- **Mobs e chefão ×2,25** (vida e dano; com a Ressonância abaixo). A rampa de +15% por andar continua dentro da torre.
+  - Antes era ×1,75 (o andar 1 com a força do andar 5 da Torre 1), pensado junto com a peça velha a 50%, que saiu.
 - **Equipamento ×2:** as mesmas linhas, com o dobro dos pontos e do Poder da Torre 1 (o Comum da Torre 2 = o Raro da
   Torre 1; segue a referência "conjunto Comum ≈ metade dos pontos do nível máximo da torre"). Nível mínimo 10.
   Descartados: ×1,5 e ×3.
-- **Equipamento da Torre 1 na Torre 2: 50%** (ver "Fortalecimento"). Índice de dificuldade (média do tempo para matar
-  e do tempo para morrer, em relação ao poder do jogador; **1,75 = o chefão da Torre 1 vencido solo no nível 10 sem
-  equipamento, validado como "desafiador"**):
+- **Ressonância (decisão do designer):** os atributos nunca caem. Numa run da Torre 2 em diante, **cada peça equipada
+  da torre em que se está (ou de uma acima) dá +7% de dano e -3,5% de dano recebido**; o conjunto completo (7 peças)
+  dá **+50% / -25%**. A peça de torre mais baixa vale inteira, só não ressoa. A Torre 1 fica como foi validada (sem
+  Ressonância). Na tela: "Ressonância 3/7: +21% dano, -11% dano recebido", acima da barra de ações.
+  - Índice de dificuldade (média do tempo para matar e do tempo para morrer, em relação ao poder do jogador; **1,75 =
+    o chefão da Torre 1 vencido solo no nível 10 sem equipamento, validado como "desafiador"**):
 
-| Lutador nível 10, equipamento da Torre 1 a 50% | Andar 1 | Andar 3 | Chefão da Torre 2 |
-|---|---|---|---|
-| Raro +7 | 1,25 | 1,66 | 2,19 |
-| Raro | 1,42 | 1,88 | 2,49 |
-| Comum | 1,57 | 2,08 | 2,75 |
+| Lutador, chefão da Torre 2 | Índice |
+|---|---|
+| Nível 10, equipamento da Torre 1 (Comum / Raro / Raro +7), sem Ressonância | 3,20 / 2,68 / 2,15 (não passa) |
+| Andar 1 com o mesmo equipamento | 1,83 / 1,53 / 1,23 (dá para jogar) |
+| Nível 15, conjunto Comum da Torre 2, Ressonância 7/7 | 1,62 (passa) |
+| Nível 20, conjunto Raro da Torre 2, Ressonância 7/7 | 1,09 |
+| Nível 20, ainda com o Raro +7 da Torre 1 | 1,65 (passa com esforço) |
 
-  - Esperado no fim da Torre 2 (nível 20, Raro da Torre 2): 1,20. Sem a penalidade, o Raro +7 da Torre 1 venceria o
-    chefão da Torre 2 no nível 10 (1,67). Quem insiste no equipamento velho até o nível 20 chega a 1,60 a 1,91, mas
-    sem vencer o chefão só os mobs dão XP (~23 runs), e nesse tempo os mobs da Torre 2 dão ~13 peças novas.
-  - Descartados: 33% e 25% (os primeiros andares ficam apertados demais); cair de novo a cada torre de diferença; a
-    gema perder eficiência junto.
+  - Descartados: a peça velha valer 50% (atributos caindo na tela); só números, com equipamento ×3 e mobs ×2,25 (o
+    conjunto Comum da Torre 2 no nível 15 ficaria em 1,99, e os números crescem rápido: na Torre 10 o equipamento
+    valeria 19.683× o da Torre 1); a arena do chefão só abrir com 4+ peças da torre (uma trava: ~8 runs juntando
+    peças dos mobs).
 - **Armas da Torre 2 (decisão do designer):** as duas do Lutador, Luvas e Soco Inglês, em versão Torre 2.
 - **Venda das peças da Torre 2 (decisão do designer):** o dobro, Comum 20 / Raro 100 (acompanha a renda; também vale
   quando o drop vira Gold com o baú cheio). O que o fortalecimento soma dobra sozinho com a base da Forja (200).
   Descartado: o mesmo 10 / 50 (vender drops valeria metade em proporção).
-- *Implementado:* teto 20, mobs e chefão ×1,75, XP e Gold ×2, catálogo da Torre 2 (14 peças, nomes provisórios
-  "… II" até o designer mandar os nomes), drops da Torre 2 só com peças dela, Forja (+1 = 200) e venda (20 / 100),
-  equipamento da Torre 1 a 50% numa run da Torre 2 (a gema vale inteira; no lobby tudo vale inteiro). Medido: Brutamontes
-  com 105 de vida, 16 XP; chefão com 2.100 de vida, 3.000 XP e 600 Gold; Luvas da Torre 1 dando FOR 0,5 e Poder 2,5%.
+- *Implementado:* teto 20, mobs e chefão ×2,25, XP e Gold ×2, catálogo da Torre 2 (14 peças, nomes provisórios
+  "… II" até o designer mandar os nomes), drops da Torre 2 só com peças dela, Forja (+1 = 200), venda (20 / 100) e a
+  Ressonância. Medido: Brutamontes do andar 2 com 155 de vida; chefão com 2.700 de vida, 3.000 XP e 600 Gold; com 3
+  peças da Torre 2, dano +21% (192 → 233 num golpe base 100) e dano recebido -11% (91 → 81), atributos iguais aos do
+  lobby; na Torre 1, Ressonância 0.
 
 ### Conteúdo da Torre 2
 - **Arremessador** (mob novo, à distância): marca um círculo (raio 4) onde o jogador está e a pedra cai 0,8 s depois.
-  Base na escala da Torre 1: vida 40, 10 de dano, alcance 30 (na Torre 2, ×1,75). **1 a cada 3 mobs** (~1 por sala de
+  Base na escala da Torre 1: vida 40, 10 de dano, alcance 30 (na Torre 2, ×2,25). **1 a cada 3 mobs** (~1 por sala de
   combate); os Brutamontes seguram o jogador. Descartados: projétil voando; metade dos mobs; 1 a cada 5.
-- **Chefão: Geomante das Rochas** (mago de pedra; vida 2.100 solo, +50% por jogador extra):
+- **Chefão: Geomante das Rochas** (mago de pedra; +50% de vida por jogador extra). Os números abaixo eram os da Torre 2
+  com ×1,75 (vida 2.100); com ×2,25 a base fica na escala da Torre 1 (vida 1.200; danos 23 / 22 / 26) e o jogo
+  multiplica: vida 2.700, danos ~51 / 49 / 58, a mesma proporção em relação ao Guardião.
   - **Chuva de Rochas** (tipo novo: mira em cada jogador): círculo de raio 6 embaixo de cada um, aviso de 1,2 s, 40 de
-    dano, 3 ondas seguidas.
-  - **Onda Sísmica:** círculo de raio 12 em volta dele, aviso de 1,2 s, 38 de dano (pune quem cola).
-  - **Rajada de Pedra:** faixa à frente de 24 × 6, aviso de 1,0 s, 45 de dano.
+    dano (com ×1,75), 3 ondas seguidas.
+  - **Onda Sísmica:** círculo de raio 12 em volta dele, aviso de 1,2 s, 38 de dano (com ×1,75; pune quem cola).
+  - **Rajada de Pedra:** faixa à frente de 24 × 6, aviso de 1,0 s, 45 de dano (com ×1,75).
   - Descartados: Carcereiro Acorrentado (anel que acerta quem está longe) e Touro de Bronze (investida pela arena).
 - A definir: os nomes das peças da Torre 2, o nome da chave e o conteúdo da missão.
 
@@ -646,8 +654,8 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 1. ~~Runs separadas (várias por servidor), portal com espera, amigos no meio.~~ **Feito.**
 2. ~~Portal da Torre 2, acesso (nível + chave), save novo com as torres liberadas da conta.~~ **Feito** (a run da
    Torre 2 ainda usa o conteúdo da Torre 1 até a etapa 3).
-3. ~~Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, equipamento de torre mais baixa a 50%.~~
-   **Feito** (faltam os nomes das peças, que o designer vai mandar).
+3. ~~Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, Ressonância.~~ **Feito** (faltam os nomes das
+   peças, que o designer vai mandar).
 4. Arremessador.
 5. Geomante das Rochas.
 6. Missão de acesso (depois de definida com o designer).

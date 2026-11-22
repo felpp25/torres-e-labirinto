@@ -204,8 +204,8 @@ local function applyKnockback(enemy: Model, direction: Vector3, strength: number
 end
 
 -- Dano antes do crítico e da Defesa do alvo: fórmula do GDD com os atributos EFETIVOS (distribuídos +
--- equipamento), o Poder da arma (só se for do mesmo tipo de dano) e o bônus ativo (Foco Interior).
--- Devolve também os atributos efetivos (o crítico usa a Sorte deles).
+-- equipamento), o Poder da arma (só se for do mesmo tipo de dano), o bônus ativo (Foco Interior) e a Ressonância
+-- (peças da torre da run). Devolve também os atributos efetivos (o crítico usa a Sorte deles).
 local function computeRawDamage(
 	attacker: Player,
 	baseDamage: number,
@@ -219,6 +219,7 @@ local function computeRawDamage(
 	if state and now() < state.damageBonusUntil then
 		raw *= 1 + state.damageBonus
 	end
+	raw *= Formulas.resonanceDamage(ProgressionService.getResonance(attacker))
 	return raw, attributes
 end
 
@@ -575,8 +576,8 @@ function CombatService.isInvulnerable(player: Player): boolean
 	return state ~= nil and now() < state.invulnerableUntil
 end
 
--- Dano em um jogador (vindo de mobs). Respeita a invencibilidade da esquiva e a Defesa do jogador.
--- Devolve true se o dano foi aplicado.
+-- Dano em um jogador (vindo de mobs). Respeita a invencibilidade da esquiva, a Defesa do jogador e a Ressonância
+-- (corta uma fração do dano). Devolve true se o dano foi aplicado.
 function CombatService.damagePlayer(player: Player, rawDamage: number): boolean
 	if CombatService.isInvulnerable(player) then
 		return false
@@ -587,7 +588,9 @@ function CombatService.damagePlayer(player: Player, rawDamage: number): boolean
 		return false
 	end
 	local attributes = ProgressionService.getEffectiveAttributes(player)
-	local damage = math.max(1, math.round(Formulas.applyDefense(rawDamage, attributes.Defense)))
+	local afterDefense = Formulas.applyDefense(rawDamage, attributes.Defense)
+	local reduction = Formulas.resonanceReduction(ProgressionService.getResonance(player))
+	local damage = math.max(1, math.round(afterDefense * (1 - reduction)))
 	local lost = math.min(damage, humanoid.Health)
 	humanoid.Health = math.max(humanoid.Health - damage, 0)
 	addUltimateCharge(player, lost / Combat.ultimate.damageTakenToFill * ULTIMATE_MAX)

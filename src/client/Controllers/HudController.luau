@@ -53,6 +53,8 @@ local COLORS = {
 	cooldown = Color3.fromRGB(0, 0, 0),
 	unavailable = Color3.fromRGB(120, 40, 40),
 	buff = Color3.fromRGB(150, 200, 255),
+	resonance = Color3.fromRGB(200, 160, 255),
+	resonanceNone = Color3.fromRGB(170, 170, 185),
 	ultimateReady = Color3.fromRGB(200, 150, 30),
 }
 
@@ -82,6 +84,7 @@ local dodgeIcon: CooldownIcon? = nil
 local abilityIcons: { [string]: CooldownIcon } = {} -- por id da habilidade
 local ultimateIcon: CooldownIcon? = nil
 local buffLabel: TextLabel? = nil
+local resonanceLabel: TextLabel? = nil
 local screenGui: ScreenGui? = nil
 
 local function numberAttr(name: string): number
@@ -253,6 +256,13 @@ local function build()
 	buff.TextStrokeTransparency = 0
 	buff.Visible = false
 	buffLabel = buff
+	-- Ressonância (peças da torre da run), acima do bônus de dano. Só nas runs da Torre 2 em diante.
+	local resonancePosition = ActionBar.position(1) + UDim2.fromOffset(0, -44)
+	local resonance = makeText(gui, "", UDim2.fromOffset(420, 18), resonancePosition, 14)
+	resonance.Name = "Resonance"
+	resonance.TextStrokeTransparency = 0
+	resonance.Visible = false
+	resonanceLabel = resonance
 
 	-- Barra do chefe: topo central, escondida até existir um chefe vivo.
 	local boss = Instance.new("Frame")
@@ -405,6 +415,22 @@ local function update()
 		ultimateIcon.overlay.Size = UDim2.fromScale(1, 1 - math.clamp(charge / ultimate.cost, 0, 1))
 		ultimateIcon.timer.Text = if ready then "" else `{charge}%`
 		ultimateIcon.frame.BackgroundColor3 = if ready then COLORS.ultimateReady else COLORS.panel
+	end
+	if resonanceLabel then
+		local tower = localPlayer:GetAttribute(Keys.RunAttr.TowerId)
+		local show = localPlayer:GetAttribute(Keys.InRunAttr) == true
+			and typeof(tower) == "number"
+			and tower >= Gear.resonanceFromTower
+		resonanceLabel.Visible = show
+		if show then
+			local count = numberAttr(Keys.PlayerAttr.Resonance)
+			local damage = math.round((Formulas.resonanceDamage(count) - 1) * 100)
+			local reduction = math.round(Formulas.resonanceReduction(count) * 100)
+			resonanceLabel.Text = if count > 0
+				then `Ressonância {count}/{#Gear.slots}: +{damage}% dano, -{reduction}% dano recebido`
+				else `Ressonância 0/{#Gear.slots}: use peças da Torre {tower}`
+			resonanceLabel.TextColor3 = if count > 0 then COLORS.resonance else COLORS.resonanceNone
+		end
 	end
 	if buffLabel then
 		local remaining = numberAttr(Keys.PlayerAttr.DamageBonusUntil) - workspace:GetServerTimeNow()
