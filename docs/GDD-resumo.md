@@ -380,8 +380,23 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 - **Ritmo de referência** (média com falhas, sem bênção, na torre de origem): +5 ≈ 8 runs, +7 ≈ 42 runs,
   +10 ≈ 1.400 runs, **por peça** (o conjunto de 7 peças no +7 ≈ 290 runs). O +10 é meta de longo prazo; os 3
   últimos níveis são ~97% do custo.
-- **Peça fortalecida não é vendida** na loja (decisão do designer). Para se livrar dela, o jogador a **destrói**
-  (arrasta para fora da mochila; o fortalecimento se perde junto).
+- **Peça fortalecida não é vendida** na loja (decisão do designer). Para se livrar dela, o jogador **transfere** o
+  fortalecimento para outra peça (aí ela fica +0 e pode ser vendida) ou a **destrói** (arrasta para fora da mochila;
+  o fortalecimento se perde junto).
+- **Transferir o fortalecimento** (na Forja; decisões do designer):
+  - As duas peças **trocam os níveis**: o Gibão Comum +7 com um Gibão Raro +0 vira Comum +0 e Raro +7. Nada se perde
+    e serve também entre duas peças já fortalecidas. A gema de cada uma fica onde está.
+  - **Custo: 1 tentativa do maior nível trocado**, na base da torre da peça que tem esse nível (Torre 1: +5 = 1.600
+    Gold, 3,6 runs; +7 = 6.400, 14 runs, 34% de refazer; +10 = 51.200, 114 runs, 8% de refazer). Protege o investimento
+    grande sem ser de graça.
+  - **Só entre peças do mesmo tipo** (Arma com Arma, Armadura com Armadura...), mudando linha e raridade à vontade.
+  - **Só para peça da mesma torre ou de uma mais baixa** (descer serve para passar a um personagem novo). Subir seria um
+    atalho: um +7 feito numa peça da Torre 1 pago com o Gold da Torre 5 sai por 2,6 a 8 runs, contra 42 runs direto na
+    peça da Torre 5 (Torre 10: 38× a 512× mais barato, nas hipóteses de renda ×1,5 e ×2 por torre).
+  - Descartados: mover e zerar a origem (destino +0); perder 1 nível (recuperar custa 24 runs no +7 e ~990 no +10);
+    20% do custo de refazer; grátis; qualquer tipo de peça; qualquer torre.
+  - *Implementado:* aba **Transferir** da Forja: a peça escolhida à esquerda, à direita as peças compatíveis, como as
+    duas ficam depois da troca e o custo; sempre pede um segundo clique.
 - *Implementado:* janela da **Forja** (bigorna no lobby, tecla F / toque): à esquerda todas as peças da conta (as
   equipadas primeiro, marcadas com "E"); à direita a peça escolhida com o que dá agora e no próximo nível, a chance, o
   custo e o que acontece se falhar. As tentativas de +8 a +10 (as que podem tirar um nível) pedem um segundo clique.
@@ -477,9 +492,9 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 ### Forja (no lobby)
 - **Funções do início:** **incrustar gemas** (~500 Gold), **fundir gemas**, **fortalecimento** e **extração de
   gemas** (com Removedor).
-- *Implementado:* bigorna atrás da loja (mesmo lado), com as abas **Fortalecer**, **Gemas** (incrustar uma gema do
-  baú na peça escolhida, ou extrair a que está nela) e **Fundir** (as gemas do baú; 3 iguais viram 1 do nível
-  seguinte). A gema encaixada aparece como um quadradinho da cor do atributo, com o nível, no canto da peça. Fica
+- *Implementado:* bigorna atrás da loja (mesmo lado), com as abas **Fortalecer**, **Transferir** (trocar o
+  fortalecimento de duas peças), **Gemas** (incrustar uma gema do baú na peça escolhida, ou extrair a que está nela) e
+  **Fundir** (as gemas do baú; 3 iguais viram 1 do nível seguinte). A gema encaixada aparece como um quadradinho da cor do atributo, com o nível, no canto da peça. Fica
   longe o bastante da loja para as duas janelas não abrirem juntas.
 - *Futuro:* fabricação (receitas e fragmentos) e **encantamento** (boost de atributo no equipamento).
 
@@ -488,7 +503,6 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   protótipo).
 - Itens de bênção e pedra de fortalecimento: se entram, quanto somam e como se obtêm (adiados; análise em
   "Fortalecimento").
-- Transferir o fortalecimento de uma peça para outra (hoje a peça fortalecida que sobra só pode ser destruída).
 - Gemas, para quando as torres 5 a 10 forem construídas:
   - um **teto para a Sorte** nos achados (hoje um único personagem com muita Sorte multiplica os drops do grupo
     inteiro; ex.: Sorte 300 = chances ×7);

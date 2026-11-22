@@ -150,7 +150,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `"Equip"(player, id)`, `"Unequip"(player, slot)`. Drops: `"SampleDrops"`, `"SampleLoot"`, `"RollBossLoot"`,
   `"ForceMobDrop"`, `"GoToFloor"(n)` (numa run ativa), `"RejoinRun"`, `"BossEligible"`.
   Forja: `"Enhance"(player, id, forçar?)` (tentativa real, cobra Gold; `true`/`false` fixa o sorteio) e
-  `"SetEnhance"(player, id, nível)` (direto, sem custo).
+  `"SetEnhance"(player, id, nível)` (direto, sem custo). `"TransferEnhance"(player, deId, paraId)` (troca real dos
+  níveis, cobra Gold).
   Gemas (regras reais, sem distância): `"BuyGem"(player, "Strength")`, `"BuyRemover"(player, nível)`,
   `"SocketGem"(player, id, atributo, nível)`, `"ExtractGem"(player, id)`, `"FuseGems"(player, atributo, nível)`; sem
   custo: `"GiveGems"(player, atributo, nível, n)` (qualquer nível: as Nv2+ ainda não caem) e
