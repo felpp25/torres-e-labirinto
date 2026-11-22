@@ -92,8 +92,11 @@ export type EquipOutcome =
 	| "OtherCharacterWeapon"
 export type UnequipOutcome = "Unequipped" | "Empty" | "WeaponLocked" | "ChestFull"
 export type SellOutcome = "Sold" | "NotFound" | "InUse" | "Enhanced" | "HasGem"
+-- Destruir (arrastar para fora da mochila): a fortalecida pode; equipada e com gema, não.
+export type DestroyOutcome = "Destroyed" | "NotFound" | "InUse" | "HasGem"
 -- Gemas (o GemService transforma em mensagens; o Gold é conferido e cobrado lá).
 export type StoreOutcome = "Stored" | "ChestFull" | "StackFull"
+export type TakeOutcome = "Taken" | "NotEnough"
 export type SocketOutcome = "Socketed" | "NotFound" | "HasGem" | "NoGem"
 export type ExtractOutcome = "Extracted" | "NotFound" | "Empty" | "NoRemover" | "ChestFull" | "StackFull"
 export type FuseOutcome = "Fused" | "CannotFuse" | "NotEnough" | "ChestFull" | "StackFull"
@@ -263,6 +266,28 @@ function PlayerSchema.storeRemovers(profile: Profile, level: number, amount: num
 	return outcome
 end
 
+-- Tira `amount` de uma pilha do baú (venda na loja, destruir a pilha). Não tira nada se não houver o bastante.
+function PlayerSchema.takeGems(
+	profile: Profile,
+	attribute: Types.GemAttribute,
+	level: number,
+	amount: number
+): TakeOutcome
+	if amount < 1 or PlayerSchema.gemCount(profile, attribute, level) < amount then
+		return "NotEnough"
+	end
+	changeStack(profile.gems, PlayerSchema.gemKey(attribute, level), -amount)
+	return "Taken"
+end
+
+function PlayerSchema.takeRemovers(profile: Profile, level: number, amount: number): TakeOutcome
+	if amount < 1 or PlayerSchema.removerCount(profile, level) < amount then
+		return "NotEnough"
+	end
+	changeStack(profile.removers, PlayerSchema.removerKey(level), -amount)
+	return "Taken"
+end
+
 -- Encaixa uma gema do baú na peça `id` (equipada ou não). 1 gema por peça: para trocar, extraia antes.
 function PlayerSchema.socketGem(
 	profile: Profile,
@@ -429,6 +454,27 @@ function PlayerSchema.sell(profile: Profile, id: number): (SellOutcome, Types.Ow
 	end
 	table.remove(profile.gear, index)
 	return "Sold", piece
+end
+
+-- Destrói uma peça do BAÚ (arrastada para fora da mochila; decisão do designer). A fortalecida pode (é o jeito de se
+-- livrar dela, já que não é vendida); equipada, com gema (extraia antes) ou inerte não. Devolve a peça removida.
+function PlayerSchema.destroyGear(profile: Profile, id: number): (DestroyOutcome, Types.OwnedGear?)
+	local index = indexOfGear(profile, id)
+	if index == nil then
+		return "NotFound", nil
+	end
+	local piece = profile.gear[index]
+	if Gear.byId[piece.defId] == nil then
+		return "NotFound", nil
+	end
+	if PlayerSchema.ownerOf(profile, id) ~= nil then
+		return "InUse", nil
+	end
+	if piece.gem ~= nil then
+		return "HasGem", nil
+	end
+	table.remove(profile.gear, index)
+	return "Destroyed", piece
 end
 
 function PlayerSchema.newProfile(): Profile

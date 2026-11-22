@@ -31,6 +31,12 @@
 --                                                                  da forja; resposta em ForgeResult)
 --   ExtractGem      cliente -> servidor  (gearId: number)          quero tirar a gema desta peça (gasta Removedor)
 --   FuseGems        cliente -> servidor  (attribute, level)        quero fundir 3 gemas iguais em 1 do nível seguinte
+--   SellGem         cliente -> servidor  (attribute, level)        quero vender 1 gema do baú (perto da loja; ShopResult)
+--   SellRemover     cliente -> servidor  (level: number)           quero vender 1 Removedor do baú (idem)
+--   DestroyGear     cliente -> servidor  (gearId: number)          quero destruir esta peça do baú (arrastei para fora
+--                                                                  da mochila e confirmei; resposta em GearResult)
+--   DestroyGems     cliente -> servidor  (attribute, level)        quero destruir a pilha inteira dessas gemas (idem)
+--   DestroyRemovers cliente -> servidor  (level: number)           quero destruir a pilha inteira de Removedores (idem)
 -- O equipamento em si (peças da conta, slots, gemas e Removedores do baú) chega pelo Attribute "GearData" do Player
 -- (Shared/GearSnapshot).
 
@@ -62,6 +68,11 @@ export type RemoteName =
 	| "SocketGem"
 	| "ExtractGem"
 	| "FuseGems"
+	| "SellGem"
+	| "SellRemover"
+	| "DestroyGear"
+	| "DestroyGems"
+	| "DestroyRemovers"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -108,6 +119,11 @@ local REMOTE_NAMES: { RemoteName } = {
 	"SocketGem",
 	"ExtractGem",
 	"FuseGems",
+	"SellGem",
+	"SellRemover",
+	"DestroyGear",
+	"DestroyGems",
+	"DestroyRemovers",
 }
 
 export type GearResultPayload = {

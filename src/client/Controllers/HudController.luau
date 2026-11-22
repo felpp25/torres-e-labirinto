@@ -20,6 +20,7 @@ local Remotes = require(Shared:WaitForChild("Remotes"))
 local Types = require(Shared:WaitForChild("Types"))
 local Formulas = require(Shared:WaitForChild("Formulas"))
 local GearInfo = require(Shared:WaitForChild("GearInfo"))
+local GearSnapshot = require(Shared:WaitForChild("GearSnapshot"))
 local Gear = require(Balance:WaitForChild("Gear"))
 local Combat = require(Balance:WaitForChild("Combat"))
 local Abilities = require(Balance:WaitForChild("Abilities"))
@@ -31,6 +32,8 @@ local localPlayer = Players.LocalPlayer
 
 local PANEL_WIDTH = 260
 local FONT = Enum.Font.GothamBold
+-- Como liberar espaço no baú (aviso de baú cheio): vender na loja ou destruir arrastando para fora da mochila.
+local FREE_SPACE_HINT = "Venda algo na loja ou arraste um item para fora da mochila (tecla C) para destruir."
 
 local COLORS = {
 	panel = Color3.fromRGB(20, 20, 28),
@@ -362,8 +365,10 @@ local function showToast(title: string, detailText: string, color: Color3, heigh
 	toast.TextXAlignment = Enum.TextXAlignment.Center
 	toast.TextColor3 = color
 	toast.TextStrokeTransparency = 0
-	local detail = makeText(toast, detailText, UDim2.new(1, 0, 0, 24), UDim2.fromOffset(0, 50), 20)
+	local detail = makeText(toast, detailText, UDim2.new(1, 0, 0, 48), UDim2.fromOffset(0, 50), 20)
 	detail.TextXAlignment = Enum.TextXAlignment.Center
+	detail.TextYAlignment = Enum.TextYAlignment.Top
+	detail.TextWrapped = true -- até 2 linhas (o aviso de baú cheio explica como liberar espaço)
 
 	task.delay(1.8, function()
 		local info = TweenInfo.new(0.6)
@@ -407,9 +412,18 @@ local function onGearNotice(payload: unknown)
 	end
 	local name = GearInfo.fullName(def, rarity)
 	if goldInstead > 0 then
-		showToast("BAÚ CHEIO", `{name} virou {goldInstead} Gold`, COLORS.gold, 0.42)
+		showToast("BAÚ CHEIO", `{name} virou {goldInstead} Gold. {FREE_SPACE_HINT}`, COLORS.gold, 0.42)
 	else
 		showToast("ITEM NOVO!", `{name} foi para o baú`, GearInfo.rarityColor(rarity), 0.42)
+	end
+end
+
+-- Baú cheio ao entrar na torre ou ao chegar no andar do chefe: avisa ANTES de o drop virar Gold (decisão do
+-- designer: o jogador pode vender ou destruir algo, arrastando para fora da mochila, inclusive dentro da torre).
+local function warnIfChestFull()
+	local snapshot = GearSnapshot.decode(localPlayer:GetAttribute(Keys.PlayerAttr.GearData))
+	if GearSnapshot.chestCount(snapshot) >= Gear.chestCapacity then
+		showToast("BAÚ CHEIO", `O que cair vira Gold. {FREE_SPACE_HINT}`, COLORS.gold, 0.42)
 	end
 end
 
@@ -463,6 +477,9 @@ local function onFloorChanged()
 			then "Último andar: o chefe espera na arena vermelha"
 			else "Ative as placas na sala azul para abrir a saída"
 		showToast(`ANDAR {floorNumber}`, hint, if isBossFloor then COLORS.health else COLORS.text, 0.32)
+		if isBossFloor then
+			warnIfChestFull()
+		end
 	end
 end
 
@@ -543,6 +560,12 @@ function HudController.start()
 	task.spawn(onLivesChanged)
 	workspace:GetAttributeChangedSignal(Keys.WorldAttr.TowersCompleted):Connect(onTowersCompletedChanged)
 	onTowersCompletedChanged()
+	-- Entrou na torre com o baú cheio: avisa (um instante depois, para não cobrir o aviso do andar).
+	localPlayer:GetAttributeChangedSignal(Keys.InRunAttr):Connect(function()
+		if localPlayer:GetAttribute(Keys.InRunAttr) == true then
+			task.delay(1, warnIfChestFull)
+		end
+	end)
 	RunService.Heartbeat:Connect(update)
 	RunService.Heartbeat:Connect(updateBossBar)
 end

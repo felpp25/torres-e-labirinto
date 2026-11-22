@@ -291,6 +291,26 @@ function GearService.trySell(player: Player, id: number): (boolean, string)
 	return false, "Item não encontrado"
 end
 
+-- Destrói uma peça do baú (arrastada para fora da mochila; o cliente já pediu confirmação). Vale em qualquer lugar,
+-- inclusive na torre: serve para abrir espaço antes do chefe. A fortalecida pode; equipada e com gema, não.
+function GearService.tryDestroy(player: Player, id: number): (boolean, string)
+	local profile = ProgressionService.getLoadedProfile(player)
+	if not profile then
+		return false, "Aguarde, carregando seus dados"
+	end
+	local outcome, piece = PlayerSchema.destroyGear(profile, id)
+	if outcome == "Destroyed" and piece then
+		GearService.publish(player)
+		print(`[Baú] {player.Name} destruiu {nameOf(piece)} (id {id})`)
+		return true, `Destruiu {nameOf(piece)}`
+	elseif outcome == "InUse" then
+		return false, "Item em uso: tire antes de destruir"
+	elseif outcome == "HasGem" then
+		return false, "Peça com gema: extraia a gema na Forja antes de destruir"
+	end
+	return false, "Item não encontrado"
+end
+
 -- ===== Fortalecimento (GDD > Fortalecimento; a Forja já conferiu a distância do balcão) =====
 
 -- Uma tentativa de fortalecer a peça `id` (de qualquer personagem da conta, ou do baú). Cobra o Gold da tentativa,
@@ -378,9 +398,19 @@ local function onUnequipGear(player: Player, rawSlot: unknown)
 	end
 end
 
+local function onDestroyGear(player: Player, rawId: unknown)
+	local id = Formulas.parseGearId(rawId)
+	if id == nil or not allowRequest(player) then
+		return
+	end
+	local ok, message = GearService.tryDestroy(player, id)
+	reply(player, ok, message)
+end
+
 function GearService.init()
 	Remotes.get("EquipGear").OnServerEvent:Connect(onEquipGear)
 	Remotes.get("UnequipGear").OnServerEvent:Connect(onUnequipGear)
+	Remotes.get("DestroyGear").OnServerEvent:Connect(onDestroyGear)
 	-- Publica assim que o perfil carregar (sem prazo: o carregamento pode esperar a trava de outro servidor).
 	ProgressionService.setLoadedHandler(GearService.publish)
 	-- Jogadores que já estavam no servidor e terminaram de carregar antes deste registro (publish ignora quem ainda

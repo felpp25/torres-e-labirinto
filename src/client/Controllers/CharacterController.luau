@@ -14,6 +14,7 @@
 -- o único jeito de abrir).
 
 local ContextActionService: ContextActionService = game:GetService("ContextActionService")
+local UserInputService: UserInputService = game:GetService("UserInputService")
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -99,6 +100,7 @@ local fmt = GearInfo.formatNumber
 local CharacterController = {}
 
 -- Janela principal
+local screenGui: ScreenGui? = nil
 local window: Frame? = nil
 local openButton: TextButton? = nil
 local previewViewport: ViewportFrame? = nil
@@ -435,7 +437,7 @@ local function refreshDetail()
 		statsLabel.Text = "Escolha uma peça deste tipo na mochila"
 	else
 		nameLabel.Text = "Clique numa peça"
-		statsLabel.Text = "do personagem ou da mochila para ver os detalhes"
+		statsLabel.Text = "do personagem ou da mochila. Para destruir, arraste da mochila para fora da janela."
 	end
 	local text, color, _ = currentAction()
 	button.Visible = text ~= nil
@@ -548,6 +550,166 @@ end
 
 local refresh: () -> () -- definido abaixo (as células chamam ao serem clicadas)
 
+-- ===== Destruir: arrastar um item da mochila para fora da janela, com confirmação (decisão do designer) =====
+-- "Fora" = fora da janela Personagem inteira: soltar em cima do personagem não destrói nada.
+
+-- O que o arrasto leva: o nome e o aviso da confirmação, a aparência do "fantasma" que segue o ponteiro e o pedido
+-- ao servidor. `blocked` = motivo para não poder destruir (mostrado na hora, sem abrir a confirmação).
+type DragItem = {
+	name: string,
+	warning: string,
+	short: string,
+	color: Color3,
+	blocked: string?,
+	destroy: () -> (),
+}
+
+local DRAG_START_DISTANCE = 10 -- px que o ponteiro anda antes de virar arrasto (menos que isso é clique)
+local TOUCH_HOLD_TIME = 0.35 -- s segurando no toque antes de arrastar (arrastar logo de cara é rolar a mochila)
+
+local pressItem: DragItem? = nil
+local pressStart = Vector2.zero
+local pressAt = 0
+local pressTouch = false
+local dragGhost: TextLabel? = nil
+local confirmFrame: Frame? = nil
+local confirmText: TextLabel? = nil
+local pendingDestroy: DragItem? = nil
+
+local function startPress(item: DragItem, input: InputObject)
+	local kind = input.UserInputType
+	if kind ~= Enum.UserInputType.MouseButton1 and kind ~= Enum.UserInputType.Touch then
+		return
+	end
+	pressItem = item
+	pressStart = Vector2.new(input.Position.X, input.Position.Y)
+	pressAt = os.clock()
+	pressTouch = kind == Enum.UserInputType.Touch
+end
+
+local function moveGhost(position: Vector2)
+	local ghost = dragGhost
+	if ghost then
+		ghost.Position = UDim2.fromOffset(position.X, position.Y)
+	end
+end
+
+local function startDrag(item: DragItem, position: Vector2)
+	local parent = screenGui
+	if not parent then
+		return
+	end
+	local ghost = Instance.new("TextLabel")
+	ghost.Name = "DragGhost"
+	ghost.AnchorPoint = Vector2.new(0.5, 0.5)
+	ghost.Size = UDim2.fromOffset(CELL_SIZE, CELL_SIZE)
+	ghost.BackgroundColor3 = COLORS.cell
+	ghost.BackgroundTransparency = 0.15
+	ghost.Text = item.short
+	ghost.TextColor3 = item.color
+	ghost.TextSize = 13
+	ghost.Font = FONT
+	ghost.ZIndex = 50
+	ghost.Parent = parent
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = ghost
+	local stroke = Instance.new("UIStroke")
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Thickness = 2
+	stroke.Color = item.color
+	stroke.Parent = ghost
+	dragGhost = ghost
+	moveGhost(position)
+	if chestGrid then
+		chestGrid.ScrollingEnabled = false
+	end
+end
+
+local function stopDrag()
+	pressItem = nil
+	if dragGhost then
+		dragGhost:Destroy()
+		dragGhost = nil
+	end
+	if chestGrid then
+		chestGrid.ScrollingEnabled = true
+	end
+end
+
+-- O ponto está dentro da janela Personagem? (Mesmo espaço de coordenadas do InputObject.Position e do
+-- AbsolutePosition: o UIScale da janela já entra no AbsolutePosition/AbsoluteSize.)
+local function insideWindow(position: Vector2): boolean
+	local frame = window
+	if not frame then
+		return false
+	end
+	local topLeft = frame.AbsolutePosition
+	local bottomRight = topLeft + frame.AbsoluteSize
+	return position.X >= topLeft.X
+		and position.X <= bottomRight.X
+		and position.Y >= topLeft.Y
+		and position.Y <= bottomRight.Y
+end
+
+local function closeConfirm()
+	pendingDestroy = nil
+	if confirmFrame then
+		confirmFrame.Visible = false
+	end
+end
+
+local function askDestroy(item: DragItem)
+	if item.blocked then
+		showMessage(item.blocked, false)
+		return
+	end
+	pendingDestroy = item
+	if confirmText then
+		confirmText.Text = `{item.name}\n{item.warning}Não dá para desfazer.`
+	end
+	if confirmFrame then
+		confirmFrame.Visible = true
+	end
+end
+
+local function onPointerMoved(input: InputObject)
+	local item = pressItem
+	if not item then
+		return
+	end
+	local kind = input.UserInputType
+	if kind ~= Enum.UserInputType.MouseMovement and kind ~= Enum.UserInputType.Touch then
+		return
+	end
+	local position = Vector2.new(input.Position.X, input.Position.Y)
+	if not dragGhost then
+		if (position - pressStart).Magnitude < DRAG_START_DISTANCE then
+			return
+		end
+		if pressTouch and os.clock() - pressAt < TOUCH_HOLD_TIME then
+			pressItem = nil -- no toque, arrastar logo de cara é rolar a mochila
+			return
+		end
+		startDrag(item, position)
+	end
+	moveGhost(position)
+end
+
+local function onPointerReleased(input: InputObject)
+	local kind = input.UserInputType
+	if kind ~= Enum.UserInputType.MouseButton1 and kind ~= Enum.UserInputType.Touch then
+		return
+	end
+	local item = pressItem
+	local dragged = dragGhost ~= nil
+	stopDrag()
+	local position = Vector2.new(input.Position.X, input.Position.Y)
+	if item and dragged and not insideWindow(position) then
+		askDestroy(item)
+	end
+end
+
 local function rebuildChest()
 	local grid = chestGrid
 	if not grid then
@@ -595,22 +757,26 @@ local function rebuildChest()
 		refresh()
 	end
 
-	-- Pilha (gema ou Removedor): sigla, "Nv1" no canto e a quantidade embaixo.
-	local function makeStack(key: string, index: number, short: string, level: number, count: number, color: Color3)
+	-- Pilha (gema ou Removedor): sigla, "Nv1" no canto e a quantidade embaixo. Arrastar para fora destrói a pilha
+	-- inteira (decisão do designer: destruir serve para liberar o espaço do baú).
+	local function makeStack(key: string, index: number, level: number, count: number, item: DragItem)
 		local cell, stroke = makeCell(`Stack_{key}`, index, true)
-		stroke.Color = color
-		local label = makeText(cell, short, UDim2.fromScale(1, 1), UDim2.new(), 13)
+		stroke.Color = item.color
+		local label = makeText(cell, item.short, UDim2.fromScale(1, 1), UDim2.new(), 13)
 		label.TextXAlignment = Enum.TextXAlignment.Center
-		label.TextColor3 = color
+		label.TextColor3 = item.color
 		local levelLabel = makeBadge(cell, 10)
 		levelLabel.Text = `Nv{level}`
 		levelLabel.TextColor3 = COLORS.text
 		local countLabel = makeText(cell, `×{count}`, UDim2.new(1, -4, 0, 12), UDim2.new(0, 0, 1, -14), 10)
 		countLabel.TextXAlignment = Enum.TextXAlignment.Right
 		countLabel.TextColor3 = COLORS.dim
-		stackViews[key] = { stroke = stroke, color = color }
+		stackViews[key] = { stroke = stroke, color = item.color }
 		cell.Activated:Connect(function()
 			selectStack(key)
+		end)
+		cell.InputBegan:Connect(function(input: InputObject)
+			startPress(item, input)
 		end)
 	end
 
@@ -619,11 +785,12 @@ local function rebuildChest()
 		index += 1
 		local cell, stroke = makeCell(`Item_{entry.id}`, index, true)
 		local def = Gear.byId[entry.defId]
+		local rarity: Types.Rarity = entry.rarity
 		local label = makeText(cell, SLOT_SHORT[def.slot], UDim2.fromScale(1, 1), UDim2.new(), 13)
 		label.TextXAlignment = Enum.TextXAlignment.Center
 		makeBadge(cell, 11).Text = GearInfo.enhanceLabel(entry.enhance)
 		setGemMark(makeGemMark(cell, 14), entry.gem)
-		stroke.Color = GearInfo.rarityColor(entry.rarity)
+		stroke.Color = GearInfo.rarityColor(rarity)
 		cellStrokes[entry.id] = stroke
 		local id = entry.id
 		cell.Activated:Connect(function()
@@ -633,16 +800,49 @@ local function rebuildChest()
 			showMessage("", true)
 			refresh()
 		end)
+		-- A fortalecida pode ser destruída (é o jeito de se livrar dela: não é vendida); a com gema, não.
+		local item: DragItem = {
+			name = GearInfo.fullName(def, rarity, entry.enhance),
+			warning = if entry.enhance > 0 then `O fortalecimento (+{entry.enhance}) se perde junto. ` else "",
+			short = SLOT_SHORT[def.slot],
+			color = GearInfo.rarityColor(rarity),
+			blocked = if entry.gem then "Peça com gema: extraia a gema na Forja antes de destruir" else nil,
+			destroy = function()
+				Remotes.get("DestroyGear"):FireServer(id)
+			end,
+		}
+		cell.InputBegan:Connect(function(input: InputObject)
+			startPress(item, input)
+		end)
 	end
 	for _, stack in snapshot.gems do
 		index += 1
-		local key = gemStackKey(stack.attribute, stack.level)
-		local color = GearInfo.gemColor(stack.attribute)
-		makeStack(key, index, GearInfo.gemShort(stack.attribute), stack.level, stack.count, color)
+		local attribute: Types.GemAttribute = stack.attribute
+		local level = stack.level
+		makeStack(gemStackKey(attribute, level), index, level, stack.count, {
+			name = `{GearInfo.gemName(attribute, level)} (×{stack.count})`,
+			warning = "Some a pilha inteira. ",
+			short = GearInfo.gemShort(attribute),
+			color = GearInfo.gemColor(attribute),
+			blocked = nil,
+			destroy = function()
+				Remotes.get("DestroyGems"):FireServer(attribute, level)
+			end,
+		})
 	end
 	for _, stack in snapshot.removers do
 		index += 1
-		makeStack(removerStackKey(stack.level), index, "REM", stack.level, stack.count, COLORS.dim)
+		local level = stack.level
+		makeStack(removerStackKey(level), index, level, stack.count, {
+			name = `{GearInfo.removerName(level)} (×{stack.count})`,
+			warning = "Some a pilha inteira. ",
+			short = "REM",
+			color = COLORS.dim,
+			blocked = nil,
+			destroy = function()
+				Remotes.get("DestroyRemovers"):FireServer(level)
+			end,
+		})
 	end
 	for empty = index + 1, math.max(Gear.chestCapacity, index) do
 		makeCell(`Empty_{empty}`, empty, false)
@@ -872,7 +1072,7 @@ local function buildInventorySide(frame: Frame)
 	name.RichText = true
 	name.TextTruncate = Enum.TextTruncate.AtEnd
 	detailName = name
-	local stats = makeText(detail, "", UDim2.new(1, -120, 0, 32), UDim2.fromOffset(10, 30), 11)
+	local stats = makeText(detail, "", UDim2.new(1, -120, 0, 44), UDim2.fromOffset(10, 30), 11) -- até 3 linhas
 	stats.TextColor3 = COLORS.dim
 	stats.TextWrapped = true
 	stats.TextYAlignment = Enum.TextYAlignment.Top
@@ -972,12 +1172,58 @@ local function buildAllocWindow(gui: ScreenGui)
 	hint.TextColor3 = COLORS.dim
 end
 
+-- Confirmação de destruir (aparece ao soltar um item da mochila fora da janela). Fica por cima da janela.
+local function buildConfirm(frame: Frame)
+	local box = Instance.new("Frame")
+	box.Name = "ConfirmDestroy"
+	box.AnchorPoint = Vector2.new(0.5, 0.5)
+	box.Position = UDim2.fromScale(0.5, 0.5)
+	box.Size = UDim2.fromOffset(360, 170)
+	box.BackgroundColor3 = COLORS.window
+	box.Active = true -- não deixa o clique passar para a janela de trás
+	box.ZIndex = 10
+	box.Visible = false
+	box.Parent = frame
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = box
+	local stroke = Instance.new("UIStroke")
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Thickness = 2
+	stroke.Color = COLORS.remove
+	stroke.Parent = box
+	confirmFrame = box
+
+	local title = makeText(box, "Destruir?", UDim2.new(1, -28, 0, 24), UDim2.fromOffset(14, 12), 18)
+	title.TextColor3 = COLORS.fail
+	local text = makeText(box, "", UDim2.new(1, -28, 0, 60), UDim2.fromOffset(14, 42), 13)
+	text.Name = "Text"
+	text.TextWrapped = true
+	text.TextYAlignment = Enum.TextYAlignment.Top
+	confirmText = text
+
+	local destroy = makeButton(box, "Destruir", UDim2.new(0.5, -20, 0, 38), UDim2.new(0, 14, 1, -52), COLORS.remove)
+	destroy.Name = "DestroyButton"
+	destroy.Activated:Connect(function()
+		local item = pendingDestroy
+		closeConfirm()
+		if item then
+			item.destroy()
+		end
+	end)
+	local cancel = makeButton(box, "Cancelar", UDim2.new(0.5, -20, 0, 38), UDim2.new(0.5, 6, 1, -52), COLORS.disabled)
+	cancel.Name = "CancelButton"
+	cancel.Activated:Connect(closeConfirm)
+end
+
 local function setOpen(open: boolean)
 	local frame = window
 	if frame then
 		frame.Visible = open
 	end
 	ChatBlocker.setHidden("Character", open)
+	stopDrag()
+	closeConfirm()
 	if open then
 		showMessage("", true)
 		rebuildChest()
@@ -1001,6 +1247,7 @@ local function build()
 	-- de ZIndex maior, escondia os próprios botões dela).
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.Parent = localPlayer:WaitForChild("PlayerGui")
+	screenGui = gui
 
 	-- Botão "Personagem" logo abaixo do painel do HUD (canto superior esquerdo). Dourado com pontos livres.
 	local button = makeButton(gui, "", UDim2.fromOffset(190, 30), UDim2.fromOffset(12, 148), COLORS.openButton)
@@ -1034,6 +1281,7 @@ local function build()
 
 	buildCharacterSide(frame)
 	buildInventorySide(frame)
+	buildConfirm(frame)
 	buildAllocWindow(gui)
 
 	local distribute = distributeButton
@@ -1096,6 +1344,9 @@ end
 function CharacterController.start()
 	-- Sem botão de toque do ContextActionService: no celular, o botão "Personagem" da tela abre a janela.
 	ContextActionService:BindAction(ACTION_NAME, onToggleAction, false, Enum.KeyCode.C, Enum.KeyCode.ButtonX)
+	-- Arrastar da mochila (destruir): o ponteiro é seguido pela tela toda, não só pela célula.
+	UserInputService.InputChanged:Connect(onPointerMoved)
+	UserInputService.InputEnded:Connect(onPointerReleased)
 	localPlayer.AttributeChanged:Connect(function(name: string)
 		if
 			name == Keys.PlayerAttr.UnspentPoints

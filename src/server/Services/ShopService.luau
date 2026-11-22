@@ -1,7 +1,8 @@
 --!strict
--- Loja do lobby (GDD > Lobby e loja): compra de itens, reset de atributos, venda de equipamento e gemas Nv1 e
--- Removedores (GDD > Gemas).
--- O cliente só PEDE (BuyItem / ResetAttributes / SellGear / BuyGem / BuyRemover). Tudo é validado aqui: o item
+-- Loja do lobby (GDD > Lobby e loja): compra de itens, reset de atributos, venda de equipamento, gemas Nv1 e
+-- Removedores (GDD > Gemas) e venda das gemas e Removedores que sobram.
+-- O cliente só PEDE (BuyItem / ResetAttributes / SellGear / BuyGem / BuyRemover / SellGem / SellRemover). Tudo é
+-- validado aqui: o item
 -- existe, o jogador está perto do balcão, tem Gold suficiente e não passou do limite do item. Na venda e nas gemas,
 -- a distância e o anti-spam são conferidos aqui e o resto (peça da conta, baú, Gold) no GearService/GemService.
 -- A resposta volta pelo Remote ShopResult.
@@ -136,12 +137,40 @@ local function onBuyRemover(player: Player, rawLevel: unknown)
 	reply(player, ok, message)
 end
 
+-- Venda de sobras (decisão do designer: 10% do preço). Qualquer nível: as gemas Nv2+ caem do chefão (torres 5+).
+local function onSellGem(player: Player, rawAttribute: unknown, rawLevel: unknown)
+	local attribute: Types.GemAttribute? = Formulas.parseGemAttribute(rawAttribute)
+	local level = Formulas.parseGemLevel(rawLevel)
+	if attribute == nil or level == nil or not allowRequest(player) then
+		return
+	end
+	if not LobbyService.isNearShop(player) then
+		reply(player, false, "Chegue mais perto da loja")
+		return
+	end
+	reply(player, GemService.trySellGem(player, attribute, level))
+end
+
+local function onSellRemover(player: Player, rawLevel: unknown)
+	local level = Formulas.parseGemLevel(rawLevel)
+	if level == nil or not allowRequest(player) then
+		return
+	end
+	if not LobbyService.isNearShop(player) then
+		reply(player, false, "Chegue mais perto da loja")
+		return
+	end
+	reply(player, GemService.trySellRemover(player, level))
+end
+
 function ShopService.init()
 	Remotes.get("BuyItem").OnServerEvent:Connect(onBuyItem)
 	Remotes.get("ResetAttributes").OnServerEvent:Connect(onResetAttributes)
 	Remotes.get("SellGear").OnServerEvent:Connect(onSellGear)
 	Remotes.get("BuyGem").OnServerEvent:Connect(onBuyGem)
 	Remotes.get("BuyRemover").OnServerEvent:Connect(onBuyRemover)
+	Remotes.get("SellGem").OnServerEvent:Connect(onSellGem)
+	Remotes.get("SellRemover").OnServerEvent:Connect(onSellRemover)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		lastRequestAt[player] = nil
 	end)

@@ -32,6 +32,9 @@
 --   "BuyGem"(player, "Strength") e "BuyRemover"(player, nível) (cobram Gold), "SocketGem"(player, id, atributo,
 --   nível), "ExtractGem"(player, id), "FuseGems"(player, atributo, nível). Sem custo: "GiveGems"(player, atributo,
 --   nível, n) (qualquer nível: as Nv2+ ainda não caem) e "GiveRemovers"(player, nível, n).
+--   Sobras: "SellGem"(player, atributo, nível) e "SellRemover"(player, nível) (vende 1, sem distância).
+--   Destruir (o que o arrastar para fora da mochila pede): "DestroyGear"(player, id), "DestroyGems"(player,
+--   atributo, nível) e "DestroyRemovers"(player, nível) (pilha inteira).
 
 local DataStoreService: DataStoreService = game:GetService("DataStoreService")
 local HttpService: HttpService = game:GetService("HttpService")
@@ -367,6 +370,30 @@ local COMMANDS: { [string]: Command } = {
 	GiveRemovers = function(player: Player, level: number, amount: number?): string
 		local _, parsedLevel = gemArgs("Strength", level)
 		return GemService.debugGiveRemovers(player, parsedLevel, amount or 1) or "perfil não carregado"
+	end,
+
+	SellGem = function(player: Player, attribute: string, level: number): string
+		local parsedAttribute: Types.GemAttribute, parsedLevel = gemArgs(attribute, level)
+		return outcomeText(GemService.trySellGem(player, parsedAttribute, parsedLevel))
+	end,
+
+	SellRemover = function(player: Player, level: number): string
+		local _, parsedLevel = gemArgs("Strength", level)
+		return outcomeText(GemService.trySellRemover(player, parsedLevel))
+	end,
+
+	DestroyGear = function(player: Player, id: number): string
+		return outcomeText(GearService.tryDestroy(player, id))
+	end,
+
+	DestroyGems = function(player: Player, attribute: string, level: number): string
+		local parsedAttribute: Types.GemAttribute, parsedLevel = gemArgs(attribute, level)
+		return outcomeText(GemService.tryDestroyGems(player, parsedAttribute, parsedLevel))
+	end,
+
+	DestroyRemovers = function(player: Player, level: number): string
+		local _, parsedLevel = gemArgs("Strength", level)
+		return outcomeText(GemService.tryDestroyRemovers(player, parsedLevel))
 	end,
 }
 

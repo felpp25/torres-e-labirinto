@@ -40,6 +40,8 @@ export type GemBalance = {
 	fuseCost: { [number]: number },
 	removerPrice: { number },
 	removerShopMaxLevel: number,
+	gemSellPerLevel: number,
+	removerSellFraction: number,
 	stackMax: number,
 }
 
@@ -56,6 +58,10 @@ local GEMS: GemBalance = {
 	-- A loja vende Removedores só até este nível (decisão do designer): os Nv2 a Nv5 entram junto com as gemas Nv2+
 	-- (torres 5+). Antes disso o jogador gastaria Gold num item sem uso.
 	removerShopMaxLevel = 1,
+	-- Venda de sobras na loja (decisão do designer: "custo bem reduzido", 10%). Vender rende sempre bem menos que
+	-- comprar: não vira fonte de Gold.
+	gemSellPerLevel = 100, -- a loja paga 100 Gold por nível da gema (Nv1 = 100, 10% dos 1.000; Nv5 = 500)
+	removerSellFraction = 0.10, -- a loja paga 10% do preço do Removedor (Nv1 = 10)
 	stackMax = 99, -- máximo por pilha no baú (trava técnica: 99 gemas Nv1 = 99.000 Gold)
 }
 

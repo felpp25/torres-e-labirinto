@@ -1,10 +1,11 @@
 --!strict
 -- Painel da loja (GDD > Lobby e loja). Abre ao acionar o prompt "Loja" do balcão do lobby
 -- (tecla F / direcional para cima no controle / toque no celular) e fecha sozinho ao se afastar.
--- Abas: Comprar (poções e reset de atributos), Vender (peças de equipamento do baú; as equipadas, as fortalecidas e
--- as com gema não aparecem: decisões do designer) e Gemas (gema Nv1 de cada atributo e Removedor; ficam no baú).
--- O cliente só PEDE (BuyItem / ResetAttributes / SellGear / BuyGem / BuyRemover); o servidor valida e responde por
--- ShopResult.
+-- Abas: Comprar (poções e reset de atributos), Vender (peças de equipamento do baú, gemas e Removedores; as peças
+-- equipadas, as fortalecidas e as com gema não aparecem: decisões do designer) e Gemas (gema Nv1 de cada atributo e
+-- Removedor; ficam no baú).
+-- O cliente só PEDE (BuyItem / ResetAttributes / SellGear / BuyGem / BuyRemover / SellGem / SellRemover); o servidor
+-- valida e responde por ShopResult.
 
 local Players: Players = game:GetService("Players")
 local ProximityPromptService: ProximityPromptService = game:GetService("ProximityPromptService")
@@ -14,6 +15,7 @@ local RunService: RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Balance = Shared:WaitForChild("Balance")
 local Types = require(Shared:WaitForChild("Types"))
+local Formulas = require(Shared:WaitForChild("Formulas"))
 local Keys = require(Shared:WaitForChild("Keys"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local GearInfo = require(Shared:WaitForChild("GearInfo"))
@@ -69,8 +71,9 @@ local tabButtons: { [string]: TextButton } = {}
 local pages: { [string]: Frame } = {}
 local currentTab: Tab = "Buy"
 local sellList: ScrollingFrame? = nil
-local sellButtons: { [number]: TextButton } = {}
-local sellConfirmUntil: { [number]: number } = {}
+-- Botões de venda e confirmação pendente, por chave da linha ("piece:12", "gem:Strength:1", "remover:1").
+local sellButtons: { [string]: TextButton } = {}
+local sellConfirmUntil: { [string]: number } = {}
 local gemRows: { GemRow } = {}
 local gemHint: TextLabel? = nil
 local snapshot: Types.GearSnapshot = GearSnapshot.empty()
@@ -148,8 +151,8 @@ local function refresh()
 		resetButton.BackgroundColor3 = if gold >= resetPrice() then COLORS.danger else COLORS.disabled
 	end
 	local t = os.clock()
-	for id, button in sellButtons do
-		button.Text = if t < (sellConfirmUntil[id] or 0) then "Confirmar?" else "Vender"
+	for key, button in sellButtons do
+		button.Text = if t < (sellConfirmUntil[key] or 0) then "Confirmar?" else "Vender"
 	end
 	for _, row in gemRows do
 		local count = row.count()
@@ -163,7 +166,8 @@ local function refresh()
 	end
 end
 
--- Lista de venda: só peças do baú sem fortalecimento e sem gema, por slot, Rara primeiro, nome e id.
+-- Lista de venda: as peças do baú sem fortalecimento e sem gema (por slot, Rara primeiro, nome e id), depois as
+-- gemas e os Removedores (1 por clique, a 10% do preço: decisão do designer).
 local function rebuildSellRows()
 	local list = sellList
 	if not list then
@@ -176,6 +180,40 @@ local function rebuildSellRows()
 	end
 	table.clear(sellButtons)
 
+	-- Uma linha: título (RichText), detalhe e o botão Vender. `confirm` = pede um segundo clique (itens valiosos).
+	local order = 0
+	local function addRow(key: string, title: string, detail: string, confirm: boolean, sellNow: () -> ())
+		order += 1
+		local row = Instance.new("Frame")
+		row.Name = `Sell_{key}`
+		row.LayoutOrder = order
+		row.Size = UDim2.new(1, -8, 0, SELL_ROW_HEIGHT - 4)
+		row.BackgroundColor3 = COLORS.row
+		row.Parent = list
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = row
+		local titleLabel = makeText(row, title, UDim2.new(1, -120, 0, 18), UDim2.fromOffset(10, 3), 14)
+		titleLabel.RichText = true
+		titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		local detailLabel = makeText(row, detail, UDim2.new(1, -120, 0, 14), UDim2.fromOffset(10, 22), 11)
+		detailLabel.TextColor3 = COLORS.dim
+		detailLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		local sell = makeButton(row, "Vender", UDim2.fromOffset(100, 30), UDim2.new(1, -106, 0, 6), COLORS.buy)
+		sell.Name = "Sell"
+		sell.TextSize = 14
+		sell.Activated:Connect(function()
+			if confirm and os.clock() >= (sellConfirmUntil[key] or 0) then
+				sellConfirmUntil[key] = os.clock() + CONFIRM_WINDOW
+			else
+				sellConfirmUntil[key] = nil
+				sellNow()
+			end
+			refresh()
+		end)
+		sellButtons[key] = sell
+	end
+
 	local chest: { Types.GearEntry } = {}
 	for _, entry in snapshot.gear do
 		if not entry.inUse and entry.enhance == 0 and entry.gem == nil then
@@ -184,57 +222,54 @@ local function rebuildSellRows()
 	end
 	GearSnapshot.sortEntries(chest)
 
-	if #chest == 0 then
-		local empty = makeText(list, "Nada para vender no baú.", UDim2.new(1, -8, 0, 30), UDim2.new(), 13)
-		empty.TextColor3 = COLORS.dim
-		empty.LayoutOrder = 1
-	end
-	for index, entry in chest do
+	for _, entry in chest do
 		local def = Gear.byId[entry.defId]
 		local rarity: Types.Rarity = entry.rarity
 		local price = Gear.sellPrice[rarity] or 0
-		local row = Instance.new("Frame")
-		row.LayoutOrder = index
-		row.Size = UDim2.new(1, -8, 0, SELL_ROW_HEIGHT - 4)
-		row.BackgroundColor3 = COLORS.row
-		row.Parent = list
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 8)
-		corner.Parent = row
-		local title = makeText(
-			row,
-			`<font color="{hexColor(GearInfo.rarityColor(rarity))}">{def.displayName}</font>  ·  {GearInfo.rarityLabel(
-				rarity
-			)}`,
-			UDim2.new(1, -120, 0, 18),
-			UDim2.fromOffset(10, 3),
-			14
-		)
-		title.RichText = true
-		title.TextTruncate = Enum.TextTruncate.AtEnd
-		local detail = makeText(
-			row,
-			`{GearInfo.slotLabel(def.slot)}  ·  {GearInfo.describe(def, rarity)}  ·  {price} Gold`,
-			UDim2.new(1, -120, 0, 14),
-			UDim2.fromOffset(10, 22),
-			11
-		)
-		detail.TextColor3 = COLORS.dim
-		detail.TextTruncate = Enum.TextTruncate.AtEnd
+		local color = hexColor(GearInfo.rarityColor(rarity))
 		local id = entry.id
-		local sell = makeButton(row, "Vender", UDim2.fromOffset(100, 30), UDim2.new(1, -106, 0, 6), COLORS.buy)
-		sell.TextSize = 14
-		sell.Activated:Connect(function()
-			-- Peça Rara vale mais: pede um segundo clique para confirmar.
-			if rarity == "Rare" and os.clock() >= (sellConfirmUntil[id] or 0) then
-				sellConfirmUntil[id] = os.clock() + CONFIRM_WINDOW
-			else
-				sellConfirmUntil[id] = nil
+		-- Peça Rara vale mais: pede um segundo clique para confirmar.
+		addRow(
+			`piece:{id}`,
+			`<font color="{color}">{def.displayName}</font>  ·  {GearInfo.rarityLabel(rarity)}`,
+			`{GearInfo.slotLabel(def.slot)}  ·  {GearInfo.describe(def, rarity)}  ·  {price} Gold`,
+			rarity == "Rare",
+			function()
 				Remotes.get("SellGear"):FireServer(id)
 			end
-			refresh()
-		end)
-		sellButtons[id] = sell
+		)
+	end
+	for _, stack in snapshot.gems do
+		local attribute: Types.GemAttribute = stack.attribute
+		local level = stack.level
+		local color = hexColor(GearInfo.gemColor(attribute))
+		-- Gema acima da da loja (cai do chefão) vale mais do que a venda paga: confirma.
+		addRow(
+			`gem:{attribute}:{level}`,
+			`<font color="{color}">{GearInfo.gemName(attribute, level)}</font>  ·  ×{stack.count}`,
+			`{GearInfo.gemEffect(attribute, level)} numa peça  ·  {Formulas.gemSellPrice(level)} Gold cada`,
+			level > Gems.shopLevel,
+			function()
+				Remotes.get("SellGem"):FireServer(attribute, level)
+			end
+		)
+	end
+	for _, stack in snapshot.removers do
+		local level = stack.level
+		addRow(
+			`remover:{level}`,
+			`{GearInfo.removerName(level)}  ·  ×{stack.count}`,
+			`Tira uma gema Nv{level} da peça  ·  {Formulas.removerSellPrice(level)} Gold cada`,
+			false,
+			function()
+				Remotes.get("SellRemover"):FireServer(level)
+			end
+		)
+	end
+	if order == 0 then
+		local empty = makeText(list, "Nada para vender no baú.", UDim2.new(1, -8, 0, 30), UDim2.new(), 13)
+		empty.TextColor3 = COLORS.dim
+		empty.LayoutOrder = 1
 	end
 	refresh()
 end
@@ -320,7 +355,7 @@ end
 local function buildSellPage(page: Frame)
 	local hint = makeText(
 		page,
-		"Equipadas, fortalecidas e com gema não aparecem aqui (equipamento: tecla C)",
+		"Peças equipadas, fortalecidas ou com gema não aparecem aqui",
 		UDim2.new(1, -28, 0, 14),
 		UDim2.fromOffset(14, HEADER_HEIGHT),
 		11
@@ -493,6 +528,7 @@ local function build()
 	gold.TextXAlignment = Enum.TextXAlignment.Right
 	goldLabel = gold
 	local close = makeButton(frame, "X", UDim2.fromOffset(32, 32), UDim2.new(1, -42, 0, 8), COLORS.disabled)
+	close.Name = "Close"
 	close.Activated:Connect(function()
 		setOpen(false)
 	end)

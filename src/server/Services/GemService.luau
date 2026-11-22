@@ -1,17 +1,20 @@
 --!strict
--- Gemas (GDD > Equipamentos > Gemas): comprar gema Nv1 e Removedor (loja), incrustar, extrair e fundir (Forja).
+-- Gemas (GDD > Equipamentos > Gemas): comprar gema Nv1 e Removedor e vender as sobras (loja), incrustar, extrair e
+-- fundir (Forja) e destruir a pilha inteira (arrastar para fora da mochila; Remotes DestroyGems/DestroyRemovers aqui).
 -- Loja e Forja conferem a distância do balcão e o anti-spam; aqui fica o resto: lobby, Gold, as regras puras do
 -- PlayerSchema (baú de 50 com as pilhas, pilha cheia, Removedor do nível certo), recalcular os atributos (a gema
 -- de uma peça equipada soma no personagem) e avisar o cliente (GearData, pelo GearService.publish).
 -- Cada função devolve (ok, mensagem) e é o MESMO caminho dos Remotes e das ferramentas de teste (DevService).
 -- O Gold é conferido antes de mexer em qualquer coisa e cobrado só se a operação acontecer (sem yield no meio).
 
+local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Formulas = require(Shared.Formulas)
 local Keys = require(Shared.Keys)
+local Remotes = require(Shared.Remotes)
 local GearInfo = require(Shared.GearInfo)
 local Gear = require(Shared.Balance.Gear)
 local Gems = require(Shared.Balance.Gems)
@@ -20,7 +23,11 @@ local PlayerSchema = require(script.Parent.Parent.Data.PlayerSchema)
 local ProgressionService = require(script.Parent.ProgressionService)
 local GearService = require(script.Parent.GearService)
 
+local REQUEST_COOLDOWN = 0.15 -- s entre pedidos de destruir do mesmo jogador (anti-spam; técnico)
+
 local GemService = {}
+
+local lastRequestAt: { [Player]: number } = {}
 
 local function inRun(player: Player): boolean
 	return player:GetAttribute(Keys.InRunAttr) == true
@@ -91,6 +98,73 @@ function GemService.tryBuyRemover(player: Player, level: number): (boolean, stri
 	GearService.publish(player)
 	print(`[Loja] {player.Name} comprou {name} por {price} Gold`)
 	return true, `Comprou {name}`
+end
+
+-- Vende 1 gema do baú (sobra) pelo preço de venda (Formulas.gemSellPrice: 10% do preço da loja).
+function GemService.trySellGem(player: Player, attribute: Types.GemAttribute, level: number): (boolean, string)
+	local profile = ProgressionService.getLoadedProfile(player)
+	if not profile then
+		return false, "Aguarde, carregando seus dados"
+	end
+	local name = GearInfo.gemName(attribute, level)
+	if PlayerSchema.takeGems(profile, attribute, level, 1) ~= "Taken" then
+		return false, `Você não tem {name}`
+	end
+	local price = Formulas.gemSellPrice(level)
+	ProgressionService.addGold(player, price)
+	GearService.publish(player)
+	print(`[Loja] {player.Name} vendeu {name} por {price} Gold`)
+	return true, `Vendeu {name} por {price} Gold`
+end
+
+function GemService.trySellRemover(player: Player, level: number): (boolean, string)
+	local profile = ProgressionService.getLoadedProfile(player)
+	if not profile then
+		return false, "Aguarde, carregando seus dados"
+	end
+	local name = GearInfo.removerName(level)
+	if PlayerSchema.takeRemovers(profile, level, 1) ~= "Taken" then
+		return false, `Você não tem {name}`
+	end
+	local price = Formulas.removerSellPrice(level)
+	ProgressionService.addGold(player, price)
+	GearService.publish(player)
+	print(`[Loja] {player.Name} vendeu {name} por {price} Gold`)
+	return true, `Vendeu {name} por {price} Gold`
+end
+
+-- ===== Destruir (arrastar para fora da mochila; o cliente já pediu confirmação) =====
+-- Some a pilha INTEIRA (decisão do designer: destruir serve para liberar o espaço do baú). Vale em qualquer lugar,
+-- inclusive na torre (abrir espaço antes do chefe).
+
+function GemService.tryDestroyGems(player: Player, attribute: Types.GemAttribute, level: number): (boolean, string)
+	local profile = ProgressionService.getLoadedProfile(player)
+	if not profile then
+		return false, "Aguarde, carregando seus dados"
+	end
+	local count = PlayerSchema.gemCount(profile, attribute, level)
+	local name = GearInfo.gemName(attribute, level)
+	if PlayerSchema.takeGems(profile, attribute, level, count) ~= "Taken" then
+		return false, `Você não tem {name}`
+	end
+	GearService.publish(player)
+	print(`[Baú] {player.Name} destruiu {count} {name}`)
+	return true, `Destruiu {name} (×{count})`
+end
+
+function GemService.tryDestroyRemovers(player: Player, level: number): (boolean, string)
+	local profile = ProgressionService.getLoadedProfile(player)
+	if not profile then
+		return false, "Aguarde, carregando seus dados"
+	end
+	local count = PlayerSchema.removerCount(profile, level)
+	local name = GearInfo.removerName(level)
+	if PlayerSchema.takeRemovers(profile, level, count) ~= "Taken" then
+		return false, `Você não tem {name}`
+	end
+	GearService.publish(player)
+	print(`[Baú] {player.Name} destruiu {count} {name}`)
+	return true, `Destruiu {name} (×{count})`
 end
 
 -- ===== Forja =====
@@ -221,7 +295,46 @@ function GemService.debugGiveRemovers(player: Player, level: number, amount: num
 	return outcome
 end
 
-function GemService.init() end
+-- ===== Remotes de destruir (a resposta vai pelo GearResult, que aparece no painel Personagem) =====
+
+local function allowRequest(player: Player): boolean
+	local t = os.clock()
+	if t - (lastRequestAt[player] or -math.huge) < REQUEST_COOLDOWN then
+		return false
+	end
+	lastRequestAt[player] = t
+	return true
+end
+
+local function reply(player: Player, ok: boolean, message: string)
+	local payload: Remotes.GearResultPayload = { ok = ok, message = message }
+	Remotes.get("GearResult"):FireClient(player, payload)
+end
+
+local function onDestroyGems(player: Player, rawAttribute: unknown, rawLevel: unknown)
+	local attribute: Types.GemAttribute? = Formulas.parseGemAttribute(rawAttribute)
+	local level = Formulas.parseGemLevel(rawLevel)
+	if attribute == nil or level == nil or not allowRequest(player) then
+		return
+	end
+	reply(player, GemService.tryDestroyGems(player, attribute, level))
+end
+
+local function onDestroyRemovers(player: Player, rawLevel: unknown)
+	local level = Formulas.parseGemLevel(rawLevel)
+	if level == nil or not allowRequest(player) then
+		return
+	end
+	reply(player, GemService.tryDestroyRemovers(player, level))
+end
+
+function GemService.init()
+	Remotes.get("DestroyGems").OnServerEvent:Connect(onDestroyGems)
+	Remotes.get("DestroyRemovers").OnServerEvent:Connect(onDestroyRemovers)
+	Players.PlayerRemoving:Connect(function(player: Player)
+		lastRequestAt[player] = nil
+	end)
+end
 
 function GemService.start() end
 

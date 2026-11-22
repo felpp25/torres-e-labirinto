@@ -186,6 +186,15 @@ function Formulas.gemAttributes(gem: Types.Gem?): Types.Attributes
 	return result
 end
 
+-- Gold que a loja paga por 1 gema / 1 Removedor deste nível (venda de sobras: Balance/Gems).
+function Formulas.gemSellPrice(level: number): number
+	return Gems.gemSellPerLevel * level
+end
+
+function Formulas.removerSellPrice(level: number): number
+	return math.round((Gems.removerPrice[level] or 0) * Gems.removerSellFraction)
+end
+
 -- Gold para fundir 3 gemas deste nível; nil = este nível não funde (Nv1 da loja, Nv3 e o máximo).
 function Formulas.fuseCost(level: number): number?
 	return Gems.fuseCost[level]
