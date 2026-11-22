@@ -223,6 +223,22 @@ function Formulas.enhanceResult(current: number, success: boolean): number
 	return current
 end
 
+-- Gold que o fortalecimento soma na venda: fração (Balance/Forge) da soma dos preços das tentativas de +1 até
+-- `enhance`, na base da torre da peça. Arredonda para baixo: nunca passa do que o jogador mais sortudo gastou.
+function Formulas.enhanceSellBonus(def: Types.GearDef, enhance: number): number
+	local total = 0
+	for target = 1, math.min(enhance, Forge.maxEnhance) do
+		total += Formulas.enhanceCost(def, target)
+	end
+	-- +1e-6: 300 × (1/3) em ponto flutuante pode dar 99,999... e o floor viraria 99.
+	return math.floor(total * Forge.enhanceSellFraction + 1e-6)
+end
+
+-- Gold que a loja paga pela peça: preço base da raridade + o que o fortalecimento soma.
+function Formulas.gearSellPrice(def: Types.GearDef, rarity: Types.Rarity, enhance: number): number
+	return (Gear.sellPrice[rarity] or 0) + Formulas.enhanceSellBonus(def, enhance)
+end
+
 -- ===== Transferir o fortalecimento (decisões do designer): as duas peças TROCAM os níveis =====
 
 export type TransferCheck = "Ok" | "WrongSlot" | "NothingToMove" | "SameLevel" | "HigherTower"

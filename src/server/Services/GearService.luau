@@ -124,7 +124,7 @@ function GearService.grant(
 	assert(def, `GearService.grant: peça desconhecida {defId}`)
 	local result: GrantResult
 	if PlayerSchema.chestCount(profile) >= Gear.chestCapacity then
-		local gold = Gear.sellPrice[rarity] or 0
+		local gold = Formulas.gearSellPrice(def, rarity, 0)
 		ProgressionService.addGold(player, gold)
 		result = { stored = false, id = nil, goldInstead = gold }
 		print(`[Loot] {player.Name}: {GearInfo.fullName(def, rarity)} ({source}) -> baú cheio, +{gold} Gold`)
@@ -262,7 +262,8 @@ function GearService.tryUnequip(player: Player, slot: Types.EquipSlot): (boolean
 	return false, nil -- slot já vazio (tela desatualizada)
 end
 
--- Vende uma peça do BAÚ (a loja já conferiu a distância do balcão). Preço do catálogo, nunca do cliente.
+-- Vende uma peça do BAÚ (a loja já conferiu a distância do balcão). Preço do catálogo, nunca do cliente: base da
+-- raridade + parte das tentativas de fortalecimento (Formulas.gearSellPrice).
 -- Peça equipada não é vendida (a arma equipada nem pode ser tirada: troque por outra antes).
 function GearService.trySell(player: Player, id: number): (boolean, string)
 	local profile = ProgressionService.getLoadedProfile(player)
@@ -271,8 +272,9 @@ function GearService.trySell(player: Player, id: number): (boolean, string)
 	end
 	local found = PlayerSchema.findGear(profile, id)
 	local outcome, piece = PlayerSchema.sell(profile, id)
-	if outcome == "Sold" and piece then
-		local price = Gear.sellPrice[piece.rarity] or 0
+	local soldDef = if piece then PlayerSchema.defOf(piece) else nil
+	if outcome == "Sold" and piece and soldDef then
+		local price = Formulas.gearSellPrice(soldDef, piece.rarity, piece.enhance)
 		ProgressionService.addGold(player, price)
 		GearService.publish(player)
 		print(`[Loja] {player.Name} vendeu {nameOf(piece)} (id {id}) por {price} Gold`)
@@ -283,8 +285,6 @@ function GearService.trySell(player: Player, id: number): (boolean, string)
 			return false, "Arma em uso: troque por outra antes de vender"
 		end
 		return false, "Item em uso: tire antes de vender"
-	elseif outcome == "Enhanced" then
-		return false, "Peça fortalecida não pode ser vendida"
 	elseif outcome == "HasGem" then
 		return false, "Peça com gema: extraia a gema na Forja antes de vender"
 	end

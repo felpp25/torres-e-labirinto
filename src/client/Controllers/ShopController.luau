@@ -2,8 +2,8 @@
 -- Painel da loja (GDD > Lobby e loja). Abre ao acionar o prompt "Loja" do balcão do lobby
 -- (tecla F / direcional para cima no controle / toque no celular) e fecha sozinho ao se afastar.
 -- Abas: Comprar (poções e reset de atributos), Vender (peças de equipamento do baú, gemas e Removedores; as peças
--- equipadas, as fortalecidas e as com gema não aparecem: decisões do designer) e Gemas (gema Nv1 de cada atributo e
--- Removedor; ficam no baú).
+-- equipadas e as com gema não aparecem: decisões do designer; a fortalecida vale o preço base + parte das tentativas)
+-- e Gemas (gema Nv1 de cada atributo e Removedor; ficam no baú).
 -- O cliente só PEDE (BuyItem / ResetAttributes / SellGear / BuyGem / BuyRemover / SellGem / SellRemover); o servidor
 -- valida e responde por ShopResult.
 
@@ -30,7 +30,7 @@ local localPlayer = Players.LocalPlayer
 
 local PROMPT_NAME = "ShopPrompt"
 local CLOSE_DISTANCE = Shop.shopRange + 6
-local CONFIRM_WINDOW = 3 -- s: o reset e a venda de peça Rara pedem um segundo clique para confirmar
+local CONFIRM_WINDOW = 3 -- s: o reset e a venda de peça Rara ou fortalecida pedem um segundo clique para confirmar
 local FONT = Enum.Font.GothamBold
 local ROW_HEIGHT = 64
 local SELL_ROW_HEIGHT = 46
@@ -166,8 +166,8 @@ local function refresh()
 	end
 end
 
--- Lista de venda: as peças do baú sem fortalecimento e sem gema (por slot, Rara primeiro, nome e id), depois as
--- gemas e os Removedores (1 por clique, a 10% do preço: decisão do designer).
+-- Lista de venda: as peças do baú sem gema (por slot, Rara primeiro, mais fortalecida primeiro, nome e id), depois
+-- as gemas e os Removedores (1 por clique, a 10% do preço: decisão do designer).
 local function rebuildSellRows()
 	local list = sellList
 	if not list then
@@ -216,7 +216,7 @@ local function rebuildSellRows()
 
 	local chest: { Types.GearEntry } = {}
 	for _, entry in snapshot.gear do
-		if not entry.inUse and entry.enhance == 0 and entry.gem == nil then
+		if not entry.inUse and entry.gem == nil then
 			table.insert(chest, entry)
 		end
 	end
@@ -225,15 +225,17 @@ local function rebuildSellRows()
 	for _, entry in chest do
 		local def = Gear.byId[entry.defId]
 		local rarity: Types.Rarity = entry.rarity
-		local price = Gear.sellPrice[rarity] or 0
+		local enhance = entry.enhance
+		local price = Formulas.gearSellPrice(def, rarity, enhance)
 		local color = hexColor(GearInfo.rarityColor(rarity))
 		local id = entry.id
-		-- Peça Rara vale mais: pede um segundo clique para confirmar.
+		-- Preço primeiro: se a linha não couber, o corte cai nos atributos. Peça Rara ou fortalecida vale mais: pede um
+		-- segundo clique para confirmar.
 		addRow(
 			`piece:{id}`,
-			`<font color="{color}">{def.displayName}</font>  ·  {GearInfo.rarityLabel(rarity)}`,
-			`{GearInfo.slotLabel(def.slot)}  ·  {GearInfo.describe(def, rarity)}  ·  {price} Gold`,
-			rarity == "Rare",
+			`<font color="{color}">{GearInfo.displayName(def, enhance)}</font>  ·  {GearInfo.rarityLabel(rarity)}`,
+			`{price} Gold  ·  {GearInfo.slotLabel(def.slot)}  ·  {GearInfo.describe(def, rarity, enhance)}`,
+			rarity == "Rare" or enhance > 0,
 			function()
 				Remotes.get("SellGear"):FireServer(id)
 			end
@@ -355,7 +357,7 @@ end
 local function buildSellPage(page: Frame)
 	local hint = makeText(
 		page,
-		"Peças equipadas, fortalecidas ou com gema não aparecem aqui",
+		"Peças equipadas ou com gema não aparecem aqui",
 		UDim2.new(1, -28, 0, 14),
 		UDim2.fromOffset(14, HEADER_HEIGHT),
 		11

@@ -25,6 +25,7 @@ export type ForgeBalance = {
 	enhanceBaseCost: { [number]: number },
 	successChance: { number },
 	dropOnFailFrom: number,
+	enhanceSellFraction: number,
 	forgeRange: number,
 }
 
@@ -38,6 +39,10 @@ local FORGE: ForgeBalance = {
 	successChance = table.freeze(SUCCESS_CHANCE),
 	-- Falhar a tentativa de +n com n >= isto tira 1 nível (+7 tentando +8 cai para +6). Antes disso só perde o Gold.
 	dropOnFailFrom = 8,
+	-- Venda da peça fortalecida (decisão do designer): a loja paga o preço base + esta fração da SOMA dos preços das
+	-- tentativas até o nível dela (o que gastou quem nunca falhou). Torre 1: +5 = +1.033, +7 = +4.233, +10 = +34.100.
+	-- Nunca passa do gasto real: fortalecer para vender sempre dá prejuízo.
+	enhanceSellFraction = 1 / 3,
 	forgeRange = 14, -- studs: distância máxima do balcão da forja (validado no servidor)
 }
 

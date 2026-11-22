@@ -33,7 +33,8 @@
 --   "BuyGem"(player, "Strength") e "BuyRemover"(player, nível) (cobram Gold), "SocketGem"(player, id, atributo,
 --   nível), "ExtractGem"(player, id), "FuseGems"(player, atributo, nível). Sem custo: "GiveGems"(player, atributo,
 --   nível, n) (qualquer nível: as Nv2+ ainda não caem) e "GiveRemovers"(player, nível, n).
---   Sobras: "SellGem"(player, atributo, nível) e "SellRemover"(player, nível) (vende 1, sem distância).
+--   Venda (regras reais, sem distância): "SellGear"(player, id) (peça do baú; a fortalecida vale a base + parte
+--   das tentativas), "SellGem"(player, atributo, nível) e "SellRemover"(player, nível) (vende 1).
 --   Destruir (o que o arrastar para fora da mochila pede): "DestroyGear"(player, id), "DestroyGems"(player,
 --   atributo, nível) e "DestroyRemovers"(player, nível) (pilha inteira).
 
@@ -385,6 +386,10 @@ local COMMANDS: { [string]: Command } = {
 	SellRemover = function(player: Player, level: number): string
 		local _, parsedLevel = gemArgs("Strength", level)
 		return outcomeText(GemService.trySellRemover(player, parsedLevel))
+	end,
+
+	SellGear = function(player: Player, id: number): string
+		return outcomeText(GearService.trySell(player, id))
 	end,
 
 	DestroyGear = function(player: Player, id: number): string

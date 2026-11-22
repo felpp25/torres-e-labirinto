@@ -32,7 +32,7 @@
 --   4  Equipamento: peças da conta (gear) e 7 slots por personagem (equipped). Migração: todo personagem cuja
 --      classe tem arma inicial ganha a arma Comum equipada (Lutador: Luvas de Couro).
 --   5  Fortalecimento da peça (enhance, 0 a 10). Migração: todas as peças ficam +0.
---      Peça fortalecida não é vendida na loja (decisão do designer).
+--      (A peça fortalecida não era vendida; depois a loja passou a comprá-la, sem mudar o formato.)
 --   6  Gemas: a gema encaixada na peça (gem) e as pilhas de gemas e Removedores do baú (gems, removers).
 --      Migração: sem gemas. Peça com gema não é vendida (decisão do designer: extraia antes).
 --
@@ -91,7 +91,7 @@ export type EquipOutcome =
 	| "ChestFull"
 	| "OtherCharacterWeapon"
 export type UnequipOutcome = "Unequipped" | "Empty" | "WeaponLocked" | "ChestFull"
-export type SellOutcome = "Sold" | "NotFound" | "InUse" | "Enhanced" | "HasGem"
+export type SellOutcome = "Sold" | "NotFound" | "InUse" | "HasGem"
 -- Destruir (arrastar para fora da mochila): a fortalecida pode; equipada e com gema, não.
 export type DestroyOutcome = "Destroyed" | "NotFound" | "InUse" | "HasGem"
 -- Transferir o fortalecimento (troca de níveis). "Blocked" = a regra de Formulas.transferCheck não deixa (o
@@ -435,8 +435,8 @@ function PlayerSchema.unequip(profile: Profile, charIndex: number, slot: Types.E
 	return "Unequipped"
 end
 
--- Tira uma peça do BAÚ da conta (venda). Peça equipada, fortalecida, com gema ou inerte não sai (decisões do
--- designer: a fortalecida não é vendida; a gema é extraída antes, com Removedor). Devolve a peça removida.
+-- Tira uma peça do BAÚ da conta (venda). Peça equipada, com gema ou inerte não sai (decisão do designer: a gema é
+-- extraída antes, com Removedor). A fortalecida sai (o preço dela é do GearService). Devolve a peça removida.
 function PlayerSchema.sell(profile: Profile, id: number): (SellOutcome, Types.OwnedGear?)
 	local index = indexOfGear(profile, id)
 	if index == nil then
@@ -449,9 +449,6 @@ function PlayerSchema.sell(profile: Profile, id: number): (SellOutcome, Types.Ow
 	if PlayerSchema.ownerOf(profile, id) ~= nil then
 		return "InUse", nil
 	end
-	if piece.enhance > 0 then
-		return "Enhanced", nil
-	end
 	if piece.gem ~= nil then
 		return "HasGem", nil
 	end
@@ -459,8 +456,8 @@ function PlayerSchema.sell(profile: Profile, id: number): (SellOutcome, Types.Ow
 	return "Sold", piece
 end
 
--- Destrói uma peça do BAÚ (arrastada para fora da mochila; decisão do designer). A fortalecida pode (é o jeito de se
--- livrar dela, já que não é vendida); equipada, com gema (extraia antes) ou inerte não. Devolve a peça removida.
+-- Destrói uma peça do BAÚ (arrastada para fora da mochila; decisão do designer). A fortalecida pode; equipada, com
+-- gema (extraia antes) ou inerte não. Devolve a peça removida.
 -- Troca o fortalecimento das peças `fromId` e `toId` (decisão do designer: os níveis trocam de lugar; nada se
 -- perde). Peças de qualquer personagem da conta ou do baú; a gema de cada uma fica onde está. O Gold é do GearService.
 function PlayerSchema.transferEnhance(profile: Profile, fromId: number, toId: number): TransferOutcome

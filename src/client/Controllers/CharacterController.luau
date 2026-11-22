@@ -800,10 +800,16 @@ local function rebuildChest()
 			showMessage("", true)
 			refresh()
 		end)
-		-- A fortalecida pode ser destruída (é o jeito de se livrar dela: não é vendida); a com gema, não.
+		-- A fortalecida pode ser destruída (o aviso lembra quanto ela vale na loja); a com gema, não.
 		local item: DragItem = {
 			name = GearInfo.fullName(def, rarity, entry.enhance),
-			warning = if entry.enhance > 0 then `O fortalecimento (+{entry.enhance}) se perde junto. ` else "",
+			warning = if entry.enhance > 0
+				then `O +{entry.enhance} se perde junto (na loja ela vale {Formulas.gearSellPrice(
+					def,
+					rarity,
+					entry.enhance
+				)} Gold). `
+				else "",
 			short = SLOT_SHORT[def.slot],
 			color = GearInfo.rarityColor(rarity),
 			blocked = if entry.gem then "Peça com gema: extraia a gema na Forja antes de destruir" else nil,
