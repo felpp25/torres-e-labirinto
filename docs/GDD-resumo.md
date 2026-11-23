@@ -627,16 +627,15 @@ temas").
 ### Acesso às torres
 - **Nível mínimo + acesso:** a Torre 2 exige o **nível 10** e o **acesso**, que é **vitalício e da conta** (todos os
   personagens da conta; cada um ainda precisa do nível). No portal, **cada um do grupo** precisa ter os dois.
-- O acesso vem de **um dos dois caminhos** (decisão do designer):
-  - **Chave:** cai do chefão da torre anterior, **5% por jogador** (com a Sorte, regra dos achados raros). Em média 20
-    vitórias; 10% dos jogadores passariam de 45 e 5% de 58: por isso existe a missão. Quem já tem o acesso não sorteia.
-  - **Missão:** o caminho garantido (série de eventos, conversas com NPCs), com tamanho de ~15 vitórias. Conteúdo a
-    definir com o designer.
-  - Descartados: só a chave (azar sem saída) e só a missão.
+- **O acesso vem só da missão** (decisão do designer): a **Chave de Cristal** nunca cai do chefão; quem a forja é a
+  Ariadne, no fim da missão "O Caminho de Cristal" (ver "Missão e história"). Todo jogador leva ~15 runs (~4,5 h).
+  - Antes era chave OU missão: a chave caía do chefão da torre anterior com 5% por jogador (em média 20 vitórias; 10%
+    dos jogadores passariam de 45). Somando os dois caminhos, o acesso vinha em média com ~10,7 vitórias; só pela
+    missão é ~15 para todos (+40% na média, sem sorte). Descartados: só a chave (azar sem saída) e chave OU missão.
 - *Implementado:* portal da Torre 2 no lobby (à direita, atrás do da Torre 1). Quem pisa sem os requisitos vê
-  "TORRE 2 TRANCADA" e o que falta (nível, chave ou missão); a chave cai no chefão da Torre 1 com o aviso "TORRE 2
-  LIBERADA!". O acesso fica no save da conta (v7). A chave se chama "Chave de Cristal" (ver "Mundo e temas"). A
-  missão ainda não existe. Os avisos que chegam juntos (nível, torre concluída, item, torre liberada) se empilham sem se cobrir.
+  "TORRE 2 TRANCADA" e o que falta; a torre liberada mostra o aviso "TORRE 2 LIBERADA!". O acesso fica no save da conta
+  (v7). Os avisos que chegam juntos (nível, torre concluída, item, torre liberada) se empilham sem se cobrir.
+  *Em construção:* a missão; a chave de 5% do chefão sai junto.
 
 ### Números da Torre 2
 - **Teto de nível: 20** (+10 por torre). Do 10 ao 20 são 40.648 XP: ~8,5 runs (2,6 h).
@@ -731,7 +730,54 @@ temas").
 3. ~~Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, Ressonância.~~ **Feito** (nomes: ver "Mundo e temas").
 4. ~~Arremessador.~~ **Feito.**
 5. ~~Geomante das Rochas.~~ **Feito.**
-6. Missão de acesso (depois de definida com o designer).
+6. Missão de acesso e o Observador (ver "Missão e história").
+
+## Missão e história (decidido pelo designer; em construção)
+
+### O Observador (a história do jogo)
+- A história inteira está em [As Crônicas do Observador](<Ascending Labyrinths — Lore As Crônicas do Observador.md>):
+  a civilização de Áuren, a Mana, o cientista Nexos, o Ressonador e a Ruptura que criou os labirintos. **10 capítulos,
+  1 por torre concluída** (Torre 1 = Capítulo 1 "A Cidade de Luz", Torre 2 = Capítulo 2 "O Segredo do Sol"...).
+- **O Observador** (decisão do designer: sem nome, só o título) fica no lobby: manto longo, capuz com o rosto na
+  sombra, olhos com o brilho ciano da Mana, partículas flutuando. Quando há capítulo novo, mostra um "!"; com nada
+  novo, abre um menu para rever os capítulos já liberados. Na 1ª vez o capítulo não pula; depois, botão "Pular".
+- **Construção em fases** (decisão do designer): agora a conversa (caixa de texto com efeito de máquina de escrever,
+  ~90 letras por fala, toque para avançar, câmera fechando no rosto dele); as cutscenes com os cenários de Áuren
+  (câmera, palcos fora do mapa, efeitos) entram depois, por cima do mesmo sistema.
+- **Ressonador x Ressonância** (decisão do designer): os dois nomes ficam, como eco proposital: as peças de cada torre
+  "ressoam" com a Mana daquele pedaço de Áuren, como o Ressonador fazia com as cordas. Descartado: renomear um deles.
+- Descartados: os nomes Nyx e Vael; a história curta proposta antes (substituída pelas Crônicas); conversa opcional.
+
+### Missão: O Caminho de Cristal (acesso à Torre 2)
+- **Capítulos com NPCs, em ordem** (decisão do designer), ~15 runs (~4,5 h), começando depois da **1ª vitória na
+  Torre 1**. Ensina sistemas (Forja, venda) e conta a história. Descartados: só juntar 15 fragmentos (quase sem
+  eventos) e etapas abertas em paralelo (números maiores, menos história).
+- **NPCs no lobby** (decisão do designer): o Observador, **Ariadne** (a Guia; grega, deu a Teseu o fio para sair do
+  Labirinto), **Brokk** (o Ferreiro, na Forja; o anão nórdico que forjou o martelo de Thor) e **Tanu** (o Mercador, na
+  loja; um tanuki, bicho da sorte nos negócios do folclore japonês). Descartados: só o Guia; Guia + Ferreiro.
+
+| # | NPC | Objetivo | Tamanho |
+|---|---|---|---|
+| 1 | Observador | ouvir o Capítulo 1, "A Cidade de Luz" | história |
+| 2 | Ariadne | conversar: a Torre 2 está selada por cristal de Áuren; só a Chave de Cristal abre | — |
+| 3 | — | derrotar o Guardião da Torre 4 vezes | 4 vitórias |
+| 4 | Ariadne | derrotar 200 mobs na Torre 1 | ~2 runs |
+| 5 | Tanu | vender 2 peças na loja | o Gold ajuda na Forja |
+| 6 | Brokk | fortalecer uma peça até +3 | 700 Gold |
+| 7 | Ariadne | vencer a Torre 1 sem o grupo perder vida | ~2-3 vitórias |
+| 8 | Ariadne | juntar 5 Fragmentos de Cristal (1 por vitória na Torre 1) | 5 vitórias |
+| 9 | Ariadne | conversar: ela forja a Chave de Cristal; Torre 2 liberada para a conta | acesso vitalício |
+
+- **Regras:** o progresso é da **conta** (vale para todos os personagens, como o acesso). Em grupo, cada um avança por
+  si: a vitória conta para quem estava na run antes do andar do chefão (a regra do item); o mob conta para quem recebe
+  o XP dele. O HUD mostra o objetivo atual (ex.: "Guardião 2/4"); o NPC com algo a dizer ganha um "!" em cima.
+- Falas: as do Observador vêm das Crônicas; as de Ariadne, Brokk e Tanu foram aprovadas pelo designer (no código).
+
+### Ordem de construção
+1. Save novo (v8): capítulos liberados e vistos, progresso da missão.
+2. NPCs no lobby, caixa de conversa, capítulos do Observador e menu para rever.
+3. A missão (etapas, contadores, HUD, "!") e a chave só pela missão.
+4. Depois: as cutscenes das Crônicas.
 
 ## Dificuldades (futuro)
 
