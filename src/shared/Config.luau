@@ -7,7 +7,7 @@ export type Config = {
 }
 
 local Config: Config = table.freeze({
-	GAME_NAME = "Torres dos Labirintos",
+	GAME_NAME = "Ascending Labyrinths",
 	VERSION = "0.0.1",
 })
 

@@ -1,5 +1,5 @@
 {
-	"name": "torres-labirintos",
+	"name": "ascending-labyrinths",
 	"tree": {
 		"$className": "DataModel",
 		"ReplicatedStorage": {

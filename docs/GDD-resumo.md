@@ -1,4 +1,4 @@
-# Torres dos Labirintos — Resumo do GDD
+# Ascending Labyrinths — Resumo do GDD
 
 > Resumo do documento de design do projeto. Consulte antes de qualquer decisão de gameplay.
 > Se algo não estiver aqui (ou estiver ambíguo), pergunte em vez de inventar.
@@ -35,7 +35,9 @@
 
 ## Visão geral
 
-- **Jogo:** "Torres dos Labirintos" (título provisório).
+- **Jogo:** "Ascending Labyrinths" (decisão do designer; antes "Torres dos Labirintos", provisório).
+- **Lançamento (decisão do designer):** o jogo só vai a público quando o **Lobby 2** estiver pronto, com as duas
+  torres dele (Torres 3 e 4). Até lá, os testes são no Studio.
 - **Gênero:** RPG de ação coop, 1 a 4 jogadores, baseado em runs.
 - **Run:** uma torre com 5 andares-labirinto curtos + boss final.
 - **Duração:** 15 a 20 min por run (~3 min por andar).
