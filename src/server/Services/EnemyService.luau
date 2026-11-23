@@ -13,7 +13,6 @@ local Debris: Debris = game:GetService("Debris")
 local PathfindingService: PathfindingService = game:GetService("PathfindingService")
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService: TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
@@ -44,11 +43,7 @@ type Enemy = {
 }
 
 local WAYPOINT_REACHED_DISTANCE = 2.5
--- Pedra do "Lob" (só visual: o dano sai ao fim do aviso, na área do círculo).
-local ROCK_FALL_TIME = 0.3 -- s: aparece no alto e cai no fim do aviso
-local ROCK_FALL_HEIGHT = 16 -- studs acima do chão
-local ROCK_SIZE = 2.5
-local ROCK_COLOR = Color3.fromRGB(110, 100, 88)
+local ROCK_SIZE = 2.5 -- pedra do "Lob" (só visual: Telegraph.rockFall)
 local GROUND_PROBE = 20 -- studs procurando o chão embaixo do alvo
 local TORSO_HEIGHT = 3 -- sem chão achado: o chão fica esta distância abaixo do centro do personagem
 
@@ -206,26 +201,6 @@ local function meleeAttack(enemy: Enemy, target: BasePart)
 	enemy.nextAttackAt = os.clock() + enemy.def.attackCooldown
 end
 
--- Pedra caindo no centro do círculo, no fim do aviso (visual).
-local function dropRock(center: Vector3, groundY: number)
-	local rock = Instance.new("Part")
-	rock.Name = "ThrownRock"
-	rock.Size = Vector3.one * ROCK_SIZE
-	rock.Anchored = true
-	rock.CanCollide = false
-	rock.CanQuery = false
-	rock.CanTouch = false
-	rock.CastShadow = false
-	rock.Material = Enum.Material.Slate
-	rock.Color = ROCK_COLOR
-	local landed = CFrame.new(center.X, groundY + ROCK_SIZE / 2, center.Z) * CFrame.Angles(0.4, 0.7, 0.2)
-	rock.CFrame = landed + Vector3.new(0, ROCK_FALL_HEIGHT, 0)
-	rock.Parent = workspace
-	local info = TweenInfo.new(ROCK_FALL_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-	TweenService:Create(rock, info, { CFrame = landed }):Play()
-	Debris:AddItem(rock, ROCK_FALL_TIME + 0.4)
-end
-
 local function lobAttack(enemy: Enemy, target: BasePart)
 	stop(enemy)
 	local origin = enemy.root.Position
@@ -240,7 +215,7 @@ local function lobAttack(enemy: Enemy, target: BasePart)
 
 	setTelegraphColor(enemy, true)
 	local indicator = Telegraph.circle(center, radius, groundY)
-	task.delay(math.max(0, telegraphTime - ROCK_FALL_TIME), dropRock, center, groundY)
+	Telegraph.rockFall(center, groundY, telegraphTime, ROCK_SIZE)
 	task.wait(telegraphTime)
 	indicator:Destroy()
 	for _, player in Telegraph.playersInRadius(center, radius, groundY) do

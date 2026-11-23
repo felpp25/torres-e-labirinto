@@ -55,7 +55,7 @@ local TOWER_2: TowerDef = {
 	-- por run solo.
 	statMultiplier = 2.25,
 	rewardMultiplier = 2,
-	bossId = "TowerGuardian", -- provisório: o Geomante das Rochas entra na etapa 5
+	bossId = "Geomancer", -- Geomante das Rochas
 	mobPool = { "Brute" },
 	-- 1 a cada 3 mobs (decisão do designer): andares 1-2 (2 por sala) ~2 em cada 3 salas; andares 3-4, 1 por sala.
 	supportMob = "Thrower",

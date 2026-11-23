@@ -2,7 +2,9 @@
 -- Avisos de ataque inimigo ("telegraph") e quem é atingido. Usado por mobs (EnemyService) e bosses (BossService).
 -- Regra de design: o golpe acerta EXATAMENTE a área mostrada no chão (justo e legível).
 
+local Debris: Debris = game:GetService("Debris")
 local Players: Players = game:GetService("Players")
+local TweenService: TweenService = game:GetService("TweenService")
 
 local Telegraph = {}
 
@@ -10,6 +12,10 @@ Telegraph.COLOR = Color3.fromRGB(255, 40, 40)
 local INDICATOR_TRANSPARENCY = 0.55
 local INDICATOR_NAME = "TelegraphIndicator"
 local CIRCLE_HEIGHT = 8 -- altura da área do golpe circular (studs, a partir do chão)
+-- Pedra caindo (só visual): aparece no alto e chega ao chão no fim do aviso.
+local ROCK_FALL_TIME = 0.3 -- s de queda
+local ROCK_FALL_HEIGHT = 16 -- studs acima do chão
+local ROCK_COLOR = Color3.fromRGB(110, 100, 88)
 
 local function baseIndicator(): Part
 	local indicator = Instance.new("Part")
@@ -43,6 +49,29 @@ function Telegraph.circle(center: Vector3, radius: number, groundY: number): Par
 	indicator.CFrame = CFrame.new(center.X, groundY + 0.1, center.Z) * CFrame.Angles(0, 0, math.rad(90))
 	indicator.Parent = workspace
 	return indicator
+end
+
+-- Pedra caindo no centro de uma área circular, chegando ao chão em `landsIn` segundos. Só visual: o dano sai de quem
+-- chamou, ao fim do aviso. Usada pelo Arremessador e pela Chuva de Rochas do Geomante.
+function Telegraph.rockFall(center: Vector3, groundY: number, landsIn: number, size: number)
+	task.delay(math.max(0, landsIn - ROCK_FALL_TIME), function()
+		local rock = Instance.new("Part")
+		rock.Name = "FallingRock"
+		rock.Size = Vector3.one * size
+		rock.Anchored = true
+		rock.CanCollide = false
+		rock.CanQuery = false
+		rock.CanTouch = false
+		rock.CastShadow = false
+		rock.Material = Enum.Material.Slate
+		rock.Color = ROCK_COLOR
+		local landed = CFrame.new(center.X, groundY + size / 2, center.Z) * CFrame.Angles(0.4, 0.7, 0.2)
+		rock.CFrame = landed + Vector3.new(0, ROCK_FALL_HEIGHT, 0)
+		rock.Parent = workspace
+		local info = TweenInfo.new(ROCK_FALL_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		TweenService:Create(rock, info, { CFrame = landed }):Play()
+		Debris:AddItem(rock, ROCK_FALL_TIME + 0.4)
+	end)
 end
 
 local function aliveCharacters(): { Model }

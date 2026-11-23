@@ -6,6 +6,8 @@
 -- - fica na arena; só persegue e ataca jogadores que estão DENTRO dela (fora dela, volta ao centro);
 -- - escolhe um ataque cujo `triggerRange` alcança o alvo, mostra o aviso no chão por `telegraphTime`,
 --   acerta exatamente a área mostrada e fica parado `recovery` segundos (janela para revidar);
+-- - "AtPlayers" (ex.: Chuva de Rochas): um círculo embaixo de cada participante vivo na arena, em ondas seguidas
+--   (cada onda mira de novo: quem anda escapa);
 -- - não é empurrado; vida escala com o nº de participantes da run (coop);
 -- - morto: quem tem direito (filtro do RunSessionService: na run desde antes do andar do boss) recebe o XP e o
 --   Gold do boss, e o handler de "boss derrotado" é chamado com a run e a posição dele (o item garantido sai de lá).
@@ -48,6 +50,7 @@ type Boss = {
 }
 
 local THINK_INTERVAL = 0.1
+local RAIN_ROCK_SIZE = 4 -- pedra da Chuva de Rochas (só visual)
 local HOME_TOLERANCE = 4 -- studs: perto o bastante do centro, para de andar
 
 local BossService = {}
@@ -79,20 +82,29 @@ local function flatDistance(a: Vector3, b: Vector3): number
 	return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
 end
 
--- Participante vivo mais próximo DENTRO da arena.
-local function nearestTarget(boss: Boss): BasePart?
-	local best: BasePart? = nil
-	local bestDistance = math.huge
+-- Participantes vivos DENTRO da arena (o corpo de cada um).
+local function targetsInArena(boss: Boss): { BasePart }
+	local result: { BasePart } = {}
 	for _, player in boss.run.members do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") and inArena(boss, root.Position) then
-			local distance = flatDistance(root.Position, boss.root.Position)
-			if distance < bestDistance then
-				best = root
-				bestDistance = distance
-			end
+			table.insert(result, root)
+		end
+	end
+	return result
+end
+
+-- Participante vivo mais próximo DENTRO da arena.
+local function nearestTarget(boss: Boss): BasePart?
+	local best: BasePart? = nil
+	local bestDistance = math.huge
+	for _, root in targetsInArena(boss) do
+		local distance = flatDistance(root.Position, boss.root.Position)
+		if distance < bestDistance then
+			best = root
+			bestDistance = distance
 		end
 	end
 	return best
@@ -118,14 +130,45 @@ local function chooseAttack(boss: Boss, distance: number): Types.BossAttackDef?
 	return options[rng:NextInteger(1, #options)]
 end
 
-local function perform(boss: Boss, attack: Types.BossAttackDef, target: BasePart)
-	boss.humanoid:MoveTo(boss.root.Position)
-	boss.humanoid.AutoRotate = false
-	boss.humanoid.WalkSpeed = 0
-	local origin = boss.root.Position
-	boss.root.CFrame = CFrame.lookAt(origin, Vector3.new(target.Position.X, origin.Y, target.Position.Z))
+-- Ondas de círculos embaixo de cada participante na arena. Cada onda congela a posição de cada um no início do
+-- aviso; quem está em mais de um círculo leva o golpe uma vez só. Devolve false se o boss morreu no meio.
+local function performAtPlayers(boss: Boss, attack: Types.BossAttackDef): boolean
+	for _ = 1, attack.waves or 1 do
+		local targets = targetsInArena(boss)
+		if #targets == 0 then
+			break -- ninguém mais na arena: as ondas param
+		end
+		local centers: { Vector3 } = {}
+		local indicators: { Part } = {}
+		for _, root in targets do
+			local center = Vector3.new(root.Position.X, boss.groundY, root.Position.Z)
+			table.insert(centers, center)
+			table.insert(indicators, Telegraph.circle(center, attack.range, boss.groundY))
+			Telegraph.rockFall(center, boss.groundY, attack.telegraphTime, RAIN_ROCK_SIZE)
+		end
+		task.wait(attack.telegraphTime)
+		for _, indicator in indicators do
+			indicator:Destroy()
+		end
+		if boss.humanoid.Health <= 0 then
+			return false
+		end
+		local hit: { [Player]: boolean } = {}
+		for _, center in centers do
+			for _, player in Telegraph.playersInRadius(center, attack.range, boss.groundY) do
+				if not hit[player] then
+					hit[player] = true
+					CombatService.damagePlayer(player, attack.damage * boss.statMultiplier)
+				end
+			end
+		end
+	end
+	return true
+end
 
-	-- A área do golpe é "congelada" no início do aviso: o jogador tem `telegraphTime` para sair dela.
+-- Área fixa ("Front" ou "Circle"), congelada no início do aviso: o jogador tem `telegraphTime` para sair dela.
+-- Devolve false se o boss morreu durante o aviso (o golpe não sai).
+local function performArea(boss: Boss, attack: Types.BossAttackDef): boolean
 	local indicator: Part
 	local hitPlayers: () -> { Player }
 	if attack.shape == "Circle" then
@@ -142,17 +185,30 @@ local function perform(boss: Boss, attack: Types.BossAttackDef, target: BasePart
 			return Telegraph.playersInBox(hitCFrame, size)
 		end
 	end
-
-	setTelegraphColor(boss, true)
 	task.wait(attack.telegraphTime)
 	indicator:Destroy()
 	if boss.humanoid.Health <= 0 then
-		return
+		return false
 	end
-	setTelegraphColor(boss, false)
 	for _, player in hitPlayers() do
 		CombatService.damagePlayer(player, attack.damage * boss.statMultiplier)
 	end
+	return true
+end
+
+local function perform(boss: Boss, attack: Types.BossAttackDef, target: BasePart)
+	boss.humanoid:MoveTo(boss.root.Position)
+	boss.humanoid.AutoRotate = false
+	boss.humanoid.WalkSpeed = 0
+	local origin = boss.root.Position
+	boss.root.CFrame = CFrame.lookAt(origin, Vector3.new(target.Position.X, origin.Y, target.Position.Z))
+
+	setTelegraphColor(boss, true)
+	local alive = if attack.shape == "AtPlayers" then performAtPlayers(boss, attack) else performArea(boss, attack)
+	if not alive then
+		return
+	end
+	setTelegraphColor(boss, false)
 
 	task.wait(attack.recovery)
 	if boss.humanoid.Health > 0 then

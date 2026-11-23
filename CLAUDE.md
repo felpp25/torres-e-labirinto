@@ -190,6 +190,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   Pelo MCP cada janela é um `studio_id` (sem nome); `get_studio_state` diz qual tem o foco em `Server` (servidor) e
   quais em `Client` (jogadores). Rode as chamadas UMA POR VEZ (em paralelo elas se atropelam) e, para testes de
   regras, limpe os mobs do andar no início (`Mobs:ClearAllChildren()`): personagens parados morrem entre chamadas.
+  Chefão: no fim de CADA chamada, tire o jogador da arena (ele para de atacar quem está fora) e **nunca cure um
+  Humanoid morto** (`Health = MaxHealth` com `Health == 0`): o LifeService passa a achá-lo vivo e não o ressuscita
+  no wipe (o jogo não faz isso: poção, habilidade e nível já recusam morto). Confira `Health > 0` antes de curar.
 - Testes pelo MCP: `character_navigation` leva o personagem; `user_mouse_input`/`user_keyboard_input` simulam o
   jogador; `execute_luau` no datamodel `Server` confere o resultado (vida, posição, Attributes).
 - Interface: a janela de chat do Roblox (CoreGui) fica no canto inferior esquerdo e ENGOLE cliques da nossa UI ali

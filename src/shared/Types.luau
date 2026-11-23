@@ -133,16 +133,18 @@ export type MobDef = {
 }
 
 -- Um ataque de boss. Cada boss tem a própria lista (tema e moveset únicos); a IA só executa o que está descrito.
--- "Front": área retangular à frente do boss. "Circle": área circular ao redor dele.
-export type BossAttackShape = "Front" | "Circle"
+-- "Front": área retangular à frente do boss. "Circle": área circular ao redor dele. "AtPlayers": um círculo embaixo de
+-- CADA jogador vivo na arena (raio `range`), em `waves` ondas seguidas; cada onda mira de novo.
+export type BossAttackShape = "Front" | "Circle" | "AtPlayers"
 
 export type BossAttackDef = {
 	id: string,
 	shape: BossAttackShape,
 	telegraphTime: number, -- aviso no chão antes do golpe (s)
 	damage: number,
-	range: number, -- Front: profundidade da área; Circle: raio (studs)
-	width: number, -- Front: largura da área (Circle ignora)
+	range: number, -- Front: profundidade da área; Circle e AtPlayers: raio (studs)
+	width: number, -- Front: largura da área (os outros ignoram)
+	waves: number?, -- AtPlayers: quantas ondas seguidas (padrão 1); a pausa `recovery` vem depois da última
 	triggerRange: number, -- o boss escolhe este ataque se o alvo estiver até esta distância
 	recovery: number, -- s parado depois do golpe (janela para o jogador revidar)
 }

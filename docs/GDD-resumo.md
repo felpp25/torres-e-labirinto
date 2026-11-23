@@ -706,6 +706,22 @@ temas").
   - **Onda Sísmica:** círculo de raio 12 em volta dele, aviso de 1,2 s, 38 de dano (com ×1,75; pune quem cola).
   - **Rajada de Pedra:** faixa à frente de 24 × 6, aviso de 1,0 s, 45 de dano (com ×1,75).
   - Descartados: Carcereiro Acorrentado (anel que acerta quem está longe) e Touro de Bronze (investida pela arena).
+  - **As 3 ondas da Chuva são em sequência:** aviso de 1,2 s, impacto, e a onda seguinte mira de novo onde cada jogador
+    está (quem anda escapa de todas; parado, leva as 3). Como vencer: andar sem parar e bater nas pausas.
+  - **Ritmo: a mesma pressão do Guardião** (decisão do designer): pausa parado depois de cada ataque, Chuva 2,0 s,
+    Onda 1,4 s, Rajada 1,3 s, e 1,0 s de recarga. 8,7 de dano/s base se acertar tudo (igual ao Guardião), parado 35%
+    do tempo; o índice da tabela acima (1,62 com o conjunto Comum da Torre 2 no nível 15) continua valendo.
+    Descartados: as pausas do Guardião (0,8 a 1,0 s: +16% de pressão, índice 1,75) e mais calmo (-9%, índice 1,55).
+  - **Chuva a qualquer distância** (decisão do designer): sorteada entre os ataques que alcançam o alvo (de longe é a
+    única; de perto, 1 em 3). A Onda sai com alguém a até 9 studs; a Rajada, até 20. Descartado: Chuva só com o alvo a
+    12+ studs (o Lutador solo quase não a veria).
+  - Corpo: 7 × 11 × 7, cor de terra, Defesa 10 e velocidade 8 (o Guardião anda a 9). Recompensa igual à do Guardião
+    na escala da Torre 1 (1.500 XP e 300 Gold; a Torre 2 dobra).
+  - *Implementado:* medido no andar 5 da Torre 2: 2.700 de vida; Onda 45, Chuva 47 por onda e Rajada 53 de dano no
+    personagem de teste (os números base × 2,25, menos a Defesa); as 3 ondas a cada 1,2 s, cada uma embaixo do
+    jogador mesmo depois de ele andar 10 studs; desviando das ondas, 0 de dano; depois da Chuva, o próximo ataque 3,0 s
+    depois (pausa + recarga); Rajada 6 × 24 apontada para o jogador. Derrotado: 3.000 XP, 600 Gold, peça da Torre 2
+    ("Couraça do Guardião de Cristal") e volta ao lobby.
 - A definir: o conteúdo da missão.
 
 ### Ordem de construção da fase
@@ -714,7 +730,7 @@ temas").
    Torre 2 ainda usa o conteúdo da Torre 1 até a etapa 3).
 3. ~~Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, Ressonância.~~ **Feito** (nomes: ver "Mundo e temas").
 4. ~~Arremessador.~~ **Feito.**
-5. Geomante das Rochas.
+5. ~~Geomante das Rochas.~~ **Feito.**
 6. Missão de acesso (depois de definida com o designer).
 
 ## Dificuldades (futuro)
