@@ -46,9 +46,13 @@ src/
     Remotes.luau    RemoteEvents com nome tipado (servidor cria; cliente espera)
     GearInfo.luau / GearSnapshot.luau  textos das peças e gemas e o formato do Attribute GearData (peças, slots e
                     as pilhas de gemas e Removedores do baú)
+    Story/          textos da história: Chronicles (as falas das Crônicas do Observador, copiadas do documento do
+                    designer em docs/), Npcs (os NPCs do lobby) e Dialogues (falas da missão e de "nada novo");
+                    as etapas e números da missão ficam em Balance/Missions
   server/Main.server.luau   bootstrap: init() de todos os serviços, depois start()
   server/Services/          um serviço por sistema (combate, inimigos, boss, andares, puzzle, run, vida,
-                            equipamento = GearService, gemas = GemService, forja = ForgeService...)
+                            equipamento = GearService, gemas = GemService, forja = ForgeService, história =
+                            StoryService, missão = MissionService, NPCs do lobby = NpcService...)
   server/Dungeon/           MazeGenerator (layout puro por seed) e RoomBuilder (peças)
   server/Enemies/           EnemyFactory (modelo greybox) e Telegraph (avisos de ataque e quem é atingido)
   client/Main.client.luau   bootstrap dos controllers (mesmo padrão)
@@ -124,6 +128,10 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   testar a torre pelo MCP: levar o personagem até `workspace.Lobby.TowerPortal_1` e
   **esperar ~10 s parado em cima** (espera do grupo; sair do portal cancela) ou usar
   `Players:GetPlayers()[1]:GetAttribute("InRun")` para saber onde ele está. Game over / torre concluída = lobby.
+  - **NPCs do lobby** (`workspace.Lobby.Npcs`): o Observador à esquerda do spawn (-12, 0, 22), Ariadne entre os
+    portais (15, 0, -5), Tanu na ponta da loja e Brokk na ponta da Forja. Falar = levar o personagem até perto e
+    apertar F (`user_keyboard_input`); a conversa avança com Espaço. O prompt mais perto ganha: ao lado do balcão, o
+    F abre o NPC, não a loja (medido com Tanu).
   - **Várias runs por servidor** (`server/Runs/RunRegistry`): cada grupo tem a sua run em `workspace.Runs.Run_<id>`,
     a 1000 studs da anterior. O estado da run (andar, vidas, placas, chefão) fica em Attributes de cada
     participante (`Keys.RunAttr`), não no workspace. Serviços da run recebem a `run` como parâmetro.
@@ -140,6 +148,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     com chave `"1"`: texto de propósito, chave numérica viraria lista no JSON). Cada pilha ocupa 1 espaço do baú.
   - Formato **v7**: torres liberadas da conta (`towers`, lista de ids, ex.: `[2]`). Ids de 2 a 99 são aceitos mesmo
     se o servidor não conhece a torre: uma torre nova no catálogo (`Balance/Towers`) não exige versão nova.
+  - Formato **v8**: história e missões da conta (`chapters`, `chaptersSeen`, `missions` com chave texto, ex.:
+    `{"CrystalPath": {"step": 3, "count": 1, "done": false}}`). O `PlayerData_Studio` já está em v8: commits
+    anteriores (v7) recusam carregar e jogam "sem salvar", sem apagar nada.
   - **Todo campo novo salvo aumenta `PlayerSchema.VERSION`** (mesmo opcional), e também todo valor novo num campo
     validado (ex.: raridade "Epic"). O servidor que acha dados de versão maior recusa carregar (joga "sem salvar")
     em vez de apagar o que não conhece.
@@ -164,8 +175,11 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   Runs: `"Runs"()` (JSON das runs e das esperas nos portais) e `"SetAllFriends"(true)` (todos contam como amigos,
   para testar "amigo entra no meio da run": os jogadores de teste do Studio não são amigos).
   Torres (TowerService): `"UnlockTower"(player, 2)` (acesso real, salva e avisa), `"LockTower"(player, 2)`,
-  `"ForceKeyDrop"(player)` (a próxima chave sorteada no chefão cai) e `"SetLevel"(player, n)` (testar o portal
-  trancado por nível; o `RestoreProfile` devolve o nível).
+  `"SetLevel"(player, n)` (testar o portal trancado por nível; o `RestoreProfile` devolve o nível). A chave da torre
+  só sai da missão (não há mais sorteio no chefão).
+  História e missão: `"Victory"(player, torre, semPerderVida?)` (avisa história e missão como uma vitória real, sem
+  jogar a torre), `"Talk"(player, npcId)` (fala com o NPC sem distância e mostra a conversa), `"UnlockChapter"`,
+  `"MissionStep"(player, "CrystalPath", etapa, contador?)` (pular para uma etapa) e `"Story"(player)` (JSON).
   Forja: `"Enhance"(player, id, forçar?)` (tentativa real, cobra Gold; `true`/`false` fixa o sorteio) e
   `"SetEnhance"(player, id, nível)` (direto, sem custo). `"TransferEnhance"(player, deId, paraId)` (troca real dos
   níveis, cobra Gold).
@@ -195,6 +209,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   no wipe (o jogo não faz isso: poção, habilidade e nível já recusam morto). Confira `Health > 0` antes de curar.
 - Testes pelo MCP: `character_navigation` leva o personagem; `user_mouse_input`/`user_keyboard_input` simulam o
   jogador; `execute_luau` no datamodel `Server` confere o resultado (vida, posição, Attributes).
+- **Streaming está ligado** (`workspace.StreamingEnabled`): no cliente, peças do mundo chegam (e saem) aos poucos.
+  Código do cliente não pode supor que um modelo já está inteiro: espere a peça (`DescendantAdded`) e refaça o que
+  for preso a ela se ela sair e voltar (medido: o "!" dos NPCs não aparecia porque as cabeças ainda não tinham chegado).
 - Interface: a janela de chat do Roblox (CoreGui) fica no canto inferior esquerdo e ENGOLE cliques da nossa UI ali
   (medido: botão sem `Activated`). Janelas grandes escondem o chat enquanto abertas (`client/ChatBlocker`). Crie
   ScreenGuis com `ZIndexBehavior = Sibling` (com Global, o fundo de uma janela de ZIndex maior cobre os próprios filhos).

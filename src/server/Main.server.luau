@@ -35,6 +35,9 @@ local SERVICES: { [string]: Service } = {
 	ForgeService = require(Services.ForgeService),
 	ConsumableService = require(Services.ConsumableService),
 	RunSessionService = require(Services.RunSessionService),
+	StoryService = require(Services.StoryService),
+	MissionService = require(Services.MissionService),
+	NpcService = require(Services.NpcService),
 	DevService = require(Services.DevService),
 	LifeService = require(Services.LifeService),
 }
@@ -55,6 +58,9 @@ local SERVICE_ORDER: { string } = {
 	"ForgeService",
 	"ConsumableService",
 	"RunSessionService",
+	"StoryService", -- antes da missão: na 1ª vitória o capítulo 1 é liberado antes de a missão começar
+	"MissionService",
+	"NpcService", -- depois do LobbyService (os NPCs ficam em workspace.Lobby)
 	"DevService",
 	"LifeService",
 }

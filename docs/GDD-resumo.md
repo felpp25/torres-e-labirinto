@@ -635,7 +635,7 @@ temas").
 - *Implementado:* portal da Torre 2 no lobby (à direita, atrás do da Torre 1). Quem pisa sem os requisitos vê
   "TORRE 2 TRANCADA" e o que falta; a torre liberada mostra o aviso "TORRE 2 LIBERADA!". O acesso fica no save da conta
   (v7). Os avisos que chegam juntos (nível, torre concluída, item, torre liberada) se empilham sem se cobrir.
-  *Em construção:* a missão; a chave de 5% do chefão sai junto.
+  A chave de 5% do chefão saiu: o portal trancado diz "Precisa da Chave de Cristal (missão O Caminho de Cristal)".
 
 ### Números da Torre 2
 - **Teto de nível: 20** (+10 por torre). Do 10 ao 20 são 40.648 XP: ~8,5 runs (2,6 h).
@@ -730,9 +730,9 @@ temas").
 3. ~~Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, Ressonância.~~ **Feito** (nomes: ver "Mundo e temas").
 4. ~~Arremessador.~~ **Feito.**
 5. ~~Geomante das Rochas.~~ **Feito.**
-6. Missão de acesso e o Observador (ver "Missão e história").
+6. ~~Missão de acesso e o Observador (ver "Missão e história").~~ **Feito.**
 
-## Missão e história (decidido pelo designer; em construção)
+## Missão e história (decidido pelo designer; etapas 1 a 3 construídas)
 
 ### O Observador (a história do jogo)
 - A história inteira está em [As Crônicas do Observador](<Ascending Labyrinths — Lore As Crônicas do Observador.md>):
@@ -772,11 +772,20 @@ temas").
   si: a vitória conta para quem estava na run antes do andar do chefão (a regra do item); o mob conta para quem recebe
   o XP dele. O HUD mostra o objetivo atual (ex.: "Guardião 2/4"); o NPC com algo a dizer ganha um "!" em cima.
 - Falas: as do Observador vêm das Crônicas; as de Ariadne, Brokk e Tanu foram aprovadas pelo designer (no código).
+- *Implementado:* os 4 NPCs no lobby (greybox; "Falar" com F), a caixa de conversa (máquina de escrever, câmera no
+  rosto do NPC, o próprio personagem some só na tela dele, prompts e chat escondidos), o menu das Crônicas, o quadro da
+  missão no canto direito (pisca quando a etapa muda) e o "!" em cima de quem tem algo novo. O aviso "TORRE 2
+  LIBERADA!" espera a última conversa fechar. Testado do começo ao fim no Studio: capítulo 1 na 1ª vitória; as 4
+  vitórias contam uma a uma; mob de uma run real da Torre 1 conta (199 → 200); 2 vendas; Forja +2 mostra "+2/+3" e o
+  +3 conclui; vitória com wipe e vitória na Torre 2 não contam no "sem perder vida"; 5 vitórias dão os 5 fragmentos;
+  a conversa final libera a Torre 2 (save `"towers":[2]`). A fala mais longa das Crônicas (99 letras) cabe na caixa
+  em 2 linhas.
+  Falta: as cutscenes das Crônicas e modelos de verdade para os NPCs.
 
 ### Ordem de construção
-1. Save novo (v8): capítulos liberados e vistos, progresso da missão.
-2. NPCs no lobby, caixa de conversa, capítulos do Observador e menu para rever.
-3. A missão (etapas, contadores, HUD, "!") e a chave só pela missão.
+1. ~~Save novo (v8): capítulos liberados e vistos, progresso da missão.~~ **Feito.**
+2. ~~NPCs no lobby, caixa de conversa, capítulos do Observador e menu para rever.~~ **Feito.**
+3. ~~A missão (etapas, contadores, HUD, "!") e a chave só pela missão.~~ **Feito.**
 4. Depois: as cutscenes das Crônicas.
 
 ## Dificuldades (futuro)

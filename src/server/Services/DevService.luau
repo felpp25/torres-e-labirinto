@@ -32,7 +32,11 @@
 --   padrão 20; força = multiplicador de vida e dano, padrão 1; fica em workspace.DevMobs: apague com
 --   ClearAllChildren). Os mobs do andar têm os Attributes MobId e Room (índice da sala): conte-os pelo workspace.
 --   Torres: "UnlockTower"(player, torre) (acesso real: salva e avisa), "LockTower"(player, torre) (tira o acesso),
---   "ForceKeyDrop"(player) (a próxima chave sorteada cai), "SetLevel"(player, nível) (só o nível; XP zerado).
+--   "SetLevel"(player, nível) (só o nível; XP zerado).
+--   História e missão: "Victory"(player, torre, semPerderVida?) (avisa a história e a missão como uma vitória real,
+--   sem jogar a torre), "Talk"(player, npcId) (fala com o NPC sem distância: conta a etapa e mostra a conversa;
+--   devolve o JSON do que foi mostrado), "UnlockChapter"(player, n), "MissionStep"(player, "CrystalPath", etapa,
+--   contador?) (0 apaga o progresso; acima do total = concluída) e "Story"(player) (JSON: capítulos e missões).
 --   Forja: "Enhance"(player, id, forçar?) (uma tentativa REAL, cobra Gold; forçar = true/false fixa o sorteio;
 --   ignora a distância e o anti-spam), "SetEnhance"(player, id, nível) (define direto, sem custo),
 --   "TransferEnhance"(player, deId, paraId) (troca real dos níveis, cobra Gold; ignora a distância)
@@ -62,6 +66,9 @@ local Mobs = require(game:GetService("ReplicatedStorage").Shared.Balance.Mobs)
 local ProgressionService = require(script.Parent.ProgressionService)
 local RunSessionService = require(script.Parent.RunSessionService)
 local TowerService = require(script.Parent.TowerService)
+local StoryService = require(script.Parent.StoryService)
+local MissionService = require(script.Parent.MissionService)
+local Remotes = require(game:GetService("ReplicatedStorage").Shared.Remotes)
 
 local function store(): DataStore
 	return DataStoreService:GetDataStore(DataService.getStoreName())
@@ -91,6 +98,9 @@ local function restoreInPlace(player: Player, saved: PlayerSchema.Profile): bool
 	profile.gems = copy.gems
 	profile.removers = copy.removers
 	profile.towers = copy.towers
+	profile.chapters = copy.chapters
+	profile.chaptersSeen = copy.chaptersSeen
+	profile.missions = copy.missions
 	-- O contador nunca volta: os ids dados durante o teste não são reutilizados depois.
 	profile.nextGearId = math.max(profile.nextGearId, copy.nextGearId)
 	for index, savedCharacter in copy.characters do
@@ -106,6 +116,8 @@ local function restoreInPlace(player: Player, saved: PlayerSchema.Profile): bool
 	ProgressionService.refreshEquipment(player)
 	GearService.publish(player)
 	TowerService.publish(player)
+	StoryService.publish(player)
+	MissionService.publish(player)
 	return true
 end
 
@@ -356,17 +368,48 @@ local COMMANDS: { [string]: Command } = {
 		return model:GetFullName()
 	end,
 
+	Victory = function(player: Player, towerId: number, flawless: boolean?): boolean
+		RunSessionService.debugVictory(player, towerId, flawless ~= false)
+		return true
+	end,
+
+	Talk = function(player: Player, npcId: string): string
+		local payload: Remotes.NpcDialoguePayload? = if npcId == "Observer"
+			then StoryService.talk(player)
+			else MissionService.talk(player, npcId)
+		if payload then
+			Remotes.get("NpcDialogue"):FireClient(player, payload)
+		end
+		return HttpService:JSONEncode(payload)
+	end,
+
+	UnlockChapter = function(player: Player, chapterId: number): boolean
+		return StoryService.debugUnlock(player, chapterId)
+	end,
+
+	MissionStep = function(player: Player, missionId: string, step: number, count: number?): boolean
+		return MissionService.debugSetStep(player, missionId, step, count)
+	end,
+
+	Story = function(player: Player): string
+		local profile = ProgressionService.getLoadedProfile(player)
+		if not profile then
+			return "{}"
+		end
+		return HttpService:JSONEncode({
+			chapters = profile.chapters,
+			chaptersSeen = profile.chaptersSeen,
+			missions = profile.missions,
+			towers = profile.towers,
+		})
+	end,
+
 	UnlockTower = function(player: Player, towerId: number): boolean
 		return TowerService.unlock(player, towerId, "Dev")
 	end,
 
 	LockTower = function(player: Player, towerId: number): boolean
 		return TowerService.debugLock(player, towerId)
-	end,
-
-	ForceKeyDrop = function(player: Player): boolean
-		TowerService.debugForceNextKey(player)
-		return true
 	end,
 
 	SetLevel = function(player: Player, level: number): number

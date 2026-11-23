@@ -41,6 +41,9 @@ local rng = Random.new()
 local lastRequestAt: { [Player]: number } = {}
 local lastPublished: { [Player]: string } = {}
 local forceMobDrop: { [Player]: boolean } = {} -- só testes no Studio (DevService)
+-- Ouvintes (ex.: MissionService): peça vendida na loja; equipamento da conta mudou (fortalecimento, troca, drop...).
+local soldListeners: { (player: Player) -> () } = {}
+local changedListeners: { (player: Player) -> () } = {}
 
 local function reply(player: Player, ok: boolean, message: string)
 	local payload: Remotes.GearResultPayload = { ok = ok, message = message }
@@ -60,6 +63,9 @@ function GearService.publish(player: Player)
 	local profile, data = ProgressionService.getLoadedProfile(player)
 	if not profile or not data then
 		return
+	end
+	for _, listener in changedListeners do
+		task.spawn(listener, player)
 	end
 	local used = PlayerSchema.equippedIds(profile)
 	local entries: { Types.GearEntry } = {}
@@ -268,6 +274,16 @@ end
 -- Vende uma peça do BAÚ (a loja já conferiu a distância do balcão). Preço do catálogo, nunca do cliente: base da
 -- raridade + parte das tentativas de fortalecimento (Formulas.gearSellPrice).
 -- Peça equipada não é vendida (a arma equipada nem pode ser tirada: troque por outra antes).
+-- Chamado a cada peça vendida na loja.
+function GearService.addSoldListener(listener: (player: Player) -> ())
+	table.insert(soldListeners, listener)
+end
+
+-- Chamado sempre que o equipamento da conta é publicado de novo (algo mudou: fortalecimento, troca, drop, venda...).
+function GearService.addChangedListener(listener: (player: Player) -> ())
+	table.insert(changedListeners, listener)
+end
+
 function GearService.trySell(player: Player, id: number): (boolean, string)
 	local profile = ProgressionService.getLoadedProfile(player)
 	if not profile then
@@ -280,6 +296,9 @@ function GearService.trySell(player: Player, id: number): (boolean, string)
 		local price = Formulas.gearSellPrice(soldDef, piece.rarity, piece.enhance)
 		ProgressionService.addGold(player, price)
 		GearService.publish(player)
+		for _, listener in soldListeners do
+			task.spawn(listener, player)
+		end
 		print(`[Loja] {player.Name} vendeu {nameOf(piece)} (id {id}) por {price} Gold`)
 		return true, `Vendeu {nameOf(piece)} por {price} Gold`
 	elseif outcome == "InUse" then

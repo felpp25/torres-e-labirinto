@@ -56,7 +56,17 @@ Keys.RunAttr = table.freeze({
 	PortalBlockedTower = "PortalBlockedTower", -- torre desse portal
 })
 
--- O acesso da conta à torre (true = liberada pela chave ou pela missão). Só torres que exigem acesso.
+-- Capítulos das Crônicas do Observador da conta (StoryService): ids separados por vírgula, ex.: "1,2".
+Keys.ChaptersUnlockedAttr = "ChaptersUnlocked"
+Keys.ChaptersSeenAttr = "ChaptersSeen"
+
+-- Progresso de uma missão da conta (MissionService): etapa atual, contador da etapa e se terminou. Sem a missão
+-- começada: nil.
+function Keys.missionAttr(missionId: string, field: "Step" | "Count" | "Done"): string
+	return `Mission_{missionId}_{field}`
+end
+
+-- O acesso da conta à torre (true = liberada: a chave, que sai da missão). Só torres que exigem acesso.
 function Keys.towerAccessAttr(towerId: number): string
 	return `TowerAccess_{towerId}`
 end
@@ -73,6 +83,10 @@ end
 
 -- O jogador está dentro da torre (participando da run), e não no lobby.
 Keys.InRunAttr = "InRun"
+
+-- SÓ NO CLIENTE (não replica): uma conversa com NPC está aberta (DialogueController). O HUD segura avisos que
+-- cobririam o rosto do NPC (ex.: "TORRE 2 LIBERADA!" no fim da missão) até ela fechar.
+Keys.DialogueOpenAttr = "DialogueOpen"
 
 function Keys.abilityReadyAttr(abilityId: string): string
 	return `AbilityReadyAt_{abilityId}`

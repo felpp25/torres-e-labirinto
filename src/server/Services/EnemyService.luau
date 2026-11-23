@@ -61,6 +61,9 @@ local deathHandler: (def: Types.MobDef, position: Vector3, parent: Instance) -> 
 )
 end
 
+-- Ouvintes do crédito de cada mob derrotado (ex.: MissionService): quem recebeu o XP dele e a pasta onde ele estava.
+local killListeners: { (player: Player, def: Types.MobDef, parent: Instance) -> () } = {}
+
 local function aliveCharacterRoots(): { [Player]: BasePart }
 	local result: { [Player]: BasePart } = {}
 	for _, player in Players:GetPlayers() do
@@ -265,8 +268,14 @@ end
 
 local function grantRewards(enemy: Enemy)
 	local position = enemy.root.Position
+	local parent = enemy.model.Parent
 	for player, root in aliveCharacterRoots() do
 		if (root.Position - position).Magnitude <= Progression.xpShareRadius then
+			if parent and enemy.def.xp > 0 then
+				for _, listener in killListeners do
+					task.spawn(listener, player, enemy.def, parent)
+				end
+			end
 			local gold = math.round(rng:NextInteger(enemy.def.goldMin, enemy.def.goldMax) * enemy.rewardMultiplier)
 			local xp = math.round(enemy.def.xp * enemy.rewardMultiplier)
 			ProgressionService.addXp(player, xp)
@@ -347,6 +356,11 @@ end
 -- mas mobs já acordados continuam perseguindo. Evita emboscada no instante em que o jogador nasce.
 function EnemyService.setWakeSafeZone(predicate: (position: Vector3) -> boolean)
 	isWakeSafe = predicate
+end
+
+-- Chamado para CADA jogador que recebe o XP de um mob derrotado (mobs sem recompensa, como o boneco, não contam).
+function EnemyService.addKillListener(listener: (player: Player, def: Types.MobDef, parent: Instance) -> ())
+	table.insert(killListeners, listener)
 end
 
 function EnemyService.setDeathHandler(handler: (def: Types.MobDef, position: Vector3, parent: Instance) -> ())

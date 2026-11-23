@@ -57,6 +57,10 @@ local queues: { [number]: Queue } = {}
 local hearts: { [RunRegistry.Run]: { Part } } = {}
 local ending: { [RunRegistry.Run]: boolean } = {} -- torre concluída: esperando para voltar ao lobby
 local bossLootGiven: { [RunRegistry.Run]: boolean } = {}
+-- Ouvintes da vitória (StoryService, MissionService): cada jogador com direito ao prêmio do chefão, a torre e se o
+-- grupo venceu sem perder vida (nenhum wipe na run; o Coração devolver vida não apaga o wipe).
+local victoryListeners: { (player: Player, towerId: number, flawless: boolean) -> () } = {}
+local wiped: { [RunRegistry.Run]: boolean } = {}
 local blockedOn: { [Player]: number } = {} -- em cima de um portal trancado: torre do portal
 local friendCache: { [string]: boolean } = {}
 local friendPending: { [string]: boolean } = {}
@@ -172,6 +176,7 @@ local function endRun(run: RunRegistry.Run, reason: string)
 	hearts[run] = nil
 	ending[run] = nil
 	bossLootGiven[run] = nil
+	wiped[run] = nil
 	RunRegistry.destroy(run)
 	for _, player in members do
 		if player.Parent then
@@ -320,8 +325,25 @@ local function safeLoot(
 	end
 end
 
--- Prêmio do boss, uma vez por run, para cada participante com direito (vivo ou espectando): o item garantido e o
--- sorteio da chave da próxima torre (só quem ainda não tem o acesso). A Sorte é a maior entre os que têm direito.
+-- Prêmio do boss, uma vez por run, para cada participante com direito (vivo ou espectando): o item garantido. A Sorte
+-- é a maior entre os que têm direito. (A chave da próxima torre não cai: sai só da missão, MissionService.)
+local function notifyVictory(run: RunRegistry.Run)
+	local flawless = wiped[run] ~= true
+	for _, player in RunRegistry.members(run) do
+		if player.Parent and isBossEligible(run, player) then
+			for _, listener in victoryListeners do
+				local ok, err = pcall(function(): string?
+					listener(player, run.towerId, flawless)
+					return nil
+				end)
+				if not ok then
+					warn(`[Run] falha num ouvinte da vitória ({player.Name}): {err}`)
+				end
+			end
+		end
+	end
+end
+
 local function grantBossLoot(run: RunRegistry.Run, position: Vector3)
 	if bossLootGiven[run] then
 		return
@@ -330,19 +352,10 @@ local function grantBossLoot(run: RunRegistry.Run, position: Vector3)
 	local luck = bestLuckNear(run, position, function(player: Player): boolean
 		return isBossEligible(run, player)
 	end)
-	local eligible: { Player } = {}
 	for _, player in RunRegistry.members(run) do
 		if player.Parent and isBossEligible(run, player) then
-			table.insert(eligible, player)
 			safeLoot("do boss", player, GearService.rollBossLoot, luck, run.towerId)
 		end
-	end
-	local ok, err = pcall(function(): string?
-		TowerService.rollKeys(run.towerId, eligible, luck)
-		return nil
-	end)
-	if not ok then
-		warn(`[Torre] falha no sorteio da chave: {err}`)
 	end
 end
 
@@ -361,6 +374,7 @@ local function onTowerCompleted(run: RunRegistry.Run, position: Vector3)
 	if not ok then
 		warn(`[Loot] falha nos itens do boss: {err}`)
 	end
+	notifyVictory(run) -- história e missões (antes do save abaixo)
 	-- Momento crítico: a recompensa do boss acabou de entrar. Salva já, sem esperar o autosave.
 	for _, player in run.members do
 		DataService.requestSave(player)
@@ -384,6 +398,7 @@ local function onWipe(run: RunRegistry.Run)
 		LifeService.reviveDead(run.members) -- boss já derrotado: só esperam a volta ao lobby
 		return
 	end
+	wiped[run] = true
 	run.lives -= 1
 	if run.lives <= 0 then
 		gameOver(run)
@@ -507,6 +522,18 @@ local function onPlayerRemoving(player: Player)
 end
 
 -- ===== API =====
+
+-- Chamado na vitória, para cada jogador com direito ao prêmio do chefão (ver notifyVictory).
+function RunSessionService.addVictoryListener(listener: (player: Player, towerId: number, flawless: boolean) -> ())
+	table.insert(victoryListeners, listener)
+end
+
+-- SÓ TESTES (DevService): avisa os ouvintes de uma vitória como se o jogador tivesse vencido a torre.
+function RunSessionService.debugVictory(player: Player, towerId: number, flawless: boolean)
+	for _, listener in victoryListeners do
+		listener(player, towerId, flawless)
+	end
+end
 
 function RunSessionService.getRunOf(player: Player): RunRegistry.Run?
 	return RunRegistry.runOf(player)

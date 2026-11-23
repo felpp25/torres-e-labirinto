@@ -573,7 +573,7 @@ local function onGearNotice(payload: unknown)
 	end
 end
 
--- A conta liberou uma torre (chave do chefão ou missão).
+-- A conta liberou uma torre (fim da missão: a chave forjada pelo NPC).
 local function onTowerUnlocked(payload: unknown)
 	if typeof(payload) ~= "table" then
 		return
@@ -584,10 +584,16 @@ local function onTowerUnlocked(payload: unknown)
 	if not def then
 		return
 	end
-	local detail = if data.source == "Key" and def.keyName
-		then `Você achou a {def.keyName}! O acesso vale para toda a conta (nível {def.minLevel}+).`
+	local detail = if data.source == "Quest" and def.keyName
+		then `Você recebeu a {def.keyName}! O acesso vale para toda a conta (nível {def.minLevel}+).`
 		else `O acesso vale para toda a conta (nível {def.minLevel}+).`
-	showToast(`{string.upper(def.displayName)} LIBERADA!`, detail, COLORS.gold, 0.32)
+	-- No fim da missão o aviso chega junto com a última conversa: espera ela fechar para não cobrir o NPC.
+	task.spawn(function()
+		while localPlayer:GetAttribute(Keys.DialogueOpenAttr) == true do
+			localPlayer:GetAttributeChangedSignal(Keys.DialogueOpenAttr):Wait()
+		end
+		showToast(`{string.upper(def.displayName)} LIBERADA!`, detail, COLORS.gold, 0.32)
+	end)
 end
 
 -- Baú cheio ao entrar na torre ou ao chegar no andar do chefe: avisa ANTES de o drop virar Gold (decisão do

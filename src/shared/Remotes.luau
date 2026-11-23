@@ -39,7 +39,9 @@
 --                                                                  da mochila e confirmei; resposta em GearResult)
 --   DestroyGems     cliente -> servidor  (attribute, level)        quero destruir a pilha inteira dessas gemas (idem)
 --   DestroyRemovers cliente -> servidor  (level: number)           quero destruir a pilha inteira de Removedores (idem)
---   TowerUnlocked   servidor -> 1 cliente (TowerUnlockedPayload)   sua conta liberou uma torre (chave ou missão)
+--   TowerUnlocked   servidor -> 1 cliente (TowerUnlockedPayload)   sua conta liberou uma torre (fim da missão)
+--   NpcDialogue     servidor -> 1 cliente (NpcDialoguePayload)     você falou com um NPC do lobby: mostrar a conversa
+--                                                                  (o servidor já contou o progresso da missão)
 -- O equipamento em si (peças da conta, slots, gemas e Removedores do baú) chega pelo Attribute "GearData" do Player
 -- (Shared/GearSnapshot).
 
@@ -78,6 +80,7 @@ export type RemoteName =
 	| "DestroyRemovers"
 	| "TransferEnhance"
 	| "TowerUnlocked"
+	| "NpcDialogue"
 
 export type CombatFeedbackPayload = {
 	target: Model, -- quem foi atingido (inimigo ou personagem de jogador)
@@ -131,11 +134,22 @@ local REMOTE_NAMES: { RemoteName } = {
 	"DestroyRemovers",
 	"TransferEnhance",
 	"TowerUnlocked",
+	"NpcDialogue",
+}
+
+-- Conversa com um NPC (os textos ficam em Shared/Story; o cliente só mostra). Um destes: `dialogue`, `chapter` ou
+-- `menu`.
+export type NpcDialoguePayload = {
+	npc: string, -- Story/Npcs (quem fala; a câmera vai nele)
+	dialogue: string?, -- id em Story/Dialogues
+	chapter: number?, -- id em Story/Chronicles (o Observador contando)
+	canSkip: boolean, -- false na 1ª vez (capítulo novo ou etapa da missão)
+	menu: boolean, -- true: abre o menu para rever os capítulos (o Observador sem nada novo)
 }
 
 export type TowerUnlockedPayload = {
 	towerId: number,
-	source: string, -- "Key" | "Quest" | "Dev"
+	source: string, -- "Quest" (fim da missão) | "Dev"
 }
 
 export type GearResultPayload = {
