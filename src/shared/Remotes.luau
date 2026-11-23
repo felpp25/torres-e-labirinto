@@ -140,7 +140,7 @@ export type TowerUnlockedPayload = {
 
 export type GearResultPayload = {
 	ok: boolean,
-	message: string, -- ex.: "Equipou Faixa do Combatente (Raro)" / "Troca de equipamento só no lobby"
+	message: string, -- ex.: "Equipou Faixa do Combatente de Osso (Raro)" / "Troca de equipamento só no lobby"
 }
 
 -- Campos simples (strings): o cliente valida e consulta o catálogo.
@@ -159,7 +159,7 @@ export type ShopResultPayload = {
 export type ForgeResultPayload = {
 	ok: boolean, -- true = deu certo (fortalecimento, incrustar, extrair, fundir); false = falhou ou foi recusado
 	rolled: boolean, -- true = houve sorteio do fortalecimento (Gold gasto: sucesso ou falha); gemas: sempre false
-	message: string, -- ex.: "Sucesso! Gibão do Combatente +5" / "Falhou: caiu para +6" / "Gold insuficiente"
+	message: string, -- ex.: "Sucesso! Gibão do Combatente de Osso +5" / "Falhou: caiu para +6" / "Gold insuficiente"
 }
 local FOLDER_NAME = "Remotes"
 local CLIENT_WAIT_TIMEOUT = 30

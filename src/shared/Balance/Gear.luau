@@ -4,9 +4,13 @@
 -- Os ids vão para o save (DataStore): NUNCA renomear nem apagar um id já usado. Para aposentar uma peça, tire-a de
 -- `dropPool` (quem já tem continua com ela).
 -- Cada peça é declarada com o tipo exato e só depois entra na tabela geral (mesmo padrão de Balance/Abilities).
+-- NOMES (decisão do designer, GDD > Mundo e temas): peça base + marca da torre. Nas declarações abaixo `displayName` é
+-- o nome BASE ("Faixa do Combatente", "Luvas"); a tabela geral acrescenta a marca da torre (Balance/Towers):
+-- "Faixa do Combatente de Osso" na Torre 1, "... de Cristal" na Torre 2. A raridade é a cor, não entra no nome.
 
 local Types = require(script.Parent.Parent.Types)
 local Forge = require(script.Parent.Forge)
+local Towers = require(script.Parent.Towers)
 
 -- Atributos parciais: os que faltam valem 0 (Types.Attributes exige os 7 campos).
 type PartialAttributes = {
@@ -157,9 +161,10 @@ local GUARDIAN_NECKLACE: Types.GearDef = {
 
 -- Armas do Lutador (GDD > Armas): Luvas = inicial (todo Lutador começa com elas), Soco Inglês = intermediária
 -- (cai na Torre 1 enquanto ela for a única torre). O Poder multiplica o dano do tipo da arma.
+-- Os ids vêm dos nomes antigos (Luvas de Couro, Soco Inglês de Ferro) e ficam: estão no save.
 local LEATHER_GLOVES: Types.GearDef = {
 	id = "LeatherGloves",
-	displayName = "Luvas de Couro",
+	displayName = "Luvas",
 	slot = "Weapon",
 	classId = "Fighter",
 	damageType = "Physical",
@@ -170,7 +175,7 @@ local LEATHER_GLOVES: Types.GearDef = {
 }
 local IRON_KNUCKLES: Types.GearDef = {
 	id = "IronKnuckles",
-	displayName = "Soco Inglês de Ferro",
+	displayName = "Soco Inglês",
 	slot = "Weapon",
 	classId = "Fighter",
 	damageType = "Physical",
@@ -199,16 +204,15 @@ local TOWER_1: { Types.GearDef } = {
 
 -- Torre 2 (GDD > Torre 2 e escolha de torre; decisões do designer): as mesmas peças e linhas com o DOBRO dos pontos e
 -- do Poder (o Comum da Torre 2 = o Raro da Torre 1), nível mínimo 10. As duas armas do Lutador também.
--- NOMES PROVISÓRIOS ("… II") até o designer mandar os nomes: o save guarda o id, não o nome.
 local TOWER_2_MULTIPLIER = 2
 local TOWER_2_MIN_LEVEL = 10
 
-local function towerVersion(base: Types.GearDef, id: string, displayName: string): Types.GearDef
+local function towerVersion(base: Types.GearDef, id: string): Types.GearDef
 	local m = TOWER_2_MULTIPLIER
 	local a = base.attributes
 	return {
 		id = id,
-		displayName = displayName,
+		displayName = base.displayName, -- mesmo nome base; a marca da Torre 2 entra na tabela geral
 		slot = base.slot,
 		line = base.line,
 		classId = base.classId,
@@ -229,20 +233,20 @@ local function towerVersion(base: Types.GearDef, id: string, displayName: string
 end
 
 local TOWER_2: { Types.GearDef } = {
-	towerVersion(COMBATANT_HEADBAND, "CombatantHeadband2", "Faixa do Combatente II"),
-	towerVersion(COMBATANT_JERKIN, "CombatantJerkin2", "Gibão do Combatente II"),
-	towerVersion(COMBATANT_PANTS, "CombatantPants2", "Calças do Combatente II"),
-	towerVersion(COMBATANT_BOOTS, "CombatantBoots2", "Botas do Combatente II"),
-	towerVersion(COMBATANT_BRACELET, "CombatantBracelet2", "Pulseira do Combatente II"),
-	towerVersion(COMBATANT_NECKLACE, "CombatantNecklace2", "Colar do Combatente II"),
-	towerVersion(GUARDIAN_HELM, "GuardianHelm2", "Elmo do Guardião II"),
-	towerVersion(GUARDIAN_CUIRASS, "GuardianCuirass2", "Couraça do Guardião II"),
-	towerVersion(GUARDIAN_GREAVES, "GuardianGreaves2", "Perneiras do Guardião II"),
-	towerVersion(GUARDIAN_BOOTS, "GuardianBoots2", "Botas do Guardião II"),
-	towerVersion(GUARDIAN_BRACELET, "GuardianBracelet2", "Pulseira do Guardião II"),
-	towerVersion(GUARDIAN_NECKLACE, "GuardianNecklace2", "Colar do Guardião II"),
-	towerVersion(LEATHER_GLOVES, "LeatherGloves2", "Luvas de Couro II"),
-	towerVersion(IRON_KNUCKLES, "IronKnuckles2", "Soco Inglês de Ferro II"),
+	towerVersion(COMBATANT_HEADBAND, "CombatantHeadband2"),
+	towerVersion(COMBATANT_JERKIN, "CombatantJerkin2"),
+	towerVersion(COMBATANT_PANTS, "CombatantPants2"),
+	towerVersion(COMBATANT_BOOTS, "CombatantBoots2"),
+	towerVersion(COMBATANT_BRACELET, "CombatantBracelet2"),
+	towerVersion(COMBATANT_NECKLACE, "CombatantNecklace2"),
+	towerVersion(GUARDIAN_HELM, "GuardianHelm2"),
+	towerVersion(GUARDIAN_CUIRASS, "GuardianCuirass2"),
+	towerVersion(GUARDIAN_GREAVES, "GuardianGreaves2"),
+	towerVersion(GUARDIAN_BOOTS, "GuardianBoots2"),
+	towerVersion(GUARDIAN_BRACELET, "GuardianBracelet2"),
+	towerVersion(GUARDIAN_NECKLACE, "GuardianNecklace2"),
+	towerVersion(LEATHER_GLOVES, "LeatherGloves2"),
+	towerVersion(IRON_KNUCKLES, "IronKnuckles2"),
 }
 
 local BY_TOWER: { [number]: { Types.GearDef } } = { [1] = TOWER_1, [2] = TOWER_2 }
@@ -257,6 +261,9 @@ end
 local BY_ID: { [string]: Types.GearDef } = {}
 for _, def in LIST do
 	assert(BY_ID[def.id] == nil, `Gear: id repetido {def.id}`)
+	local tower = Towers.byId[def.tower]
+	assert(tower ~= nil, `Gear: {def.id} é de uma torre que não existe ({def.tower})`)
+	def.displayName = `{def.displayName} {tower.gearMark}`
 	table.freeze(def)
 	BY_ID[def.id] = def
 end

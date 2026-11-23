@@ -31,7 +31,7 @@
 --   2  Gold na conta. Migração: soma o Gold de todos os personagens da v1.
 --   3  Inventário da conta (poções). Migração: inventário vazio.
 --   4  Equipamento: peças da conta (gear) e 7 slots por personagem (equipped). Migração: todo personagem cuja
---      classe tem arma inicial ganha a arma Comum equipada (Lutador: Luvas de Couro).
+--      classe tem arma inicial ganha a arma Comum equipada (Lutador: as Luvas da Torre 1, id LeatherGloves).
 --   5  Fortalecimento da peça (enhance, 0 a 10). Migração: todas as peças ficam +0.
 --      (A peça fortalecida não era vendida; depois a loja passou a comprá-la, sem mudar o formato.)
 --   6  Gemas: a gema encaixada na peça (gem) e as pilhas de gemas e Removedores do baú (gems, removers).

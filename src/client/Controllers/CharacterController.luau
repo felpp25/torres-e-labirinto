@@ -31,6 +31,7 @@ local Classes = require(Balance:WaitForChild("Classes"))
 local Gear = require(Balance:WaitForChild("Gear"))
 
 local ChatBlocker = require(script.Parent.Parent:WaitForChild("ChatBlocker"))
+local TextFit = require(script.Parent.Parent:WaitForChild("TextFit"))
 
 local localPlayer = Players.LocalPlayer
 
@@ -1076,7 +1077,7 @@ local function buildInventorySide(frame: Frame)
 	detailCorner.Parent = detail
 	local name = makeText(detail, "", UDim2.new(1, -120, 0, 20), UDim2.fromOffset(10, 8), 14)
 	name.RichText = true
-	name.TextTruncate = Enum.TextTruncate.AtEnd
+	TextFit.shrinkToFit(name, 11) -- nome longo + "+10" encolhe em vez de cortar
 	detailName = name
 	local stats = makeText(detail, "", UDim2.new(1, -120, 0, 44), UDim2.fromOffset(10, 30), 11) -- até 3 linhas
 	stats.TextColor3 = COLORS.dim

@@ -59,13 +59,13 @@ function GearInfo.rarityColor(rarity: Types.Rarity): Color3
 	return RARITY_COLORS[rarity] or Color3.new(1, 1, 1)
 end
 
--- Nome com o fortalecimento: "Gibão do Combatente +5" (sem a raridade).
+-- Nome com o fortalecimento: "Gibão do Combatente de Osso +5" (sem a raridade).
 function GearInfo.displayName(def: Types.GearDef, enhance: number?): string
 	local label = GearInfo.enhanceLabel(enhance)
 	return if label == "" then def.displayName else `{def.displayName} {label}`
 end
 
--- Ex.: "Faixa do Combatente (Raro)" ou "Gibão do Combatente +5 (Comum)".
+-- Ex.: "Faixa do Combatente de Osso (Raro)" ou "Gibão do Combatente de Osso +5 (Comum)".
 function GearInfo.fullName(def: Types.GearDef, rarity: Types.Rarity, enhance: number?): string
 	return `{GearInfo.displayName(def, enhance)} ({GearInfo.rarityLabel(rarity)})`
 end

@@ -3,13 +3,17 @@
 -- Acesso (decisões do designer): nível mínimo + ACESSO da conta (vitalício, vale para todos os personagens). O acesso
 -- vem da CHAVE (cai do chefão da torre anterior, por jogador, com a Sorte) ou da MISSÃO (a definir com o designer).
 -- No portal, cada um do grupo precisa ter os dois.
+-- Nomes (decisão do designer, GDD > Mundo e temas): cada torre tem uma MARCA, o subtema dela dentro do tema do lobby.
+-- A marca fecha o nome das peças da torre ("Faixa do Combatente de Osso", Balance/Gear) e o da chave que a libera
+-- ("Chave de Cristal" abre a Torre 2). Formato "de X": não muda com gênero nem plural, então serve a qualquer peça.
 
 export type TowerDef = {
 	id: number,
 	displayName: string,
+	gearMark: string, -- marca da torre (ver acima)
 	minLevel: number,
 	requiresAccess: boolean, -- precisa do acesso da conta (chave ou missão); a Torre 1 é livre
-	keyName: string?, -- nome da chave que libera ESTA torre (provisório até o designer escolher)
+	keyName: string?, -- nome da chave que libera ESTA torre: preenchido abaixo, "Chave " + a marca dela
 	keyChance: number, -- chance base (por jogador com direito) de a chave cair do chefão da torre anterior
 	-- Força dos mobs e do chefão (vida e dano), por cima da rampa de +15% por andar (Balance/Dungeon).
 	statMultiplier: number,
@@ -22,9 +26,9 @@ export type TowerDef = {
 local TOWER_1: TowerDef = {
 	id = 1,
 	displayName = "Torre 1",
+	gearMark = "de Osso", -- fundo do abismo: ossos, obsidiana, escuridão
 	minLevel = 1,
 	requiresAccess = false,
-	keyName = nil,
 	keyChance = 0,
 	statMultiplier = 1,
 	rewardMultiplier = 1,
@@ -35,9 +39,9 @@ local TOWER_1: TowerDef = {
 local TOWER_2: TowerDef = {
 	id = 2,
 	displayName = "Torre 2",
+	gearMark = "de Cristal", -- ruínas de cristal, subindo para a superfície
 	minLevel = 10,
 	requiresAccess = true,
-	keyName = "Chave da Torre 2", -- nome provisório
 	-- 5%: em média 20 vitórias na Torre 1; 10% dos jogadores passariam de 45 (por isso existe a missão).
 	keyChance = 0.05,
 	-- ×2,25 (decisão do designer, com a Ressonância de Balance/Gear): com o equipamento da Torre 1 dá para jogar os
@@ -55,7 +59,10 @@ local BY_ID: { [number]: TowerDef } = {}
 for index, def in LIST do
 	assert(def.id == index, `Towers: a torre {def.id} está fora de ordem`)
 	assert(def.keyChance >= 0 and def.keyChance <= 1, `Towers: chance de chave inválida na torre {def.id}`)
-	assert(not def.requiresAccess or def.keyName ~= nil, `Towers: a torre {def.id} precisa do nome da chave`)
+	assert(def.gearMark ~= "", `Towers: a torre {def.id} precisa da marca`)
+	if def.requiresAccess then
+		def.keyName = `Chave {def.gearMark}`
+	end
 	assert(def.statMultiplier > 0 and def.rewardMultiplier > 0, `Towers: multiplicadores inválidos na torre {def.id}`)
 	assert(#def.mobPool > 0, `Towers: a torre {def.id} não tem mobs`)
 	table.freeze(def.mobPool)

@@ -40,7 +40,8 @@ src/
     Types.luau      tipos compartilhados
     Balance/        TODOS os números de balanceamento (combate, classes, habilidades, mobs, progressão, andares,
                     equipamentos: Balance/Gear, forja/fortalecimento: Balance/Forge, gemas: Balance/Gems,
-                    torres: Balance/Towers = nível, acesso, chave, força, recompensa, chefão e mobs de cada torre)
+                    torres: Balance/Towers = nível, acesso, chave, força, recompensa, chefão, mobs e a MARCA de cada torre,
+                    que fecha o nome das peças: "Luvas de Osso")
     Formulas.luau   fórmulas puras (dano, defesa, crítico, XP...): servidor decide, cliente só mostra
     Remotes.luau    RemoteEvents com nome tipado (servidor cria; cliente espera)
     GearInfo.luau / GearSnapshot.luau  textos das peças e gemas e o formato do Attribute GearData (peças, slots e
@@ -131,7 +132,7 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   Segurança; já ligado). Sem acesso, o jogo roda "sem salvar" (aviso no HUD) e nunca grava. O personagem de teste
   do Studio agora PERSISTE entre Plays (nível, Gold, atributos). Formato e validação: `server/Data/PlayerSchema`.
   - Formato **v4**: peças de equipamento da conta (`gear`) + 7 slots por personagem (`equipped`); a migração deu a
-    arma inicial equipada (Lutador: Luvas de Couro). **Não rode commits anteriores ao v4** (antes de `ea69b36`)
+    arma inicial equipada (Lutador: as Luvas, id `LeatherGloves`). **Não rode commits anteriores ao v4** (antes de `ea69b36`)
     contra o `PlayerData_Studio`: o código antigo apagaria o equipamento ao carregar.
   - Formato **v5**: fortalecimento de cada peça (`enhance`, 0 a 10). Um servidor v4 que encontra dados v5 recusa
     carregar (joga "sem salvar") e não apaga nada.
@@ -204,6 +205,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   atrás dela (os avisos do HUD também ficam atrás das janelas abertas).
 - Texto cortado na interface: `execute_luau` no datamodel `Client` lendo `TextLabel.TextFits` acha o problema sem
   depender da captura de tela (achou o detalhe da peça com gema estourando a caixa no painel Personagem).
+  Nomes de peça são longos (peça base + marca da torre; "Pulseira do Combatente de Cristal +10" tem 245 px a 14):
+  título de uma linha com nome de peça usa `client/TextFit.shrinkToFit` (encolhe a letra em vez de cortar).
 - Luau (verificador de tipos): local SEM anotação alarga união de literais para `string` (ex.: `local slot =
   def.slot` perde o `EquipSlot`; idem laço `for _, slot in Gear.slots`). Anote: `local slot: Types.EquipSlot = ...`,
   `for _, slot: Types.EquipSlot in ...`. Módulo que devolve tabela com campos desse tipo: declare o tipo do módulo.

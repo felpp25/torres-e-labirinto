@@ -41,6 +41,45 @@
 - **Duração:** 15 a 20 min por run (~3 min por andar).
 - **Plataforma:** celular primeiro.
 
+## Mundo e temas (decidido pelo designer)
+
+- **10 torres em 5 lobbies, 2 torres por lobby.** O jogador sai do fundo de um abismo e sobe até o cosmos. Cada lobby
+  tem a sua estética, e cada uma das duas torres dele, um subtema (o visual das peças acompanha).
+
+| Lobby | Tema | Torres |
+|---|---|---|
+| 1. O Abismo | cavernas profundas, ruínas subterrâneas, cristais, ossos, criaturas ancestrais | 1 e 2 |
+| 2. A Superfície | cidades abandonadas, floresta pós-apocalíptica, templos esquecidos, a natureza retomando o mundo | 3 e 4 |
+| 3. O Firmamento | ilhas flutuantes, montanhas suspensas, arranha-céus nas nuvens, árvores colossais | 5 e 6 |
+| 4. O Vazio Estelar | plataformas planetárias, estações espaciais, naves, civilizações extraterrestres | 7 e 8 |
+| 5. O Cosmos | galáxias, buracos negros, entidades cósmicas | 9 e 10 |
+
+- **Referências:** mitologias grega, nórdica e xintoísta (conversa de ideias em [Ideias.md](Ideias.md)). Em aberto:
+  misturar as três em todos os lobbies (sugestão da conversa) ou uma por lobby. Sugestão: do xintoísmo, que é uma
+  religião viva, usar o folclore (kitsune, oni, torii, talismãs) em vez de nomes de divindades.
+- **Nomes das peças: peça base + marca da torre** (decisão do designer). A peça base diz a linha e o slot ("Gibão do
+  Combatente", "Luvas"); a marca é o subtema da torre e diz de que torre a peça é, o que importa para a Ressonância.
+  A raridade é a cor e não entra no nome. Marcas no formato "de X", que não mudam com gênero nem plural.
+
+| Torre | Subtema | Marca | Exemplos |
+|---|---|---|---|
+| 1 | fundo do abismo: ossos, obsidiana, escuridão | de Osso | Faixa do Combatente de Osso, Luvas de Osso |
+| 2 | ruínas de cristal, subindo para a superfície | de Cristal | Couraça do Guardião de Cristal, Soco Inglês de Cristal |
+| 3 a 10 | a definir | | |
+
+  - Escala: cada torre tem 30 armaduras e acessórios (5 linhas × 6 slots) e até 28 armas, ~300 a 580 peças nas 10
+    torres. Com a regra, são ~70 nomes escritos à mão (bases + marcas).
+  - A Torre 1 mudou junto: Luvas de Couro → Luvas de Osso, Soco Inglês de Ferro → Soco Inglês de Osso (o save guarda o
+    id, nada se perde). O maior nome hoje é "Pulseira do Combatente de Cristal" (33 letras); com o "+10", os títulos
+    das janelas diminuem um pouco a letra em vez de cortar o nome.
+  - Descartados: nome único por peça (~300 a 580 nomes, e o nome não diz a linha nem a torre); híbrido, com armas de
+    nome mitológico próprio; mesmo tema + numeral ("Gibão Abissal II"); as marcas Obsidiana (nomes de até 35 letras),
+    Abissal (adjetivo: muda no plural) e do Tártaro na Torre 1; Rúnico e das Ruínas na Torre 2.
+- **Chave de acesso: leva a marca da torre que abre** (decisão do designer): a "Chave de Cristal" libera a Torre 2.
+  Descartados: a marca da torre onde a chave cai e "Chave da Torre N".
+- *A definir:* como os 5 lobbies ficam no jogo (hoje um lobby só, com os portais 1 e 2; decidir antes da Torre 3: áreas
+  do mesmo mapa ou places separados) e os modelos das peças no tema de cada torre.
+
 ## Andares
 
 - Cada andar é um labirinto gerado a partir de salas sorteadas: **8 a 12 salas**, sempre com caminho garantido
@@ -281,6 +320,9 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 
 ### Catálogo da Torre 1 (Lutador; valores Comum, o Raro é o dobro)
 
+Nomes base; no jogo cada peça leva a marca da torre: "Faixa do Combatente de Osso", "Luvas de Osso" (ver "Mundo e
+temas").
+
 | Slot | Combatente (FOR ++, VIT +) | Guardião (DEF ++, VIT +) |
 |---|---|---|
 | Capacete | Faixa do Combatente: +2 FOR | Elmo do Guardião: +2 DEF |
@@ -293,10 +335,10 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 
 | Arma (Lutador) | Comum | Raro | Perfil |
 |---|---|---|---|
-| Luvas de Couro | Poder +5%, +1 FOR, +2 DES | Poder +10%, +2 FOR, +4 DES | sustentação (+10 de stamina) |
-| Soco Inglês de Ferro | Poder +10%, +1 FOR | Poder +20%, +2 FOR | dano (~5% a mais) |
+| Luvas | Poder +5%, +1 FOR, +2 DES | Poder +10%, +2 FOR, +4 DES | sustentação (+10 de stamina) |
+| Soco Inglês | Poder +10%, +1 FOR | Poder +20%, +2 FOR | dano (~5% a mais) |
 
-- Pelo padrão de 3 armas, as **Luvas são a arma inicial** (todo Lutador começa com Luvas de Couro Comuns) e o
+- Pelo padrão de 3 armas, as **Luvas são a arma inicial** (todo Lutador começa com as Luvas de Osso Comuns) e o
   **Soco Inglês é a intermediária** (mid-game). *Protótipo:* enquanto a Torre 1 for a única torre, o Soco Inglês
   também cai nela (decisão do designer), para testar uma segunda arma.
 
@@ -593,8 +635,8 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   - Descartados: só a chave (azar sem saída) e só a missão.
 - *Implementado:* portal da Torre 2 no lobby (à direita, atrás do da Torre 1). Quem pisa sem os requisitos vê
   "TORRE 2 TRANCADA" e o que falta (nível, chave ou missão); a chave cai no chefão da Torre 1 com o aviso "TORRE 2
-  LIBERADA!". O acesso fica no save da conta (v7). Nome da chave provisório: "Chave da Torre 2". A missão ainda não
-  existe. Os avisos que chegam juntos (nível, torre concluída, item, torre liberada) se empilham sem se cobrir.
+  LIBERADA!". O acesso fica no save da conta (v7). A chave se chama "Chave de Cristal" (ver "Mundo e temas"). A
+  missão ainda não existe. Os avisos que chegam juntos (nível, torre concluída, item, torre liberada) se empilham sem se cobrir.
 
 ### Números da Torre 2
 - **Teto de nível: 20** (+10 por torre). Do 10 ao 20 são 40.648 XP: ~8,5 runs (2,6 h).
@@ -630,9 +672,8 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
 - **Venda das peças da Torre 2 (decisão do designer):** o dobro, Comum 20 / Raro 100 (acompanha a renda; também vale
   quando o drop vira Gold com o baú cheio). O que o fortalecimento soma dobra sozinho com a base da Forja (200).
   Descartado: o mesmo 10 / 50 (vender drops valeria metade em proporção).
-- *Implementado:* teto 20, mobs e chefão ×2,25, XP e Gold ×2, catálogo da Torre 2 (14 peças, nomes provisórios
-  "… II" até o designer mandar os nomes), drops da Torre 2 só com peças dela, Forja (+1 = 200), venda (20 / 100) e a
-  Ressonância. Medido: Brutamontes do andar 2 com 155 de vida; chefão com 2.700 de vida, 3.000 XP e 600 Gold; com 3
+- *Implementado:* teto 20, mobs e chefão ×2,25, XP e Gold ×2, catálogo da Torre 2 (14 peças, com a marca "de
+  Cristal"), drops da Torre 2 só com peças dela, Forja (+1 = 200), venda (20 / 100) e a Ressonância. Medido: Brutamontes do andar 2 com 155 de vida; chefão com 2.700 de vida, 3.000 XP e 600 Gold; com 3
   peças da Torre 2, dano +21% (192 → 233 num golpe base 100) e dano recebido -11% (91 → 81), atributos iguais aos do
   lobby; na Torre 1, Ressonância 0.
 
@@ -648,14 +689,13 @@ a Nv5 só caem nas torres 5+ (ainda não existem); a fusão foi testada com o De
   - **Onda Sísmica:** círculo de raio 12 em volta dele, aviso de 1,2 s, 38 de dano (com ×1,75; pune quem cola).
   - **Rajada de Pedra:** faixa à frente de 24 × 6, aviso de 1,0 s, 45 de dano (com ×1,75).
   - Descartados: Carcereiro Acorrentado (anel que acerta quem está longe) e Touro de Bronze (investida pela arena).
-- A definir: os nomes das peças da Torre 2, o nome da chave e o conteúdo da missão.
+- A definir: o conteúdo da missão.
 
 ### Ordem de construção da fase
 1. ~~Runs separadas (várias por servidor), portal com espera, amigos no meio.~~ **Feito.**
 2. ~~Portal da Torre 2, acesso (nível + chave), save novo com as torres liberadas da conta.~~ **Feito** (a run da
    Torre 2 ainda usa o conteúdo da Torre 1 até a etapa 3).
-3. ~~Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, Ressonância.~~ **Feito** (faltam os nomes das
-   peças, que o designer vai mandar).
+3. ~~Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, Ressonância.~~ **Feito** (nomes: ver "Mundo e temas").
 4. Arremessador.
 5. Geomante das Rochas.
 6. Missão de acesso (depois de definida com o designer).

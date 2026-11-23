@@ -30,6 +30,7 @@ local Forge = require(Balance:WaitForChild("Forge"))
 local Gems = require(Balance:WaitForChild("Gems"))
 
 local ChatBlocker = require(script.Parent.Parent:WaitForChild("ChatBlocker"))
+local TextFit = require(script.Parent.Parent:WaitForChild("TextFit"))
 
 local localPlayer = Players.LocalPlayer
 
@@ -646,7 +647,7 @@ local function refreshFuse()
 	paintButton(fuseButton, fuseAction)
 end
 
--- "Gibão do Combatente +7 (Raro): +2,2 FOR, +1,1 VIT" (como a peça fica com este fortalecimento).
+-- "Gibão do Combatente de Osso +7 (Raro): +2,2 FOR, +1,1 VIT" (como a peça fica com este fortalecimento).
 local function pieceAfter(entry: Types.GearEntry, def: Types.GearDef, enhance: number): string
 	local rarity: Types.Rarity = entry.rarity
 	return `{GearInfo.fullName(def, rarity, enhance)}: {GearInfo.describe(def, rarity, enhance)}`
@@ -1058,7 +1059,7 @@ local function makeTitleLines(side: Frame): (TextLabel, TextLabel)
 	local textX = 14 + BIG_CELL + 12
 	local name = makeText(side, "", UDim2.new(1, -(textX + 10), 0, 22), UDim2.fromOffset(textX, 18), 16)
 	name.Name = "PieceName"
-	name.TextTruncate = Enum.TextTruncate.AtEnd
+	TextFit.shrinkToFit(name, 12) -- nome longo + "+10" encolhe em vez de cortar
 	local slot = makeText(side, "", UDim2.new(1, -(textX + 10), 0, 16), UDim2.fromOffset(textX, 44), 12)
 	slot.TextColor3 = COLORS.dim
 	return name, slot
