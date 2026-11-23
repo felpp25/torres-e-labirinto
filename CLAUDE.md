@@ -158,6 +158,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `"Equip"(player, id)`, `"Unequip"(player, slot)`. Drops: `"SampleDrops"(classe, n, torre?)`, `"SampleLoot"`,
   `"RollBossLoot"(player, sorte, torre?)`,
   `"ForceMobDrop"`, `"GoToFloor"(n, player?)` (a run do jogador, ou a única ativa), `"RejoinRun"`, `"BossEligible"`.
+  Mobs: `"SpawnMob"(player, "Thrower", distância?, força?)` (mob real com IA à frente do jogador, em `workspace.DevMobs`;
+  testar ataques no lobby sem entrar na torre). Os mobs do andar têm os Attributes `MobId` e `Room` (sala): contar por
+  tipo e por sala direto no workspace (o chefão tem `MobId` sem `Room`).
   Runs: `"Runs"()` (JSON das runs e das esperas nos portais) e `"SetAllFriends"(true)` (todos contam como amigos,
   para testar "amigo entra no meio da run": os jogadores de teste do Studio não são amigos).
   Torres (TowerService): `"UnlockTower"(player, 2)` (acesso real, salva e avisa), `"LockTower"(player, 2)`,

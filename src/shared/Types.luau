@@ -106,6 +106,10 @@ export type ClassDef = {
 	ultimate: string, -- id em Balance/Abilities (gasta a barra de ultimate)
 }
 
+-- Ataque do mob. "Melee": golpe à frente (caixa hitRange × hitWidth). "Lob": pedra que cai onde o alvo estava ao
+-- começar o aviso (círculo de raio `areaRadius`); precisa de linha de visão até o alvo.
+export type MobAttack = "Melee" | "Lob"
+
 export type MobDef = {
 	id: string,
 	displayName: string,
@@ -115,6 +119,8 @@ export type MobDef = {
 	walkSpeed: number,
 	aggroRange: number, -- distância para começar a perseguir (studs)
 	attackRange: number, -- distância (centro a centro) para iniciar o ataque (studs)
+	attack: MobAttack?, -- nil = "Melee"
+	areaRadius: number?, -- só "Lob": raio do círculo onde a pedra cai (studs)
 	hitRange: number, -- profundidade da área do golpe à frente do mob (studs)
 	hitWidth: number, -- largura da área do golpe (studs)
 	telegraphTime: number, -- aviso visual antes do golpe (s)

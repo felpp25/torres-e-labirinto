@@ -28,6 +28,9 @@
 --   (sai e volta à run: devolve se ficou com direito ao boss), "BossEligible"(player)
 --   Runs (várias por servidor): "Runs"() (JSON: runs ativas, andar, vidas, participantes e esperas nos portais) e
 --   "SetAllFriends"(true/false) (todos contam como amigos: os jogadores de teste do Studio não são amigos).
+--   Mobs: "SpawnMob"(player, mobId, distância?, força?) (mob REAL com IA, a `distância` studs à frente do jogador,
+--   padrão 20; força = multiplicador de vida e dano, padrão 1; fica em workspace.DevMobs: apague com
+--   ClearAllChildren). Os mobs do andar têm os Attributes MobId e Room (índice da sala): conte-os pelo workspace.
 --   Torres: "UnlockTower"(player, torre) (acesso real: salva e avisa), "LockTower"(player, torre) (tira o acesso),
 --   "ForceKeyDrop"(player) (a próxima chave sorteada cai), "SetLevel"(player, nível) (só o nível; XP zerado).
 --   Forja: "Enhance"(player, id, forçar?) (uma tentativa REAL, cobra Gold; forçar = true/false fixa o sorteio;
@@ -54,6 +57,8 @@ local CombatService = require(script.Parent.CombatService)
 local DataService = require(script.Parent.DataService)
 local GearService = require(script.Parent.GearService)
 local GemService = require(script.Parent.GemService)
+local EnemyService = require(script.Parent.EnemyService)
+local Mobs = require(game:GetService("ReplicatedStorage").Shared.Balance.Mobs)
 local ProgressionService = require(script.Parent.ProgressionService)
 local RunSessionService = require(script.Parent.RunSessionService)
 local TowerService = require(script.Parent.TowerService)
@@ -117,6 +122,18 @@ end
 
 local function outcomeText(ok: boolean, message: string): string
 	return `{if ok then "ok" else "recusado"}: {message}`
+end
+
+-- Pasta dos mobs criados pelo "SpawnMob".
+local function devMobsFolder(): Folder
+	local existing = workspace:FindFirstChild("DevMobs")
+	if existing and existing:IsA("Folder") then
+		return existing
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "DevMobs"
+	folder.Parent = workspace
+	return folder
 end
 
 local COMMANDS: { [string]: Command } = {
@@ -326,6 +343,17 @@ local COMMANDS: { [string]: Command } = {
 
 	Runs = function(): string
 		return HttpService:JSONEncode(RunSessionService.debugSummary())
+	end,
+
+	SpawnMob = function(player: Player, mobId: string, distance: number?, strength: number?): string
+		local def = Mobs[mobId]
+		assert(def, `mob desconhecido: {mobId}`)
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		assert(root and root:IsA("BasePart"), "jogador sem personagem")
+		local folder = devMobsFolder()
+		local position = root.Position + root.CFrame.LookVector * (distance or 20)
+		local model = EnemyService.spawn(def, CFrame.lookAt(position, root.Position), strength or 1, folder)
+		return model:GetFullName()
 	end,
 
 	UnlockTower = function(player: Player, towerId: number): boolean

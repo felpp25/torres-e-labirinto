@@ -681,6 +681,23 @@ temas").
 - **Arremessador** (mob novo, à distância): marca um círculo (raio 4) onde o jogador está e a pedra cai 0,8 s depois.
   Base na escala da Torre 1: vida 40, 10 de dano, alcance 30 (na Torre 2, ×2,25). **1 a cada 3 mobs** (~1 por sala de
   combate); os Brutamontes seguram o jogador. Descartados: projétil voando; metade dos mobs; 1 a cada 5.
+  - **De perto: fica parado arremessando** (decisão do designer); só anda para chegar ao alcance ou à linha de visão
+    (não arremessa em quem não vê). Descartados: recuar para manter distância (vira perseguição no labirinto); soco
+    fraco de perto.
+  - **Ritmo: 1 pedra a cada 2,3 s** (aviso 0,8 + recarga 1,5, a do Brutamontes): 4,3 de dano/s se ninguém desviar
+    (Brutamontes 5,7). Descartados: a cada 3,0 s (3,3/s) e a cada 1,8 s (5,6/s, viraria o perigo principal).
+  - **Recompensa igual à do Brutamontes** (8 XP, 1 a 3 Gold na escala da Torre 1): a run da Torre 2 continua com ~4.760
+    XP. Descartado: proporcional à vida (5 XP: -4,6% de XP por run, 9,0 runs do nível 10 ao 20 em vez de 8,5).
+  - **Proporção fixa por andar** (decisão do designer): 1/3 dos mobs do andar, no máximo 1 por sala e nunca numa sala
+    sem Brutamontes (andares 3-4: exatamente 1 por sala). Descartado: sorteio de 1/3 por mob (11% das salas de 2 mobs
+    sem Brutamontes; 30% das salas de 3 sem Arremessador).
+  - A pedra já lançada cai mesmo se o Arremessador morrer durante o aviso (círculo no chão = perigo, sempre); o golpe
+    do Brutamontes continua cancelando se ele morrer.
+  - *Implementado:* medido no lobby, a 20 studs: aviso no ponto exato do jogador, pedra caindo aos 0,5 s, dano aos 0,8
+    s (9 = 10 menos a Defesa), um aviso a cada ~2,35 s; sair do círculo = 0 de dano; matar no aviso = a pedra cai;
+    a 5 studs fica parado e arremessa; 8 XP e 1-3 Gold. Numa run da Torre 2: andar 1 com 5 Arremessadores em 16 mobs,
+    andar 3 com 1 por sala, andar 5 com 9 em 30; nenhuma sala sem Brutamontes; vida no andar 5 = 144; pedra de 27 no
+    andar 3.
 - **Chefão: Geomante das Rochas** (mago de pedra; +50% de vida por jogador extra). Os números abaixo eram os da Torre 2
   com ×1,75 (vida 2.100); com ×2,25 a base fica na escala da Torre 1 (vida 1.200; danos 23 / 22 / 26) e o jogo
   multiplica: vida 2.700, danos ~51 / 49 / 58, a mesma proporção em relação ao Guardião.
@@ -696,7 +713,7 @@ temas").
 2. ~~Portal da Torre 2, acesso (nível + chave), save novo com as torres liberadas da conta.~~ **Feito** (a run da
    Torre 2 ainda usa o conteúdo da Torre 1 até a etapa 3).
 3. ~~Torre 2: teto 20, recompensa, mobs, catálogo e Forja da Torre 2, Ressonância.~~ **Feito** (nomes: ver "Mundo e temas").
-4. Arremessador.
+4. ~~Arremessador.~~ **Feito.**
 5. Geomante das Rochas.
 6. Missão de acesso (depois de definida com o designer).
 

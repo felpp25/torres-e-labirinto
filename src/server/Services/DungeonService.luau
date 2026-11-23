@@ -51,6 +51,28 @@ local function memberIndex(run: RunRegistry.Run, player: Player): number
 	return table.find(run.members, player) or 1
 end
 
+-- Salas que recebem o mob de apoio da torre (ex.: o Arremessador): `share` dos mobs do andar, no máximo 1 por sala e
+-- só em sala com 2+ mobs (sempre sobra alguém da linha de frente). Sorteadas pela seed do andar: refazer o andar dá
+-- as mesmas salas. Andares com 3 mobs por sala e share 1/3: exatamente 1 por sala.
+local function pickSupportRooms(counts: { number }, share: number, rng: Random): { [number]: boolean }
+	local chosen: { [number]: boolean } = {}
+	local total = 0
+	local eligible: { number } = {}
+	for index, count in counts do
+		total += count
+		if count >= 2 then
+			table.insert(eligible, index)
+		end
+	end
+	local wanted = math.min(math.round(total * share), #eligible)
+	for i = 1, wanted do -- embaralha só o começo da lista (Fisher-Yates parcial)
+		local j = rng:NextInteger(i, #eligible)
+		eligible[i], eligible[j] = eligible[j], eligible[i]
+		chosen[eligible[i]] = true
+	end
+	return chosen
+end
+
 local function spawnMobs(
 	tower: Towers.TowerDef,
 	built: RoomBuilder.BuiltFloor,
@@ -76,15 +98,24 @@ local function spawnMobs(
 	-- Rampa do andar (+15% por andar) vezes a força da torre.
 	local multiplier = Formulas.floorStatMultiplier(floorNumber, Dungeon.mobStatGrowthPerFloor) * tower.statMultiplier
 	local spread = Dungeon.roomSize * Dungeon.mobSpawnSpread
+	local supportMob = tower.supportMob
+	local supportRooms = if supportMob then pickSupportRooms(counts, tower.supportShare, rng) else {}
 	local total = 0
 	for index, room in mobRooms do
 		local center = built.roomCenters[room]
-		for _ = 1, counts[index] do
-			local mobId = tower.mobPool[rng:NextInteger(1, #tower.mobPool)]
+		for slot = 1, counts[index] do
+			-- O último mob de uma sala escolhida é o de apoio; os outros, da linha de frente.
+			local mobId: string = if supportMob
+					and supportRooms[index]
+					and slot == counts[index]
+				then supportMob
+				else tower.mobPool[rng:NextInteger(1, #tower.mobPool)]
 			local def = Mobs[mobId]
-			assert(def, `mob desconhecido no mobPool da {tower.displayName}: {mobId}`)
+			assert(def, `mob desconhecido na {tower.displayName}: {mobId}`)
 			local offset = Vector3.new(rng:NextNumber(-spread, spread), SPAWN_HEIGHT, rng:NextNumber(-spread, spread))
-			EnemyService.spawn(def, CFrame.new(center + offset), multiplier, mobsFolder, tower.rewardMultiplier)
+			local model =
+				EnemyService.spawn(def, CFrame.new(center + offset), multiplier, mobsFolder, tower.rewardMultiplier)
+			model:SetAttribute("Room", index) -- diagnóstico (DevService): de que sala é o mob
 			total += 1
 		end
 	end

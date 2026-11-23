@@ -20,7 +20,11 @@ export type TowerDef = {
 	-- XP e Gold dos mobs e do chefão; também o preço base de venda das peças desta torre (Balance/Gear).
 	rewardMultiplier: number,
 	bossId: string, -- Balance/Bosses
-	mobPool: { string }, -- Balance/Mobs: sorteados nas salas de combate
+	mobPool: { string }, -- Balance/Mobs: linha de frente, sorteados nas salas de combate
+	-- Mob de apoio (ex.: o Arremessador): `supportShare` dos mobs do andar, no máximo 1 por sala e só em sala com mais
+	-- de um mob (sempre sobra alguém da linha de frente para segurar o jogador). Sem apoio: nil e 0.
+	supportMob: string?,
+	supportShare: number,
 }
 
 local TOWER_1: TowerDef = {
@@ -34,6 +38,8 @@ local TOWER_1: TowerDef = {
 	rewardMultiplier = 1,
 	bossId = "TowerGuardian",
 	mobPool = { "Brute" },
+	supportMob = nil,
+	supportShare = 0,
 }
 
 local TOWER_2: TowerDef = {
@@ -50,7 +56,10 @@ local TOWER_2: TowerDef = {
 	statMultiplier = 2.25,
 	rewardMultiplier = 2,
 	bossId = "TowerGuardian", -- provisório: o Geomante das Rochas entra na etapa 5
-	mobPool = { "Brute" }, -- provisório: o Arremessador entra na etapa 4
+	mobPool = { "Brute" },
+	-- 1 a cada 3 mobs (decisão do designer): andares 1-2 (2 por sala) ~2 em cada 3 salas; andares 3-4, 1 por sala.
+	supportMob = "Thrower",
+	supportShare = 1 / 3,
 }
 
 local LIST: { TowerDef } = { TOWER_1, TOWER_2 }
@@ -65,6 +74,11 @@ for index, def in LIST do
 	end
 	assert(def.statMultiplier > 0 and def.rewardMultiplier > 0, `Towers: multiplicadores inválidos na torre {def.id}`)
 	assert(#def.mobPool > 0, `Towers: a torre {def.id} não tem mobs`)
+	assert(def.supportShare >= 0 and def.supportShare < 1, `Towers: supportShare inválido na torre {def.id}`)
+	assert(
+		(def.supportMob ~= nil) == (def.supportShare > 0),
+		`Towers: supportMob e supportShare juntos (torre {def.id})`
+	)
 	table.freeze(def.mobPool)
 	table.freeze(def)
 	BY_ID[def.id] = def

@@ -1,8 +1,11 @@
 --!strict
 -- Inimigos: spawn, IA e morte.
--- IA do mob corpo a corpo: persegue o jogador vivo mais próximo (linha reta quando há linha de visão;
--- PathfindingService quando há parede no caminho) e ataca com AVISO: para, fica vermelho e mostra no chão
--- a área do golpe por `telegraphTime` segundos. O golpe acerta exatamente a área mostrada (justo e legível).
+-- IA: persegue o jogador vivo mais próximo (linha reta quando há linha de visão; PathfindingService quando há parede
+-- no caminho) e ataca com AVISO: para, fica vermelho e mostra no chão a área do golpe por `telegraphTime` segundos.
+-- O golpe acerta exatamente a área mostrada (justo e legível).
+-- - "Melee" (Brutamontes): faixa à frente do mob; se ele morrer durante o aviso, o golpe não sai.
+-- - "Lob" (Arremessador): círculo onde o jogador estava; ataca de longe (precisa de linha de visão) e não se afasta.
+--   A pedra já está no ar: cai mesmo se ele morrer durante o aviso (círculo no chão = perigo, sempre).
 -- Morte: XP inteiro para cada jogador vivo por perto; Gold sorteado individualmente para cada um.
 
 local CollectionService: CollectionService = game:GetService("CollectionService")
@@ -10,6 +13,7 @@ local Debris: Debris = game:GetService("Debris")
 local PathfindingService: PathfindingService = game:GetService("PathfindingService")
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService: TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
@@ -40,6 +44,13 @@ type Enemy = {
 }
 
 local WAYPOINT_REACHED_DISTANCE = 2.5
+-- Pedra do "Lob" (só visual: o dano sai ao fim do aviso, na área do círculo).
+local ROCK_FALL_TIME = 0.3 -- s: aparece no alto e cai no fim do aviso
+local ROCK_FALL_HEIGHT = 16 -- studs acima do chão
+local ROCK_SIZE = 2.5
+local ROCK_COLOR = Color3.fromRGB(110, 100, 88)
+local GROUND_PROBE = 20 -- studs procurando o chão embaixo do alvo
+local TORSO_HEIGHT = 3 -- sem chão achado: o chão fica esta distância abaixo do centro do personagem
 
 local EnemyService = {}
 
@@ -72,6 +83,20 @@ local function flatDistance(a: Vector3, b: Vector3): number
 	return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
 end
 
+-- Raycast que só enxerga o mapa (ignora inimigos e personagens; os avisos no chão já não são consultáveis).
+local function mapOnlyParams(): RaycastParams
+	local ignore: { Instance } = CollectionService:GetTagged(Keys.Tags.Enemy)
+	for _, player in Players:GetPlayers() do
+		if player.Character then
+			table.insert(ignore, player.Character)
+		end
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = ignore
+	return params
+end
+
 -- Linha de visão: nada além de inimigos e personagens entre o mob e o alvo.
 local hasLineOfSight: (from: Vector3, to: Vector3) -> boolean
 
@@ -98,16 +123,13 @@ local function nearestTarget(enemy: Enemy): BasePart?
 end
 
 function hasLineOfSight(from: Vector3, to: Vector3): boolean
-	local ignore: { Instance } = CollectionService:GetTagged(Keys.Tags.Enemy)
-	for _, player in Players:GetPlayers() do
-		if player.Character then
-			table.insert(ignore, player.Character)
-		end
-	end
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = ignore
-	return workspace:Raycast(from, to - from, params) == nil
+	return workspace:Raycast(from, to - from, mapOnlyParams()) == nil
+end
+
+-- Altura do chão embaixo de uma posição (ex.: o jogador no ar, pulando).
+local function groundBelow(position: Vector3): number
+	local hit = workspace:Raycast(position, Vector3.new(0, -GROUND_PROBE, 0), mapOnlyParams())
+	return if hit then hit.Position.Y else position.Y - TORSO_HEIGHT
 end
 
 local function moveTowards(enemy: Enemy, targetPosition: Vector3)
@@ -158,7 +180,7 @@ local function hitPlayersInBox(enemy: Enemy, hitCFrame: CFrame, size: Vector3)
 	end
 end
 
-local function attack(enemy: Enemy, target: BasePart)
+local function meleeAttack(enemy: Enemy, target: BasePart)
 	stop(enemy)
 	enemy.humanoid.AutoRotate = false
 	enemy.humanoid.WalkSpeed = 0
@@ -184,14 +206,75 @@ local function attack(enemy: Enemy, target: BasePart)
 	enemy.nextAttackAt = os.clock() + enemy.def.attackCooldown
 end
 
+-- Pedra caindo no centro do círculo, no fim do aviso (visual).
+local function dropRock(center: Vector3, groundY: number)
+	local rock = Instance.new("Part")
+	rock.Name = "ThrownRock"
+	rock.Size = Vector3.one * ROCK_SIZE
+	rock.Anchored = true
+	rock.CanCollide = false
+	rock.CanQuery = false
+	rock.CanTouch = false
+	rock.CastShadow = false
+	rock.Material = Enum.Material.Slate
+	rock.Color = ROCK_COLOR
+	local landed = CFrame.new(center.X, groundY + ROCK_SIZE / 2, center.Z) * CFrame.Angles(0.4, 0.7, 0.2)
+	rock.CFrame = landed + Vector3.new(0, ROCK_FALL_HEIGHT, 0)
+	rock.Parent = workspace
+	local info = TweenInfo.new(ROCK_FALL_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	TweenService:Create(rock, info, { CFrame = landed }):Play()
+	Debris:AddItem(rock, ROCK_FALL_TIME + 0.4)
+end
+
+local function lobAttack(enemy: Enemy, target: BasePart)
+	stop(enemy)
+	local origin = enemy.root.Position
+	enemy.root.CFrame = CFrame.lookAt(origin, Vector3.new(target.Position.X, origin.Y, target.Position.Z))
+
+	-- O círculo fica onde o jogador está AGORA: dá para sair dele durante o aviso.
+	local center = target.Position
+	local groundY = groundBelow(center)
+	local radius = enemy.def.areaRadius or 0
+	local damage = enemy.def.damage * enemy.damageMultiplier
+	local telegraphTime = enemy.def.telegraphTime
+
+	setTelegraphColor(enemy, true)
+	local indicator = Telegraph.circle(center, radius, groundY)
+	task.delay(math.max(0, telegraphTime - ROCK_FALL_TIME), dropRock, center, groundY)
+	task.wait(telegraphTime)
+	indicator:Destroy()
+	for _, player in Telegraph.playersInRadius(center, radius, groundY) do
+		CombatService.damagePlayer(player, damage)
+	end
+
+	if enemy.humanoid.Health > 0 then
+		setTelegraphColor(enemy, false)
+	end
+	enemy.nextAttackAt = os.clock() + enemy.def.attackCooldown
+end
+
+-- Pode atacar daqui? Corpo a corpo: basta o alcance. À distância: alcance + linha de visão (não arremessa por cima
+-- da parede em quem não vê; sem linha de visão, anda até enxergar).
+local function canAttackFrom(enemy: Enemy, target: BasePart, distance: number): boolean
+	if distance > enemy.def.attackRange then
+		return false
+	end
+	return enemy.def.attack ~= "Lob" or hasLineOfSight(enemy.root.Position, target.Position)
+end
+
 local function runAI(enemy: Enemy)
 	while enemy.humanoid.Health > 0 and enemy.model.Parent do
 		local target = nearestTarget(enemy)
 		if target then
 			local distance = flatDistance(target.Position, enemy.root.Position)
-			if distance <= enemy.def.attackRange then
+			if canAttackFrom(enemy, target, distance) then
 				if os.clock() >= enemy.nextAttackAt then
-					attack(enemy, target) -- espera o aviso terminar
+					-- espera o aviso terminar
+					if enemy.def.attack == "Lob" then
+						lobAttack(enemy, target)
+					else
+						meleeAttack(enemy, target)
+					end
 				else
 					stop(enemy) -- perto, esperando a recarga do golpe
 				end
