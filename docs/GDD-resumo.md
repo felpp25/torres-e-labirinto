@@ -275,6 +275,13 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
   - **Iluminação das torres:** o Lighting do Roblox vale para o mundo inteiro; a iluminação troca no cliente
     conforme o lugar, e a torre continua com a luz de dia de antes do Lobby 1 (sem isso, os andares ficariam escuros
     demais para jogar). A iluminação de cada torre fica para quando elas ganharem arte própria.
+  - *Implementado (Fase 4, formações de rocha):* malhas low-poly facetadas feitas por código (o gerador do Studio não
+    roda pelo MCP; decisão do designer: código em vez do Assistente ou do Tripo), 14 variações num asset só: 442 Presas
+    do Teto (mais densas e maiores perto das paredes, fora do buraco do feixe), 14 Gotas da Fenda com cristal Neon roxo
+    no teto da avenida perto do altar, 70 Agulhas de Pedra (entre as colunas e nas bordas) e 45 Rochedos Caídos
+    (entulho na beira da nave e nas bordas). Nada fica na avenida, nos arcos, no cruzamento das torres, nas rampas das
+    Galerias nem perto da loja, da forja, dos NPCs e dos bonecos de treino. As formações são um pouco mais claras que a
+    rocha da caverna (com a mesma cor, sumiam contra ela).
 
 ## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapas 1 a 3 construídas)
 

@@ -129,6 +129,13 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     tudo preto, só Neon aparece). Jeito certo: `workspace.CurrentCamera.CFrame = ...`, `task.wait(7)` no mesmo
     `execute_luau`, depois `screen_capture` SEM câmera. Para ver Bloom, suba `settings().Rendering.EditQualityLevel`
     (devolva para `Automatic` no fim: é configuração do Studio do Filipe).
+  - **Formações de rocha (Fase 4):** o `generate_mesh` do MCP NÃO funciona (recusa com "Model generation should only
+    be called from the server", no Edit e no Play). Caminho que funciona: `scripts/lobby1-formacoes.py` gera as malhas
+    low-poly (GLB, 1 unidade = 1 stud) → upload pelo `open_cloud_invoke` (asset `106755483997689` na conta do Filipe)
+    → modelos em `ServerStorage.Lobby1Modelos.Formacoes` → `scripts/lobby1-formacoes.luau` espalha com semente fixa
+    em `Workspace/Lobby1/Formacoes` (refaz tudo ali; respeita avenida, arcos, cruzamento, rampas e os pontos com função).
+    v113 = Fase 4. Upload: a pasta aprovada no MCP Permissions precisa ser a pasta EXATA do arquivo (aprovar
+    `modelos` não liberou `modelos/formacoes`). O mesmo caminho serve para os FBX do Tripo (Fase 5).
 - `screen_capture`: uma por vez (duas em paralelo: uma deu timeout e a outra veio em branco). BillboardGui não aparece
   na captura do modo Edit. O `execute_luau` não lê `Lighting.Technology` (falta de capability). Captura toda branca
   (até o céu) com o eixo de orientação mexendo = o Studio parou de desenhar o 3D (aconteceu depois de reescrever o
