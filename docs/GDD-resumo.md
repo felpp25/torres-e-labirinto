@@ -259,6 +259,13 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     As quatro áreas de roleplay ficam nos cantos, como no mapa (decisão do designer: não aproximar da nave; Arquivo ~19
     s e Lago ~15 s, opcionais). Spawn, portais, loja, forja e NPCs já estão nesses lugares. A área de treino (só
     desenvolvimento) fica no vão entre a entrada da Torre 1 e o Acampamento, fora da vista do spawn.
+  - *Implementado (Fase 2, caverna em Terrain):* casca de Rock, Slate e Basalt com paredes irregulares que se curvam
+    no alto, teto de ~120 (paredes) a ~150 (centro), saliências das Galerias Altas a 36 de altura (oeste, leste e
+    cantos do norte, com rampas de rocha a partir do Acampamento e do Mercado), os rochedos das duas torres separando
+    as áreas de roleplay, monte escuro atrás do altar e buraco no teto sobre o Coração (poço falso de ~150 de altura
+    com um ponto de luz ciano no alto). Piso de Áuren só na avenida: lajes com material molhado próprio
+    (`PisoDeAuren`), algumas faltando. Lago Espelhado com água do Terrain parada e reflexiva; a Cascata do Abismo cai
+    da saliência norte. Os tempos de caminhada não mudaram; Arquivo e Lago ficaram em ~15 s.
 
 ## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapas 1 a 3 construídas)
 

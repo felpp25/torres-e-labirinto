@@ -114,8 +114,16 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   constantes em `LobbyService`, `NpcService` e `Balance/Training`. **Mudou a geometria? Mude essas constantes junto.**
   O `SpawnLocation` do place fica invisível no Círculo Rúnico (o personagem carrega nele e o spawn provider o leva ao
   ponto do lobby).
+  - **A caverna é Terrain** gerado por `scripts/lobby1-terreno.luau` (rodar no datamodel Edit pelo MCP; reescreve
+    TODO o Terrain da região, então edição manual de Terrain ali se perde). Não há mais Baseplate: o chão é o Terrain
+    (y ≈ 0,1; sob as lajes do Piso de Áuren, −0,5). Versões do place: v107 = Fase 2.
+  - Terrain por `WriteVoxels` (medido): no sólido, a superfície fica em centro da célula + ocupação × 4 (ocupação =
+    distância ÷ 4); na água, a ocupação é o nível dentro da célula. Região fora da grade de 4 studs NÃO lança erro:
+    só registra no console e não grava nada (confira o console ou faça `assert` do alinhamento).
 - `screen_capture`: uma por vez (duas em paralelo: uma deu timeout e a outra veio em branco). BillboardGui não aparece
-  na captura do modo Edit. O `execute_luau` não lê `Lighting.Technology` (falta de capability).
+  na captura do modo Edit. O `execute_luau` não lê `Lighting.Technology` (falta de capability). Captura toda branca
+  (até o céu) com o eixo de orientação mexendo = o Studio parou de desenhar o 3D (aconteceu depois de reescrever o
+  Terrain inteiro); um Play + Stop fez voltar.
 - O jogo **ainda não é público**: vai a público quando o Lobby 2 estiver pronto com as duas torres (GDD > Visão geral).
 - O place está na nuvem com o nome antigo **"Torres e Labirinto"** (o título agora é "Ascending Labyrinths"; renomear
   no Creator Hub é AÇÃO MANUAL), placeId `91794479071367`, universeId `10776412975`
