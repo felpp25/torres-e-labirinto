@@ -20,15 +20,17 @@ local PROMPT_RANGE = 8 -- studs
 local TALK_TOLERANCE = 4 -- studs a mais na validação (rede)
 local TALK_COOLDOWN = 0.5 -- s entre conversas do mesmo jogador
 local PROMPT_NAME = "NpcPrompt"
-local LOOK_AT = Vector3.new(0, 0, 4) -- os NPCs olham para o spawn do lobby
+local LOOK_AT = Vector3.new(0, 0, 80) -- os NPCs olham para o spawn do lobby (Círculo Rúnico, LobbyService)
 
--- Onde cada um fica (chão do Baseplate em y = 0). Tanu e Brokk na ponta dos balcões (loja e Forja, LobbyService);
--- Ariadne entre os portais; o Observador à esquerda do spawn, longe dos bonecos de treino.
+-- Onde cada um fica no Lobby 1 (chão em y = 0; GDD > Lobby e loja). Tanu e Brokk na ponta mais longe dos balcões
+-- (loja e Forja de Cristal, no Mercado das Raízes, LobbyService): quem chega pelo lado da nave fica mais perto do
+-- balcão, e o F abre a janela, não a conversa. Ariadne na avenida, entre as entradas das duas torres, fora do caminho
+-- reto spawn -> altar. O Observador ao pé do Altar do Coração.
 local POSITIONS: { [string]: Vector3 } = {
-	Tanu = Vector3.new(-31.5, 0, 6),
-	Brokk = Vector3.new(-30.5, 0, -30),
-	Ariadne = Vector3.new(15, 0, -5),
-	Observer = Vector3.new(-12, 0, 22),
+	Tanu = Vector3.new(89.5, 0, 100),
+	Brokk = Vector3.new(124.5, 0, 140),
+	Ariadne = Vector3.new(12, 0, 0),
+	Observer = Vector3.new(-14, 0, -72),
 }
 
 local NpcService = {}

@@ -242,6 +242,23 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
   - **Gemas** (aba Gemas): gema Nv1 de cada um dos 6 atributos (1.000 Gold) e o Removedor Nv1 (100 Gold).
 - **Forja** (bigorna no lobby, atrás da loja): fortalecimento e gemas (ver "Equipamentos > Forja").
 - *Futuro:* escolha de torre e de personagem no lobby; mais itens de gameplay (lista em definição pelo designer).
+- **Lobby 1 — Abismo de Áuren** (em construção; design em `lobby1-claude-code/`, plano por fases em
+  `BRIEFING-LOBBY1.md`): caverna de ~600 × 600 studs centrada na origem, nave no eixo Z (spawn no Círculo Rúnico ao
+  sul, +Z; Altar do Coração ao norte, −Z), Torre 1 a oeste (−X) e Torre 2 a leste (+X). Onde ficam os sistemas que
+  já existiam (decisões do designer, 23/11/2026):
+  - **Loja do Tanu e Forja de Cristal do Brokk: as duas no Mercado das Raízes**, a 36+ studs uma da outra (a
+    distância medida para as duas janelas não abrirem juntas). Descartado: juntar tudo na Forja (duas janelas e dois
+    NPCs num ponto só, mudança grande de código e do design da loja).
+  - **Ariadne: na Avenida das Colunas, entre as entradas das duas torres** (no caminho de todos; o jogador fala com
+    ela em 5 das 9 etapas da missão). Descartados: o Acampamento dos Exploradores (fora do caminho) e o Altar, junto
+    do Observador (~13 s do spawn).
+  - O Observador fica no Altar do Coração (design do lobby).
+  - Blender e Tripo só entram na Fase 5 (peças principais); as Fases 1 a 4 usam só o Studio.
+  - *Implementado (Fase 1, blockout):* tempos medidos a partir do Círculo Rúnico, a 16 studs/s: portais ~6 s, topo do
+    altar ~13,7 s, Tanu ~5,6 s, Forja ~8,1 s, Observador ~9,2 s; nada obrigatório passa de 15 s (o Lutador anda a 18).
+    As quatro áreas de roleplay ficam nos cantos, como no mapa (decisão do designer: não aproximar da nave; Arquivo ~19
+    s e Lago ~15 s, opcionais). Spawn, portais, loja, forja e NPCs já estão nesses lugares. A área de treino (só
+    desenvolvimento) fica no vão entre a entrada da Torre 1 e o Acampamento, fora da vista do spawn.
 
 ## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapas 1 a 3 construídas)
 

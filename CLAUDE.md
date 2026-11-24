@@ -105,6 +105,17 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - Conferir a sincronização sem playtest: `script_read` no caminho da instância (ex.: `game.ReplicatedStorage.Shared.Config`).
 - `save_place` só funciona depois que o place foi salvo uma vez manualmente (Arquivo > Salvar no Roblox / em arquivo).
   Cada `save_place` cria uma versão no histórico do place: use só quando fizer sentido, não a cada edição.
+- **Lobby 1 (Abismo de Áuren), em construção:** design e plano por fases em `lobby1-claude-code/` (comece pelo
+  `BRIEFING-LOBBY1.md`). A geometria fica em `Workspace/Lobby1` e é montada pelo MCP: vive SÓ no place (o Rojo não
+  mapeia o Workspace), então o backup são as versões do place (`save_place` no início e no fim de cada fase; v97 =
+  antes do Lobby 1, v100 = blockout da Fase 1). Peça temporária do blockout tem o Attribute `Blockout = true`. Os
+  scripts do lobby (efeitos, estados por jogador, prompts) seguem a regra (a): ficam em `src/`. As peças com função
+  (spawn, portais, loja, forja, NPCs, bonecos de treino) continuam geradas por código, nos lugares do blockout:
+  constantes em `LobbyService`, `NpcService` e `Balance/Training`. **Mudou a geometria? Mude essas constantes junto.**
+  O `SpawnLocation` do place fica invisível no Círculo Rúnico (o personagem carrega nele e o spawn provider o leva ao
+  ponto do lobby).
+- `screen_capture`: uma por vez (duas em paralelo: uma deu timeout e a outra veio em branco). BillboardGui não aparece
+  na captura do modo Edit. O `execute_luau` não lê `Lighting.Technology` (falta de capability).
 - O jogo **ainda não é público**: vai a público quando o Lobby 2 estiver pronto com as duas torres (GDD > Visão geral).
 - O place está na nuvem com o nome antigo **"Torres e Labirinto"** (o título agora é "Ascending Labyrinths"; renomear
   no Creator Hub é AÇÃO MANUAL), placeId `91794479071367`, universeId `10776412975`
@@ -125,13 +136,14 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
 - No datamodel `Edit`, `require` fica em CACHE: depois de mudar um módulo já carregado num teste anterior, o
   `require` devolve a versão VELHA. Para testar a nova: `local c = mod:Clone(); c.Parent = mod.Parent;
   local M = require(c); c:Destroy()`.
-- **Fluxo do jogo:** o jogador nasce no LOBBY (perto da origem; loja à esquerda com a forja atrás dela, portais das
-  torres à direita: `TowerPortal_1` e, atrás dele, `TowerPortal_2`, que pede nível 10 + acesso da conta). Para
+- **Fluxo do jogo:** o jogador nasce no LOBBY 1, no Círculo Rúnico (0, 4, 80), olhando para o Altar do Coração (−Z).
+  No meio da nave, os portais: `TowerPortal_1` a oeste (−55, 0, 0) e `TowerPortal_2` a leste (55, 0, 0), que pede
+  nível 10 + acesso da conta. Loja (82, 0, 100) e Forja (118, 0, 140) no Mercado das Raízes (sudeste). Para
   testar a torre pelo MCP: levar o personagem até `workspace.Lobby.TowerPortal_1` e
   **esperar ~10 s parado em cima** (espera do grupo; sair do portal cancela) ou usar
   `Players:GetPlayers()[1]:GetAttribute("InRun")` para saber onde ele está. Game over / torre concluída = lobby.
-  - **NPCs do lobby** (`workspace.Lobby.Npcs`): o Observador à esquerda do spawn (-12, 0, 22), Ariadne entre os
-    portais (15, 0, -5), Tanu na ponta da loja e Brokk na ponta da Forja. Falar = levar o personagem até perto e
+  - **NPCs do lobby** (`workspace.Lobby.Npcs`): o Observador ao pé do altar (−14, 0, −72), Ariadne na avenida entre
+    as torres (12, 0, 0), Tanu na ponta da loja e Brokk na ponta da Forja. Falar = levar o personagem até perto e
     apertar F (`user_keyboard_input`); a conversa avança com Espaço. O prompt mais perto ganha: ao lado do balcão, o
     F abre o NPC, não a loja (medido com Tanu).
   - **Várias runs por servidor** (`server/Runs/RunRegistry`): cada grupo tem a sua run em `workspace.Runs.Run_<id>`,
@@ -218,7 +230,7 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   (medido: botão sem `Activated`). Janelas grandes escondem o chat enquanto abertas (`client/ChatBlocker`). Crie
   ScreenGuis com `ZIndexBehavior = Sibling` (com Global, o fundo de uma janela de ZIndex maior cobre os próprios filhos).
 - Balcões do lobby (loja, forja): cada janela fecha a `alcance + 6` studs do seu balcão. Balcão novo precisa ficar
-  longe o bastante para duas janelas não abrirem juntas (medido: loja e forja a 22 studs abriam juntas; hoje 36).
+  longe o bastante para duas janelas não abrirem juntas (medido: loja e forja a 22 studs abriam juntas; hoje 54).
 - Botão com "Confirmar?" (janela de 3 s): no teste pelo MCP, os dois cliques vão na MESMA chamada do
   `user_mouse_input`; uma captura de tela entre eles passa dos 3 s e o segundo clique só pede confirmação de novo.
 - Cliques do `user_mouse_input`: prefira `instance_path` (ex.: `LocalPlayer.PlayerGui.ShopGui.Panel.SellTab`). As

@@ -1,5 +1,6 @@
 --!strict
--- Área de treino perto do spawn, para testar o combate durante o desenvolvimento (ligar/desligar em Balance/Training).
+-- Área de treino ao lado da entrada da Torre 1, para testar o combate durante o desenvolvimento (lugar e liga/desliga
+-- em Balance/Training).
 -- - Bonecos: não andam, não atacam e voltam à vida cheia depois de alguns segundos sem apanhar.
 -- - Onda de mobs: mobs de verdade (com IA); quando todos morrem, a onda reaparece.
 

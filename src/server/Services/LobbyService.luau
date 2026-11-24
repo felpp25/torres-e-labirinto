@@ -1,6 +1,8 @@
 --!strict
 -- Lobby (GDD > Lobby e loja): onde o jogador nasce, compra e entra na torre.
--- Construído por código (greybox), em volta do spawn do Baseplate:
+-- O cenário do Lobby 1 (Abismo de Áuren) é montado no Studio (Workspace/Lobby1, vive só no place); aqui ficam as peças
+-- com função, construídas por código (greybox) nos lugares do blockout. Eixos: o cruzamento das torres no meio da
+-- nave fica na origem; o spawn ao sul (+Z), o Altar do Coração ao norte (-Z), Torre 1 a oeste (-X), Torre 2 a leste.
 -- - Loja e Forja: balcões com ProximityPrompt (o prompt nativo do Roblox funciona com tecla, controle e toque);
 --   o cliente abre o painel ao acionar; os pedidos são validados no servidor (inclusive a distância).
 -- - Portais: um por torre (GDD > Torre 2 e escolha de torre), placa no chão. A cada verificação, o handler do
@@ -15,17 +17,21 @@ local Shop = require(Shared.Balance.Shop)
 local Forge = require(Shared.Balance.Forge)
 local Towers = require(Shared.Balance.Towers)
 
-local SPAWN_POSITION = Vector3.new(0, 4, 4)
-local SHOP_POSITION = Vector3.new(-24, 0, 6) -- base do balcão (chão do Baseplate em y = 0)
--- Atrás da loja, do mesmo lado. Longe o bastante para as duas janelas não ficarem abertas juntas: cada uma fecha a
--- 20 studs do seu balcão (alcance + 6), e quem está no prompt de um fica a mais de 20 do outro (medido: a 22 de
--- distância, loja e forja abriam juntas).
-local FORGE_POSITION = Vector3.new(-24, 0, -30)
--- Portais à direita do spawn (a loja fica à esquerda). Nome da peça: "TowerPortal_<torre>".
+-- Círculo Rúnico. CFrame.new olha para -Z: o jogador nasce olhando para o Altar do Coração.
+local SPAWN_POSITION = Vector3.new(0, 4, 80)
+-- Banca do Tanu, no Mercado das Raízes (base do balcão; chão em y = 0).
+local SHOP_POSITION = Vector3.new(82, 0, 100)
+-- Forja de Cristal (Brokk), também no Mercado, a 54 studs da loja. Longe o bastante para as duas janelas não ficarem
+-- abertas juntas: cada uma fecha a 20 studs do seu balcão (alcance + 6), e quem está no prompt de um fica a mais de 20
+-- do outro (medido: a 22 de distância, loja e forja abriam juntas).
+local FORGE_POSITION = Vector3.new(118, 0, 140)
+-- Portais nas entradas das torres, no meio da nave (~6 s do spawn). Nome da peça: "TowerPortal_<torre>".
 type PortalDef = { towerId: number, position: Vector3, color: Color3 }
 local PORTALS: { PortalDef } = {
-	{ towerId = 1, position = Vector3.new(24, 0, 6), color = Color3.fromRGB(140, 80, 230) },
-	{ towerId = 2, position = Vector3.new(24, 0, -16), color = Color3.fromRGB(230, 120, 50) },
+	-- Caverna das Profundezas (oeste)
+	{ towerId = 1, position = Vector3.new(-55, 0, 0), color = Color3.fromRGB(140, 80, 230) },
+	-- Ruínas Subterrâneas (leste)
+	{ towerId = 2, position = Vector3.new(55, 0, 0), color = Color3.fromRGB(230, 120, 50) },
 }
 local PORTAL_SIZE = 10
 local PLAYER_SPACING = 4
