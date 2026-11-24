@@ -120,6 +120,15 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   - Terrain por `WriteVoxels` (medido): no sólido, a superfície fica em centro da célula + ocupação × 4 (ocupação =
     distância ÷ 4); na água, a ocupação é o nível dentro da célula. Região fora da grade de 4 studs NÃO lança erro:
     só registra no console e não grava nada (confira o console ou faça `assert` do alinhamento).
+  - **Iluminação por lugar:** o `Lighting` vale para o mundo inteiro, então o `client/Controllers/LightingController`
+    aplica `client/LightingPresets` (Lobby1 fora da run, Tower dentro, pelo Attribute InRun). Os números de verdade
+    ficam no preset; o `Lighting` do place só espelha o Lobby1 para o modo Edit. Luzes do lobby em
+    `Workspace/Lobby1/Luzes` (13 luzes: feixe, cristais, ouro de Áuren). v110 = Fase 3.
+  - **Capturas com luz:** a iluminação (sistema unificado, `LightingStyle = Soft`) leva alguns segundos para se
+    refazer depois que a câmera muda de lugar. A `screen_capture` com `camera_position` fotografa ANTES disso (sai
+    tudo preto, só Neon aparece). Jeito certo: `workspace.CurrentCamera.CFrame = ...`, `task.wait(7)` no mesmo
+    `execute_luau`, depois `screen_capture` SEM câmera. Para ver Bloom, suba `settings().Rendering.EditQualityLevel`
+    (devolva para `Automatic` no fim: é configuração do Studio do Filipe).
 - `screen_capture`: uma por vez (duas em paralelo: uma deu timeout e a outra veio em branco). BillboardGui não aparece
   na captura do modo Edit. O `execute_luau` não lê `Lighting.Technology` (falta de capability). Captura toda branca
   (até o céu) com o eixo de orientação mexendo = o Studio parou de desenhar o 3D (aconteceu depois de reescrever o

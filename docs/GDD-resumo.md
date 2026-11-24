@@ -266,6 +266,15 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     com um ponto de luz ciano no alto). Piso de Áuren só na avenida: lajes com material molhado próprio
     (`PisoDeAuren`), algumas faltando. Lago Espelhado com água do Terrain parada e reflexiva; a Cascata do Abismo cai
     da saliência norte. Os tempos de caminhada não mudaram; Arquivo e Lago ficaram em ~15 s.
+  - *Implementado (Fase 3, iluminação):* meia-noite, Atmosphere, Bloom e ColorCorrection do briefing, com o ambiente
+    mais claro que os valores iniciais (75, 62, 105 / 55, 46, 82 e exposição +0,8): com 24, 20, 34 a rocha ficava
+    preta e só as luzes apareciam. Sem estrelas nem lua (o céu vazava por trás do teto). Quatro camadas: feixe ciano
+    (o poço sobre o Coração é o ponto mais claro), cristais roxos (o Coração, as entradas das torres, a Forja de
+    Cristal), ouro de Áuren (lanternas no Círculo Rúnico e na banca do Tanu, a fogueira do Acampamento, braseiros nas
+    Galerias) e o reflexo do Piso de Áuren. 13 luzes no total.
+  - **Iluminação das torres:** o Lighting do Roblox vale para o mundo inteiro; a iluminação troca no cliente
+    conforme o lugar, e a torre continua com a luz de dia de antes do Lobby 1 (sem isso, os andares ficariam escuros
+    demais para jogar). A iluminação de cada torre fica para quando elas ganharem arte própria.
 
 ## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapas 1 a 3 construídas)
 
