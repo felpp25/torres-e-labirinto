@@ -136,6 +136,21 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     em `Workspace/Lobby1/Formacoes` (refaz tudo ali; respeita avenida, arcos, cruzamento, rampas e os pontos com função).
     v113 = Fase 4. Upload: a pasta aprovada no MCP Permissions precisa ser a pasta EXATA do arquivo (aprovar
     `modelos` não liberou `modelos/formacoes`). O mesmo caminho serve para os FBX do Tripo (Fase 5).
+  - **Padrão visual do jogo inteiro** (aprovado pelo designer; regras no GDD > Lobby 1 > "Padrão de beleza"): técnica
+    do vídeo "Environmental Art" (BONES) + pedra lavrada irregular feita por código. Vale para torres e tudo o que vier.
+  - Pacote do vídeo (terceiros; arquivos em `lobby1-claude-code/modelos/pacote-bones/`, fora do git): assets
+    `108463496741041` (rochas Stone_1–5, plantas, árvores, cercas → `ServerStorage.BonesStylizedPackAssets`) e
+    `73133614571227` (materiais PBR → `MaterialService.BonesStylizedPBR2`). Overrides: Rock = Ground_06, Basalt =
+    Lobby1_Basalto, Ground = Lobby1_Terra, Mud = Ground, Grass = Grass, LeafyGrass = Grass2 (globais: valem também
+    nas torres). As MeshParts "Plant" vêm SEM textura: o atlas é `TextureID = rbxassetid://17750471621`.
+  - Pedra lavrada: `scripts/lobby1-pedras.py` (GLB: fustes, faixas, capitéis, ábacos, arcos, escada e plataforma do
+    altar; asset `76512463950762`) + `scripts/lobby1-pedras.luau` (monta). O importador GIRA a malha 180° em Y
+    (o centro z volta com o sinal trocado): cada peça leva `CFrame.Angles(0, π, 0)`. Malha nova = nova versão do
+    MESMO asset (`PATCH /assets/v1/assets/{id}` com o arquivo) e apagar o cache `ServerStorage.Lobby1Modelos.Pedras`.
+  - Ordem dos scripts do mundo: `lobby1-terreno` → `lobby1-formacoes` → `lobby1-pedras` → `lobby1-revestimento`
+    (rochas e plantas do pacote; acha paredes por raio e evita qualquer peça montada). v122 = passe visual.
+  - Capturas de áreas ainda sem luz (Fase 6): clareie `Lighting.Ambient`/`ExposureCompensation` só para a foto e
+    devolva os valores do `LightingPresets.Lobby1` (no Edit o Lighting do place espelha o preset).
 - `screen_capture`: uma por vez (duas em paralelo: uma deu timeout e a outra veio em branco). BillboardGui não aparece
   na captura do modo Edit. O `execute_luau` não lê `Lighting.Technology` (falta de capability). Captura toda branca
   (até o céu) com o eixo de orientação mexendo = o Studio parou de desenhar o 3D (aconteceu depois de reescrever o

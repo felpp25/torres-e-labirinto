@@ -282,6 +282,26 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     (entulho na beira da nave e nas bordas). Nada fica na avenida, nos arcos, no cruzamento das torres, nas rampas das
     Galerias nem perto da loja, da forja, dos NPCs e dos bonecos de treino. As formações são um pouco mais claras que a
     rocha da caverna (com a mesma cor, sumiam contra ela).
+  - **Padrão de beleza do jogo inteiro (decisão do designer, 24/11/2026):** vale para TUDO o que for construído
+    (lobbies, torres, andares, props), não só o Lobby 1. Origem: o designer achou a primeira versão "antiga, apagada,
+    fosca" e trouxe o vídeo "Roblox Studio - Building Tutorial | Environmental Art" (BONES); o resultado aprovado foi
+    "exatamente o que eu queria". As regras:
+    - materiais PBR estilizados do pacote do vídeo no MaterialService (override dos materiais do Terrain), com a cor
+      do material clara: a textura dá a cor;
+    - pintura por inclinação: musgo/grama no topo, rocha nas paredes, terra e lama perto da água;
+    - rochas do pacote grandes no pé das paredes e dos barrancos, em camadas, giradas, sem repetir a mesma lado a lado
+      e enterradas; plantas sempre em grupos;
+    - nada de pedra com forma geométrica perfeita: colunas em tambores lascados e desalinhados, degraus de pedras
+      soltas com bordas gastas, base de pilar = rocha de verdade;
+    - Atmosphere e ColorCorrection que misturam as cores sem supersaturar; luzes moderadas (o designer achou Bloom
+      1,2 / saturação 0,35 fortes demais).
+    - Descartado: as Colunas Engolidas no Tripo (as feitas por código ficaram melhores, decisão do designer).
+  - *Implementado (passe visual, depois da Fase 4):* materiais PBR do pacote no Terrain, rochas e plantas do pacote
+    (421 rochas, 900 plantas; spawn, portais, loja, forja, NPCs, treino, avenida e altar ficam livres), as 12 Colunas
+    do Salão em pedra lavrada (8 tambores, faixas de ouro amassado, capitel e ábaco lascados, base de rocha do pacote),
+    os 6 arcos em blocos e a escada e a plataforma do altar em pedras soltas (os degraus antigos ficam invisíveis, só
+    como chão: o pé do personagem não mudou de altura). Pacote de assets: BONES / autores no Sketchfab (créditos no
+    vídeo), usado com a permissão do designer.
 
 ## Equipamentos, fortalecimento e gemas (decidido pelo designer; etapas 1 a 3 construídas)
 
