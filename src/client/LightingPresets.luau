@@ -1,10 +1,13 @@
 --!strict
 -- Iluminação de cada lugar. O Lighting do Roblox vale para o mundo inteiro (lobby e andares da torre), então o
 -- LightingController troca o preset no cliente conforme o jogador está no lobby ou numa run.
--- - Lobby 1 (Abismo de Áuren): valores do BRIEFING-LOBBY1 > Fase 3 (meia-noite, ambiente violeta escuro; a luz vem
---   do feixe, dos cristais roxos e das lanternas de Áuren montados no mundo), com o ambiente ajustado no Studio: com
---   os valores iniciais (24, 20, 34) / (18, 15, 28) e exposição 0, a pedra da caverna ficava preta (só as luzes
---   apareciam). Com (75, 62, 105) / (55, 46, 82) e exposição +0,8, a rocha aparece num violeta escuro.
+-- - Lobby 1 (Abismo de Áuren): meia-noite; a luz vem do feixe, dos cristais roxos e das lanternas de Áuren montados no
+--   mundo. Teste de visual (o designer achou a primeira versão "apagada, fosca, antiga"): ambiente mais baixo e violeta
+--   (contraste: escuro onde é escuro, vivo onde há luz), névoa clara e roxa que acende com a distância e em volta das
+--   luzes (Haze/Glare) em vez de escurecer, Bloom forte e mais saturação e contraste. Junto com LightingStyle =
+--   Realistic e ShadowSoftness 0,12, que ficam no Lighting do place (valem para lobby e torre).
+--   Versões anteriores: a do briefing (24, 20, 34; névoa escura 0,4) deixava a rocha preta; a primeira correção
+--   (75, 62, 105; exposição +0,8) achatava tudo num violeta morno.
 -- - Torre: o visual de antes do Lobby 1 (luz de dia do template), até as torres ganharem iluminação própria. Sem
 --   isso, os andares (greybox, sem luzes) ficariam escuros demais para jogar.
 
@@ -33,21 +36,28 @@ export type Preset = {
 local Lobby1: Preset = {
 	clockTime = 0,
 	brightness = 3,
-	ambient = Color3.fromRGB(75, 62, 105),
-	outdoorAmbient = Color3.fromRGB(55, 46, 82),
+	ambient = Color3.fromRGB(62, 55, 82),
+	outdoorAmbient = Color3.fromRGB(52, 46, 70),
 	environmentDiffuseScale = 1,
 	environmentSpecularScale = 1, -- reflexo do chão molhado (Piso de Áuren)
-	exposureCompensation = 0.8,
+	exposureCompensation = 0.35,
+	-- Cores de névoa e de correção pouco saturadas (vídeo "Environmental Art": a Atmosphere mistura as cores da cena
+	-- sem supersaturar). O designer achou as luzes fortes demais com Bloom 1,2, saturação 0,35 e Haze 1,3.
 	atmosphere = {
-		density = 0.4,
-		offset = 0.25,
-		color = Color3.fromRGB(40, 30, 60),
-		decay = Color3.fromRGB(60, 30, 90),
-		glare = 0,
-		haze = 0,
+		density = 0.3,
+		offset = 0.15,
+		color = Color3.fromRGB(135, 120, 160),
+		decay = Color3.fromRGB(95, 80, 120),
+		glare = 0.1,
+		haze = 0.6,
 	},
-	bloom = { intensity = 0.8, size = 24, threshold = 1.5 },
-	colorCorrection = { brightness = 0, contrast = 0.1, saturation = 0.1, tintColor = Color3.new(1, 1, 1) },
+	bloom = { intensity = 0.6, size = 24, threshold = 1.4 },
+	colorCorrection = {
+		brightness = 0,
+		contrast = 0.12,
+		saturation = 0.05,
+		tintColor = Color3.fromRGB(255, 250, 255),
+	},
 	sunRays = { enabled = false, intensity = 0.01, spread = 0.1 }, -- caverna fechada, sem sol
 	-- Sem estrelas nem lua: medido em Play, o céu da meia-noite vazava por trás do teto escuro (pontinhos brancos)
 	sky = { starCount = 0, celestialBodiesShown = false },

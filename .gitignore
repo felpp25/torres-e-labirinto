@@ -13,6 +13,21 @@ sourcemap.json
 # Builds do Rojo
 /build/
 
+# Vídeos de referência (grandes demais para o git; ficam só na máquina)
+*.mp4
+*.mov
+*.mkv
+*.webm
+
+# Pacote de assets de terceiros (vídeo "Environmental Art", do BONES): fica só na máquina
+/lobby1-claude-code/modelos/pacote-bones/
+
+# Capturas de teste do visual (fotos do Studio, só para comparar; ficam na máquina)
+/lobby1-claude-code/capturas/
+
+# Cache do Python (scripts/*.py)
+__pycache__/
+
 # Definições geradas pelo selene (caso apareçam no projeto)
 roblox.yml
 

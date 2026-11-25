@@ -256,17 +256,15 @@ end
 
 -- ------------------------------------------------------------------ aparência
 
--- Mais claras que o Terrain (#2E2A3D a #4A4462): com a mesma cor, as formações sumiam contra a rocha (medido na Fase 4);
--- na 06 as estalactites são um cinza-violeta acima do fundo.
-local ROCK_COLORS = { Color3.fromHex("4A4462"), Color3.fromHex("5A5374"), Color3.fromHex("6B6488") }
+-- Material Rock: usa a textura estilizada do pacote do vídeo (override Ground_06 no MaterialService), e a cor só
+-- tinge, por isso tons claros. O sorteio de antes (Basalt/Rock/Slate) continua consumindo o mesmo número do gerador,
+-- então as posições não mudam.
+local ROCK_COLORS = { Color3.fromRGB(215, 208, 232), Color3.fromRGB(190, 182, 210), Color3.fromRGB(228, 222, 240) }
 
 local function styleRock(p: MeshPart, collide: boolean, shadow: boolean)
 	p.Anchored = true
-	local roll = rng:NextNumber()
-	p.Material = if roll < 0.25
-		then Enum.Material.Basalt
-		elseif roll < 0.8 then Enum.Material.Rock
-		else Enum.Material.Slate
+	local _ = rng:NextNumber()
+	p.Material = Enum.Material.Rock
 	p.Color = ROCK_COLORS[rng:NextInteger(1, #ROCK_COLORS)]
 	p.CastShadow = shadow
 	p.CanCollide = collide

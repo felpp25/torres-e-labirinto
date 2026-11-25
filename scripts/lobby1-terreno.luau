@@ -19,17 +19,29 @@ local SEED = 1717
 local abs, max, min, sqrt, noise, clamp = math.abs, math.max, math.min, math.sqrt, math.noise, math.clamp
 local AIR, ROCK, BASALT, SLATE, WATER =
 	Enum.Material.Air, Enum.Material.Rock, Enum.Material.Basalt, Enum.Material.Slate, Enum.Material.Water
+local GROUND, MUD, GRASS, LEAFY = Enum.Material.Ground, Enum.Material.Mud, Enum.Material.Grass, Enum.Material.LeafyGrass
 
 local WALL = 292 -- meia-largura da caverna (paredes com ruído de ±10; com a espessura, ~600 × 600)
 local SHAFT_X, SHAFT_Z = 0, -106 -- poço acima do Coração do Abismo (o feixe entra por ele)
 local LAKE_X, LAKE_Z, LAKE_RX, LAKE_RZ = 150, -185, 50, 52 -- Lago Espelhado
 local WATER_LEVEL = -0.5
 
--- Cores fixas do design: pedra violeta escura. A textura do Terrain escurece a cor, então a cor do material é um
--- pouco mais clara que a cor percebida (#2E2A3D e #1A1726).
-Terrain:SetMaterialColor(ROCK, Color3.fromHex("4A4462"))
-Terrain:SetMaterialColor(SLATE, Color3.fromHex("3E3954"))
-Terrain:SetMaterialColor(BASALT, Color3.fromHex("2E2A3D"))
+-- Cores tiradas da paleta das referências 06 e 07 (método do vídeo "Environmental Art", do BONES): na imagem a rocha é
+-- um cinza-violeta pouco saturado (~71/70/81 a 104/105/132) e o chão uma terra amarronzada (~68/46/41 a 111/71/54).
+-- A textura do Terrain multiplica a cor e a caverna é escura, então a cor do material é mais clara que a percebida.
+-- (Com #4A4462/#2E2A3D, as "cores fixas" ao pé da letra, a rocha virava um borrão escuro e fosco.)
+-- As texturas vêm dos materiais PBR estilizados do pacote do vídeo (MaterialService > BonesStylizedPBR2, asset
+-- 73133614571227), aplicados como override: Rock = Ground_06, Basalt = Lobby1_Basalto, Ground = Lobby1_Terra,
+-- Mud = Ground, Grass = Grass, LeafyGrass = Grass2. Com textura própria, a cor do material só tinge: tons claros.
+Terrain:SetMaterialColor(ROCK, Color3.fromRGB(225, 218, 240))
+Terrain:SetMaterialColor(BASALT, Color3.fromRGB(195, 188, 215))
+Terrain:SetMaterialColor(SLATE, Color3.fromRGB(110, 102, 122))
+Terrain:SetMaterialColor(GROUND, Color3.fromRGB(225, 205, 190))
+Terrain:SetMaterialColor(MUD, Color3.fromRGB(205, 192, 182))
+-- Musgo (Musgo-Lume): Grass tem as folhinhas animadas (Decoration)
+Terrain:SetMaterialColor(GRASS, Color3.fromRGB(150, 205, 150))
+Terrain:SetMaterialColor(LEAFY, Color3.fromRGB(130, 180, 130))
+Terrain.Decoration = true
 -- Lago Espelhado: água parada e refletindo
 Terrain.WaterColor = Color3.fromRGB(28, 30, 48)
 Terrain.WaterReflectance = 1
@@ -159,18 +171,48 @@ local function sample(x: number, y: number, z: number): (number, number, boolean
 	return d, label, inLake
 end
 
-local function materialFor(label: number, x: number, y: number, z: number): Enum.Material
-	local m = n3(x, y, z, 1 / 22)
-	if label == FLOOR or label == RAMP then
-		return if m > 0.28 then BASALT else SLATE
-	elseif label == LEDGE then
-		if y > 31 then
-			return SLATE -- topo das saliências (onde se anda)
-		end
-		return if m > 0.15 then BASALT else ROCK
+-- Chance de musgo num chão (0 a 1): onde faz sentido haver umidade e raízes
+local function mossChance(label: number, x: number, z: number): number
+	local c = 0.06
+	local s = min(roundedRadius(x, z) / WALL, 1)
+	if s > 0.7 then
+		c += (s - 0.7) / 0.3 * 0.3 -- junto às paredes
+	end
+	if x > 65 and x < 220 and z > 80 and z < 225 then
+		c += 0.55 -- Mercado das Raízes
+	end
+	local ex, ez = (x - LAKE_X) / LAKE_RX, (z - LAKE_Z) / LAKE_RZ
+	local e2 = ex * ex + ez * ez
+	if e2 < 2.4 then
+		c += 0.6 * (1 - max(0, e2 - 1) / 1.4) -- beira do Lago Espelhado
+	end
+	if label == LEDGE then
+		c += 0.35 -- topo das saliências das Galerias Altas
 	elseif label == RIDGE or label == MOUND then
-		return if m > -0.1 then BASALT else ROCK
-	elseif label == CEILING then
+		c += 0.5 -- topo dos rochedos das torres e do monte do altar
+	end
+	return clamp(c, 0, 0.9)
+end
+
+-- Pintura por inclinação (como no vídeo): superfície virada para cima é chão (terra, com manchas de musgo e lama
+-- perto da água); o resto (paredes, teto, laterais) é rocha
+local function materialFor(label: number, x: number, y: number, z: number, isTop: boolean): Enum.Material
+	local m = n3(x, y, z, 1 / 22)
+	if isTop and label ~= CEILING then
+		if abs(x) < 28 and z > -80 and z < 112 then
+			return SLATE -- sob as lajes do Piso de Áuren
+		end
+		local patch = n2(x, z, 1 / 26) + 0.5 -- ~0 a 1, manchas de uns 20 studs
+		if patch < mossChance(label, x, z) then
+			return if n2(z, x, 1 / 11) > 0.1 then LEAFY else GRASS
+		end
+		local ex, ez = (x - LAKE_X) / LAKE_RX, (z - LAKE_Z) / LAKE_RZ
+		if ex * ex + ez * ez < 1.6 then
+			return MUD
+		end
+		return if m > 0.3 then MUD else GROUND
+	end
+	if label == CEILING then
 		return if m > 0 then BASALT else ROCK
 	end
 	return if m > 0.22 then BASALT else ROCK
@@ -223,7 +265,8 @@ writeRegion(Vector3.new(-344, -24, -344), Vector3.new(344, 184, 344), function(x
 		end
 	end
 	if occupancy > 0 then
-		return materialFor(label, x, y, z), occupancy
+		local above = sample(x, y + RES, z) -- célula de cima vazia = superfície virada para cima
+		return materialFor(label, x, y, z, above < 1), occupancy
 	end
 	return AIR, 0
 end)
