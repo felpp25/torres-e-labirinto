@@ -164,6 +164,12 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     Feixe Ascendente. Cristal estilizado em 3 malhas por TOM de face (claras e médias Neon, escuras SmoothPlastic):
     Neon puro apaga as faces (borrão rosa), cor clara de Neon estoura em branco com o Bloom e Glass fica preto à
     noite. Malha "aberta" (só uma parte das faces) leva `"open": True` no .py (pula a checagem de volume).
+  - **Modelos do Tripo (plano pago do Filipe):** ele gera, exporta e importa pelo Importador 3D do Studio (sobe malha
+    e textura como assets da conta; o modelo cai no Workspace com 1 m = 3,57 studs e SEM âncora). Eu monto o modelo
+    final por script a partir dos ids (`AssetService:CreateMeshPartAsync` + `SurfaceAppearance.ColorMap`), apago as
+    cópias soltas do Workspace e o jogo clona o modelo. Textura chega em 1024 (limite do Roblox: 2K não ganha nada).
+    Primeiro: o Observador (`scripts/lobby1-observador.luau` → `ServerStorage.Lobby1Modelos.Observador`, 7,6 studs,
+    "Head" invisível no capuz para a câmera da conversa e o "!"; o NpcService usa o greybox se o modelo faltar).
   - Capturas de áreas ainda sem luz (Fase 6): clareie `Lighting.Ambient`/`ExposureCompensation` só para a foto e
     devolva os valores do `LightingPresets.Lobby1` (no Edit o Lighting do place espelha o preset).
 - `screen_capture`: uma por vez (duas em paralelo: uma deu timeout e a outra veio em branco). BillboardGui não aparece

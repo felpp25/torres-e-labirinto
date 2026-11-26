@@ -304,8 +304,10 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     vídeo), usado com a permissão do designer.
   - **Ordem para terminar o lobby (decisão do designer, 25/11/2026):** primeiro o que se vê do spawn (Coração do
     Abismo, Feixe Ascendente, Anéis Rúnicos, entradas das torres com o Vigia do Sol e as Estelas), depois cada área de
-    roleplay completa, uma por vez. Pedra, cristal e ruína por código; peças orgânicas (raízes, tenda, baú, Forja,
-    rosto do Vigia) no **Blender** pelo MCP (o Tripo cobra para exportar: descartado).
+    roleplay completa, uma por vez. Pedra, cristal e ruína por código; peças orgânicas (raízes, tenda, baú, Forja)
+    no **Blender** pelo MCP; personagens e NPCs no **Tripo** (plano pago do designer; o plano grátis não deixa
+    exportar). Primeiro NPC assim: o Observador (26/11/2026), que substituiu a réplica do
+    modelo grátis feita no Blender.
   - *Implementado (Coração do Abismo):* cristal de ~60 studs (46 × 1,3: o designer pediu 30% maior, do spawn ele
     parecia pequeno perto das artes) com 3 cristais médios e 11 pequenos em volta, sobre pedestal redondo de pedra
     lavrada; faces em três tons de violeta (estilo gema pintada). Duas fitas de ouro de Áuren com runas inclinadas em

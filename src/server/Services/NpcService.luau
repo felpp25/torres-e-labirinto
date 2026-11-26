@@ -7,6 +7,7 @@
 
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage: ServerStorage = game:GetService("ServerStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Keys = require(Shared.Keys)
@@ -111,7 +112,67 @@ local function person(
 	return body, head
 end
 
-local BUILDERS: { [string]: (model: Model, base: CFrame) -> (Part, Part) } = {
+local MANA = Color3.fromRGB(90, 220, 255) -- ciano da Mana: olhos, faíscas e luz do Observador
+local OBSERVER_FLOAT = 0.8 -- o Observador flutua um pouco acima do chão
+
+-- Anel da Fenda no chão, faíscas de Mana em volta e a luz ciano no capuz (o modelo novo e o greybox usam os mesmos).
+local function observerEffects(model: Model, base: CFrame, body: BasePart, head: BasePart)
+	local ring = makePart(
+		"Ring",
+		Vector3.new(0.1, 5, 5),
+		base * CFrame.new(0, 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Color3.fromRGB(150, 70, 230),
+		model
+	)
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Material = Enum.Material.Neon
+	ring.Transparency = 0.5
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Color = ColorSequence.new(MANA)
+	sparks.LightEmission = 1
+	sparks.Rate = 6
+	sparks.Lifetime = NumberRange.new(1.5, 2.5)
+	sparks.Speed = NumberRange.new(0.3, 0.8)
+	sparks.SpreadAngle = Vector2.new(180, 180)
+	sparks.Size = NumberSequence.new(0.15)
+	sparks.Parent = body
+	local light = Instance.new("PointLight")
+	light.Color = MANA
+	light.Range = 10
+	light.Brightness = 1.5
+	light.Parent = head
+end
+
+-- O Observador com o modelo do designer: ServerStorage.Lobby1Modelos.Observador (gerado no Tripo, reduzido no Blender;
+-- montado por scripts/lobby1-observador.luau). As peças do modelo estão com a origem no chão e a frente em -z. Devolve
+-- nil se o modelo não existe no place (ex.: place gerado pelo rojo build): aí vale o greybox.
+local function observerFromModel(model: Model, base: CFrame): (BasePart?, BasePart?)
+	local storage = ServerStorage:FindFirstChild("Lobby1Modelos")
+	local template = storage and storage:FindFirstChild("Observador")
+	if not template or not template:IsA("Model") then
+		return nil, nil
+	end
+	local float = base * CFrame.new(0, OBSERVER_FLOAT, 0)
+	for _, child in template:GetChildren() do
+		if child:IsA("BasePart") then
+			local part = child:Clone()
+			part.CFrame = float * child.CFrame
+			part.Anchored = true
+			part.Parent = model
+		end
+	end
+	local head = model:FindFirstChild("Head")
+	if not head or not head:IsA("BasePart") then
+		return nil, nil
+	end
+	-- colisão simples e invisível (a malha tem a capa aberta: a colisão dela seria larga demais); o prompt fica nela
+	local body = makePart("Body", Vector3.new(2.4, 6.6, 1.8), float * CFrame.new(0, 3.3, 0), Color3.new(), model)
+	body.Transparency = 1
+	body.CanCollide = true
+	return body, head
+end
+
+local BUILDERS: { [string]: (model: Model, base: CFrame) -> (BasePart, BasePart) } = {
 	-- Túnica branca e dourada; o carretel de fio vermelho do mito na mão.
 	Ariadne = function(model: Model, base: CFrame): (Part, Part)
 		local body, head = person(
@@ -210,8 +271,13 @@ local BUILDERS: { [string]: (model: Model, base: CFrame) -> (Part, Part) } = {
 		return body, head
 	end,
 	-- Manto longo e capuz com o rosto na sombra, olhos de Mana (ciano), partículas e um anel da Fenda (roxo) no chão.
-	-- Flutua um pouco acima do chão.
-	Observer = function(model: Model, base: CFrame): (Part, Part)
+	-- Flutua um pouco acima do chão. Com o modelo do designer no place, usa ele; senão, o greybox abaixo.
+	Observer = function(model: Model, base: CFrame): (BasePart, BasePart)
+		local modelBody, modelHead = observerFromModel(model, base)
+		if modelBody and modelHead then
+			observerEffects(model, base, modelBody, modelHead)
+			return modelBody, modelHead
+		end
 		local cloak = Color3.fromRGB(22, 20, 40)
 		local float = base * CFrame.new(0, 1, 0)
 		local robe = makePart("Body", Vector3.new(2.6, 5, 1.8), float * CFrame.new(0, 2.5, 0), cloak, model)
@@ -226,39 +292,15 @@ local BUILDERS: { [string]: (model: Model, base: CFrame) -> (Part, Part) } = {
 			Color3.new(0, 0, 0),
 			model
 		)
-		local mana = Color3.fromRGB(90, 220, 255)
 		for _, x in { -0.3, 0.3 } do
-			local eye = ball("Eye", 0.25, hood.CFrame * CFrame.new(x, 0.05, -1.08), mana, model)
+			local eye = ball("Eye", 0.25, hood.CFrame * CFrame.new(x, 0.05, -1.08), MANA, model)
 			eye.Material = Enum.Material.Neon
 		end
 		for index, offset in { Vector3.new(-2.2, 4.2, 0), Vector3.new(2.2, 3.4, 0.6) } do
-			local orb = ball(`Orb{index}`, 0.45, float * CFrame.new(offset), mana, model)
+			local orb = ball(`Orb{index}`, 0.45, float * CFrame.new(offset), MANA, model)
 			orb.Material = Enum.Material.Neon
 		end
-		local ring = makePart(
-			"Ring",
-			Vector3.new(0.1, 5, 5),
-			base * CFrame.new(0, 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)),
-			Color3.fromRGB(150, 70, 230),
-			model
-		)
-		ring.Shape = Enum.PartType.Cylinder
-		ring.Material = Enum.Material.Neon
-		ring.Transparency = 0.5
-		local sparks = Instance.new("ParticleEmitter")
-		sparks.Color = ColorSequence.new(mana)
-		sparks.LightEmission = 1
-		sparks.Rate = 6
-		sparks.Lifetime = NumberRange.new(1.5, 2.5)
-		sparks.Speed = NumberRange.new(0.3, 0.8)
-		sparks.SpreadAngle = Vector2.new(180, 180)
-		sparks.Size = NumberSequence.new(0.15)
-		sparks.Parent = robe
-		local light = Instance.new("PointLight")
-		light.Color = mana
-		light.Range = 10
-		light.Brightness = 1.5
-		light.Parent = hood
+		observerEffects(model, base, robe, hood)
 		return robe, hood
 	end,
 }
