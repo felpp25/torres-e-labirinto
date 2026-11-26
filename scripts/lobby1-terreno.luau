@@ -3,6 +3,7 @@
 -- vive só no place (versões do place = backup). Rode no datamodel Edit (MCP execute_luau ou barra de comando do
 -- Studio) para refazer ou ajustar a caverna. ATENÇÃO: reescreve TODO o Terrain das regiões abaixo (qualquer edição
 -- manual de Terrain ali se perde) e refaz os rochedos (FillBall).
+-- Depois de rodar, rode de novo o lobby1-entradas.luau: ele escava o túnel da Fenda e o corredor do Vigia do Sol.
 --
 -- Eixos (iguais ao blockout e ao LobbyService): cruzamento das torres na origem, spawn ao sul (+Z), Altar do Coração ao
 -- norte (-Z), Torre 1 a oeste (-X), Torre 2 a leste (+X). Chão da caverna em y = 0.

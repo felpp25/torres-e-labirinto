@@ -112,6 +112,9 @@ Peças que **não** precisam de malha: degraus do altar, base da avenida, Marco 
 > **Atualização (24/11/2026, decisão do Filipe):** as **Colunas Engolidas** e os **degraus do altar** já foram feitos
 > por código em pedra lavrada irregular (`scripts/lobby1-pedras.py` / `.luau`) e NÃO vão mais para o Tripo. Padrão
 > visual do jogo inteiro: ver `docs/GDD-resumo.md` > Lobby 1 > "Padrão de beleza".
+>
+> **Atualização (26/11/2026):** o Vigia do Sol ficou SEM rosto (o Filipe descartou o rosto e a caveira; o nicho fica
+> vazio). O estado "olhos fechados/abertos" da Fase 7 não existe mais; ficam as runas apagadas até a Torre 1.
 
 ## Fase 6 — Áreas de roleplay
 

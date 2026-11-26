@@ -148,8 +148,18 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     (o centro z volta com o sinal trocado): cada peça leva `CFrame.Angles(0, π, 0)`. Malha nova = nova versão do
     MESMO asset (`PATCH /assets/v1/assets/{id}` com o arquivo) e apagar o cache `ServerStorage.Lobby1Modelos.Pedras`.
   - Ordem dos scripts do mundo: `lobby1-terreno` → `lobby1-formacoes` → `lobby1-pedras` → `lobby1-cristais` →
+    `lobby1-entradas` (escava o Terrain: túnel da Fenda e corredor do Vigia; rodar de novo depois do terreno) →
     `lobby1-revestimento` (rochas e plantas do pacote; acha paredes por raio e evita qualquer peça montada).
-    v122 = passe visual; v129 = Coração do Abismo.
+    v122 = passe visual; v129 = Coração do Abismo; v133 = entradas das torres (Vigia sem rosto).
+  - **Peças no Blender** (`scripts/blender/`, rodam DENTRO do Blender pelo MCP): `lobby1_blender.py` (coordenadas do
+    Roblox ↔ Blender, UV plano a cada 8 studs, `roughen` = rocha orgânica, booleano, junção, decimação, exportação
+    GLB que devolve o centro de cada malha), `entradas.py` (a Fenda da Torre 1) e `vigia.py` (Portal do Vigia do Sol
+    e Estelas Solares; o nicho oval fica vazio). Os geradores em Python puro (`lobby1-pedras.py`,
+    `lobby1-cristais.py`, `lobby1-formacoes.py`) são importados lá dentro (bloco lascado, cristal em 3 tons, pedra).
+    Asset das entradas: `125244967030800`. Rocha feita de anéis paralelos sem `roughen` parece bolo em camadas.
+    Booleano com cortador de várias caixas que se cruzam precisa de `use_self` (sem ele o EXACT devolve lixo) e a
+    redução (`decimate`) vem DEPOIS dos booleanos. Relevo fino (rosto) com o material Rock some sob a textura.
+    Rosto e caveira no nicho foram testados e descartados pelo designer: não propor de novo sem ele pedir.
   - Cristais (`scripts/lobby1-cristais.py` + `.luau`, asset `120692311991767`): Coração do Abismo, Anéis Rúnicos e
     Feixe Ascendente. Cristal estilizado em 3 malhas por TOM de face (claras e médias Neon, escuras SmoothPlastic):
     Neon puro apaga as faces (borrão rosa), cor clara de Neon estoura em branco com o Bloom e Glass fica preto à

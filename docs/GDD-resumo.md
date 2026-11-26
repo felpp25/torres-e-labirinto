@@ -310,6 +310,17 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     parecia pequeno perto das artes) com 3 cristais médios e 11 pequenos em volta, sobre pedestal redondo de pedra
     lavrada; faces em três tons de violeta (estilo gema pintada). Duas fitas de ouro de Áuren com runas inclinadas em
     volta (os Anéis Rúnicos; o giro entra na Fase 7) e o Feixe Ascendente ciano do buraco do teto até a ponta.
+  - *Implementado (entradas das torres, modeladas no Blender):* **Torre 1 (Caverna das Profundezas)**: a Fenda,
+    boca de rocha natural que sobe em zigue-zague até virar rachadura, com os Veios da Fenda (raios roxos que
+    brilham na rocha), cristais na boca e um túnel curto e curvo com brilho roxo no fundo. **Torre 2 (Ruínas
+    Subterrâneas)**: o Portal do Vigia do Sol, fachada de pedra lavrada com pilares de runas solares de ouro, lintel
+    com runas e canto quebrado, um nicho oval vazio no meio, porta em arco com grade de ferro meio erguida e
+    corredor com brilho laranja; as quatro Estelas Solares na frente. Os portais no chão não mudaram.
+  - **Sem rosto no Vigia do Sol (decisão do designer, 26/11/2026):** o monólito do briefing tinha um rosto de pedra
+    (olhos fechados, que abriam depois da Torre 1). Foram testados um rosto sereno e uma caveira; o designer não gostou
+    dos dois e pediu o nicho sem nada. Com isso, o estado por jogador "olhos fechados/abertos" do Vigia deixa de
+    existir; continua o das runas (apagadas até vencer a Torre 1) e o do Feixe Ascendente. Descartado também: usar a
+    referência da caveira com viseira e ganchos (é o mascote de uma banda: personagem de terceiros).
   - **Luz da caverna (bug corrigido):** caverna fechada não recebe luz do céu; a luz de fundo fica toda no Ambient.
     Antes, o Roblox apagava a luz do céu só perto da câmera, depois de alguns segundos: escurecia em volta do jogador.
 
