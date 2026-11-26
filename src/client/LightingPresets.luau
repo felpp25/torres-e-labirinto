@@ -33,12 +33,17 @@ export type Preset = {
 	sky: { starCount: number, celestialBodiesShown: boolean },
 }
 
+-- Caverna fechada: a luz do "céu" (OutdoorAmbient e EnvironmentDiffuse) é bloqueada pelo teto. O Roblox calcula esse
+-- bloqueio aos poucos e só perto da câmera: nos primeiros segundos tudo recebia a luz do céu e depois escurecia em
+-- volta do personagem, enquanto o longe continuava claro (bug do vídeo em lobby1-claude-code/bugs). Por isso a luz de
+-- fundo vai TODA no Ambient (que não é bloqueado). Medido no Acampamento: 108, 96, 142 (a soma do Ambient e do
+-- OutdoorAmbient de antes) ficou estável mas mais escuro que o começo do vídeo; 140, 126, 182 chega perto dele.
 local Lobby1: Preset = {
 	clockTime = 0,
 	brightness = 3,
-	ambient = Color3.fromRGB(62, 55, 82),
-	outdoorAmbient = Color3.fromRGB(52, 46, 70),
-	environmentDiffuseScale = 1,
+	ambient = Color3.fromRGB(140, 126, 182),
+	outdoorAmbient = Color3.fromRGB(0, 0, 0),
+	environmentDiffuseScale = 0,
 	environmentSpecularScale = 1, -- reflexo do chão molhado (Piso de Áuren)
 	exposureCompensation = 0.35,
 	-- Cores de névoa e de correção pouco saturadas (vídeo "Environmental Art": a Atmosphere mistura as cores da cena
