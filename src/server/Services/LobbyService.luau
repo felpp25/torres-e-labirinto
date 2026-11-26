@@ -19,12 +19,13 @@ local Towers = require(Shared.Balance.Towers)
 
 -- Círculo Rúnico. CFrame.new olha para -Z: o jogador nasce olhando para o Altar do Coração.
 local SPAWN_POSITION = Vector3.new(0, 4, 80)
--- Banca do Tanu, no Mercado das Raízes (base do balcão; chão em y = 0).
-local SHOP_POSITION = Vector3.new(82, 0, 100)
--- Forja de Cristal (Brokk), também no Mercado, a 54 studs da loja. Longe o bastante para as duas janelas não ficarem
--- abertas juntas: cada uma fecha a 20 studs do seu balcão (alcance + 6), e quem está no prompt de um fica a mais de 20
--- do outro (medido: a 22 de distância, loja e forja abriam juntas).
-local FORGE_POSITION = Vector3.new(118, 0, 140)
+-- Loja do Tanu, no Mercado das Raízes: o balcão de fora, sob o toldo do prédio (scripts/lobby1-tripo-mercado.luau;
+-- chão em y = 0). Mudou o prédio de lugar? Mude esta constante junto.
+local SHOP_POSITION = Vector3.new(191, 0, 144)
+-- Forja de Cristal (Brokk): a bigorna na frente do prédio, a 59 studs da loja. Longe o bastante para as duas janelas
+-- não ficarem abertas juntas: cada uma fecha a 20 studs do seu balcão (alcance + 6), e quem está no prompt de um fica
+-- a mais de 20 do outro (medido: a 22 de distância, loja e forja abriam juntas).
+local FORGE_POSITION = Vector3.new(155, 0, 191)
 -- Portais nas entradas das torres, no meio da nave (~6 s do spawn). Nome da peça: "TowerPortal_<torre>".
 type PortalDef = { towerId: number, position: Vector3, color: Color3 }
 local PORTALS: { PortalDef } = {
@@ -99,6 +100,12 @@ local function lobbyArt(path: { string }): Instance?
 	return node
 end
 
+-- Peça greybox que o cenário substitui: some e não bloqueia ninguém (o prompt e a placa dela continuam valendo).
+local function hideGreybox(part: BasePart)
+	part.Transparency = 1
+	part.CanCollide = false
+end
+
 local function build()
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"
@@ -114,10 +121,10 @@ local function build()
 	)
 	makeSign(counter, "LOJA", Color3.fromRGB(255, 205, 70), 5)
 	makePrompt(counter, SHOP_PROMPT_NAME, "Abrir loja", "Loja", Shop.shopRange)
-	-- No Lobby 1 a Banca do Tanu (madeira e toldo, scripts/lobby1-mercado.luau) é montada em volta deste balcão: ele
-	-- fica invisível e continua com o prompt, a placa e a colisão.
-	if lobbyArt({ "Roleplay", "Mercado das Raízes", "Bancas", "Banca do Tanu" }) then
-		counter.Transparency = 1
+	-- No Lobby 1 o balcão de verdade é o do prédio da Loja do Tanu (scripts/lobby1-tripo-mercado.luau): este fica
+	-- invisível e sem colisão, só com o prompt e a placa.
+	if lobbyArt({ "Roleplay", "Mercado das Raízes", "Loja do Tanu" }) then
+		hideGreybox(counter)
 	end
 
 	-- Forja (greybox: bigorna escura com brasa)
@@ -140,6 +147,11 @@ local function build()
 	ember.CanCollide = false
 	makeSign(forge, "FORJA", Color3.fromRGB(255, 150, 70), 5)
 	makePrompt(forge, FORGE_PROMPT_NAME, "Abrir forja", "Forja", Forge.forgeRange)
+	-- No Lobby 1 a bigorna de verdade é a do prédio da Forja de Cristal: a do código fica invisível (prompt e placa)
+	if lobbyArt({ "Roleplay", "Mercado das Raízes", "Forja de Cristal" }) then
+		hideGreybox(forge)
+		hideGreybox(ember)
+	end
 
 	-- Portais das torres
 	for _, def in PORTALS do

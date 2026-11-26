@@ -76,10 +76,10 @@ local KEEP_RECTS = {
 local KEEP_CIRCLES = {
 	{ -55, 0, 18 },
 	{ 55, 0, 18 },
-	{ 82, 100, 16 },
-	{ 118, 140, 18 },
-	{ 89.5, 100, 8 },
-	{ 124.5, 140, 8 },
+	{ 191, 144, 16 },
+	{ 155, 191, 18 },
+	{ 188.5, 157, 8 },
+	{ 161.5, 189, 8 },
 }
 
 local function blocked(x: number, z: number): boolean

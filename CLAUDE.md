@@ -149,8 +149,9 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     MESMO asset (`PATCH /assets/v1/assets/{id}` com o arquivo) e apagar o cache `ServerStorage.Lobby1Modelos.Pedras`.
   - Ordem dos scripts do mundo: `lobby1-terreno` → `lobby1-formacoes` → `lobby1-pedras` → `lobby1-cristais` →
     `lobby1-entradas` (escava o Terrain: túnel da Fenda e corredor do Vigia; rodar de novo depois do terreno) →
-    `lobby1-mercado` (bancas do Mercado das Raízes, asset `99435055061209`; a Banca do Tanu esconde o balcão da loja
-    do LobbyService) → `lobby1-revestimento` (rochas e plantas do pacote; acha paredes por raio e evita qualquer peça montada).
+    `lobby1-tripo-mercado` (Loja do Tanu e Forja de Cristal do Tripo, assets `117044231943259` e `88131421963908`;
+    escondem o balcão e a bigorna do LobbyService) → `lobby1-revestimento` (rochas e plantas do pacote; acha paredes
+    por raio e evita qualquer peça montada).
     v122 = passe visual; v129 = Coração do Abismo; v133 = entradas das torres (Vigia sem rosto);
     v139 = Observador do Tripo.
   - **Peças no Blender** (`scripts/blender/`, rodam DENTRO do Blender pelo MCP): `lobby1_blender.py` (coordenadas do
@@ -200,7 +201,7 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   local M = require(c); c:Destroy()`.
 - **Fluxo do jogo:** o jogador nasce no LOBBY 1, no Círculo Rúnico (0, 4, 80), olhando para o Altar do Coração (−Z).
   No meio da nave, os portais: `TowerPortal_1` a oeste (−55, 0, 0) e `TowerPortal_2` a leste (55, 0, 0), que pede
-  nível 10 + acesso da conta. Loja (82, 0, 100) e Forja (118, 0, 140) no Mercado das Raízes (sudeste). Para
+  nível 10 + acesso da conta. Loja (191, 0, 144) e Forja (155, 0, 191) na frente dos prédios do Tripo no Mercado das Raízes (sudeste). Para
   testar a torre pelo MCP: levar o personagem até `workspace.Lobby.TowerPortal_1` e
   **esperar ~10 s parado em cima** (espera do grupo; sair do portal cancela) ou usar
   `Players:GetPlayers()[1]:GetAttribute("InRun")` para saber onde ele está. Game over / torre concluída = lobby.

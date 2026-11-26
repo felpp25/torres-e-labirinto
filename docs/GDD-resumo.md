@@ -309,7 +309,16 @@ Cada classe primária evolui para uma classe avançada (detalhes de habilidades 
     grátis feita no Blender.
   - **Tripo só para personagens (decisão do designer, 26/11/2026):** NPCs do lobby, chefões e mobs, no plano pago do
     designer. Estruturas, áreas de roleplay e props NÃO usam o Tripo (por enquanto): código + Blender. Mobs não se
-    repetem entre torres: um conjunto para a Torre 1 e outro para a Torre 2.
+    repetem entre torres: um conjunto para a Torre 1 e outro para a Torre 2. Exceção aprovada no mesmo dia (teste
+    "Tripo + Blender"): os prédios da Loja do Tanu e da Forja de Cristal, gerados no Tripo e completados no Blender
+    (morro de grama atrás, no estilo das tocas do Hobbit, e os cristais separados para brilhar).
+  - **Mercado das Raízes em "L" (decisão do designer, 26/11/2026):** as bancas saíram; no canto sudeste ficam só os
+    dois prédios: a Loja do Tanu no lado leste, de frente para o meio do Mercado, e a Forja de Cristal no lado sul, de
+    costas para a rampa das Galerias Altas e de frente para quem vem do spawn (olhando para a Forja, a Loja fica à
+    esquerda). A loja e a forja de verdade (balcão, bigorna, Tanu e Brokk) ficam na frente dos prédios, a 59 studs uma
+    da outra. Ficaram mais longe do spawn (em linha reta, a 16 studs/s): loja ~12,6 s (era ~5,6) e forja ~12 s (era
+    ~8,1), ainda dentro de "nada obrigatório passa de 15 s"; para quem compra poção entre as runs, ~7 s a mais por ida.
+    Descartado: manter a loja numa banca perto da entrada.
   - *Implementado (Coração do Abismo):* cristal de ~60 studs (46 × 1,3: o designer pediu 30% maior, do spawn ele
     parecia pequeno perto das artes) com 3 cristais médios e 11 pequenos em volta, sobre pedestal redondo de pedra
     lavrada; faces em três tons de violeta (estilo gema pintada). Duas fitas de ouro de Áuren com runas inclinadas em

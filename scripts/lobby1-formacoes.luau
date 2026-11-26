@@ -180,10 +180,10 @@ end
 
 -- Pontos com função no jogo (montados por código, não existem no modo Edit) e marcos do cenário: (x, z, raio)
 local KEEP_CLEAR: { { number } } = {
-	{ 82, 100, 12 }, -- loja (balcão do Tanu)
-	{ 89.5, 100, 5 }, -- Tanu
-	{ 118, 140, 10 }, -- Forja (bigorna)
-	{ 124.5, 140, 5 }, -- Brokk
+	{ 191, 144, 12 }, -- loja (balcão do Tanu, na frente do prédio da Loja do Tanu)
+	{ 188.5, 157, 5 }, -- Tanu
+	{ 155, 191, 10 }, -- Forja (bigorna, na frente do prédio da Forja de Cristal)
+	{ 161.5, 189, 5 }, -- Brokk
 	{ -85, 60, 8 }, -- bonecos de treino
 	{ -100, 60, 8 },
 	{ -130, 52, 6 }, -- onda de treino
