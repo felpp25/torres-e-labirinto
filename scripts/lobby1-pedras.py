@@ -476,7 +476,8 @@ def write_glb(items: list[dict], path: str) -> dict:
         kind = name.split("_")[0]
         assert len(tris) <= BUDGET[kind], f"{name}: {len(tris)} triângulos passa do orçamento {BUDGET[kind]}"
         volume = sum(dot(a, cross(b, c)) for a, b, c in tris) / 6
-        assert volume > 0, f"{name}: faces viradas para dentro (volume {volume:.1f})"
+        # malha aberta (ex.: só as faces claras de um cristal) não tem volume: a orientação vem do oriented()
+        assert item.get("open") or volume > 0, f"{name}: faces viradas para dentro (volume {volume:.1f})"
         pos, nrm, uv, idx, lo, hi, count = mesh_arrays(tris, item["uv"])
         prim = {
             "attributes": {

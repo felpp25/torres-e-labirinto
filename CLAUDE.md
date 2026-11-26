@@ -147,8 +147,13 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     altar; asset `76512463950762`) + `scripts/lobby1-pedras.luau` (monta). O importador GIRA a malha 180° em Y
     (o centro z volta com o sinal trocado): cada peça leva `CFrame.Angles(0, π, 0)`. Malha nova = nova versão do
     MESMO asset (`PATCH /assets/v1/assets/{id}` com o arquivo) e apagar o cache `ServerStorage.Lobby1Modelos.Pedras`.
-  - Ordem dos scripts do mundo: `lobby1-terreno` → `lobby1-formacoes` → `lobby1-pedras` → `lobby1-revestimento`
-    (rochas e plantas do pacote; acha paredes por raio e evita qualquer peça montada). v122 = passe visual.
+  - Ordem dos scripts do mundo: `lobby1-terreno` → `lobby1-formacoes` → `lobby1-pedras` → `lobby1-cristais` →
+    `lobby1-revestimento` (rochas e plantas do pacote; acha paredes por raio e evita qualquer peça montada).
+    v122 = passe visual; v129 = Coração do Abismo.
+  - Cristais (`scripts/lobby1-cristais.py` + `.luau`, asset `120692311991767`): Coração do Abismo, Anéis Rúnicos e
+    Feixe Ascendente. Cristal estilizado em 3 malhas por TOM de face (claras e médias Neon, escuras SmoothPlastic):
+    Neon puro apaga as faces (borrão rosa), cor clara de Neon estoura em branco com o Bloom e Glass fica preto à
+    noite. Malha "aberta" (só uma parte das faces) leva `"open": True` no .py (pula a checagem de volume).
   - Capturas de áreas ainda sem luz (Fase 6): clareie `Lighting.Ambient`/`ExposureCompensation` só para a foto e
     devolva os valores do `LightingPresets.Lobby1` (no Edit o Lighting do place espelha o preset).
 - `screen_capture`: uma por vez (duas em paralelo: uma deu timeout e a outra veio em branco). BillboardGui não aparece
@@ -318,3 +323,11 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   `claude mcp add --transport stdio --scope user Roblox_Studio -- "cmd.exe" "/c" "cd /d %LOCALAPPDATA%\Roblox && .\mcp.bat"`
 - O CLI `claude` não fica no PATH quando se usa só a extensão do VS Code; o binário fica em
   `%USERPROFILE%\.vscode\extensions\anthropic.claude-code-<versão>-win32-x64\resources\native-binary\claude.exe`.
+- **MCP do Blender** (Blender 5.3, pacote `mcp-for-blender`, sucessor do `blender-mcp`): `uv` instalado pelo winget
+  (o `winget` não está no PATH do terminal do Claude: `%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe`), addon
+  instalado com `uvx mcp-for-blender install-addon` e servidor registrado no escopo de usuário com o caminho COMPLETO do
+  `uvx` (`%LOCALAPPDATA%\Microsoft\WinGet\Packages\astral-sh.uv_...\uvx.exe`; o VS Code aberto antes da instalação
+  não enxerga o `uv` no PATH). No Blender: addon "Interface: MCP for Blender" ativo + barra lateral (N) > MCP for
+  Blender > Start MCP Server; depois reiniciar o Claude Code. Telemetria do addon DESLIGADA (`telemetry_consent:
+  false`, conferido): não ligar, porque ela manda prompts, código e capturas para fora. Exportação: glTF e FBX ativos;
+  1 m do Blender = 1 stud no GLB (o mesmo dos geradores Python). O importador do Roblox gira 180° em Y (ver pedras).
