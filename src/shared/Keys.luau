@@ -9,6 +9,13 @@ Keys.Tags = table.freeze({
 	Enemy = "Enemy",
 })
 
+-- Aparência dos chefões vestidos (BossService veste; o client/Controllers/BossVisualController anima).
+Keys.BossVisual = table.freeze({
+	Joint = "VisualJoint", -- Motor6D que prende cada peça do modelo (o cliente mexe no Transform dele)
+	Telegraph = "Telegraph", -- Attribute do modelo: true durante o aviso de um golpe
+	Attack = "TelegraphAttack", -- Attribute do modelo: id do golpe do aviso (Balance/Bosses), ex.: "HeavySlam"
+})
+
 -- Attributes do Player, definidos SÓ pelo servidor; o cliente lê para o HUD e para prever recargas.
 -- Os horários de recarga usam workspace:GetServerTimeNow(), que é sincronizado entre servidor e clientes.
 Keys.PlayerAttr = table.freeze({

@@ -74,6 +74,60 @@ function Telegraph.rockFall(center: Vector3, groundY: number, landsIn: number, s
 	end)
 end
 
+-- Fissura de Magma (só visual, no golpe): uma rachadura de lava abre pela faixa do golpe, do pé do chefão até a
+-- ponta, em ~0,3 s, com lascas de rocha saltando, e esfria em ~1 s. `hitCFrame` é o centro da faixa (frente = -z).
+local FISSURE_COLOR = Color3.fromRGB(230, 90, 30) -- lava (Neon mais claro estoura em branco com o Bloom)
+local FISSURE_OPEN_TIME = 0.3
+local FISSURE_LIFE = 1.2
+function Telegraph.magmaFissure(hitCFrame: CFrame, length: number, width: number, groundY: number)
+	local rng = Random.new()
+	local segments = math.max(4, math.floor(length / 2.2))
+	local step = length / segments
+	local ground = CFrame.new(hitCFrame.X, groundY, hitCFrame.Z) * hitCFrame.Rotation
+	local sideways = 0
+	for i = 0, segments - 1 do
+		task.delay(FISSURE_OPEN_TIME * i / segments, function()
+			-- da ponta perto do chefão (+z) para longe (-z), em zigue-zague
+			sideways = math.clamp(sideways + rng:NextNumber(-0.6, 0.6), -width * 0.3, width * 0.3)
+			local z = length / 2 - step * (i + 0.5)
+			local crack = Instance.new("Part")
+			crack.Name = "FissuraDeMagma"
+			crack.Size = Vector3.new(rng:NextNumber(0.7, 1.3), 0.25, step * 1.15)
+			crack.CFrame = ground * CFrame.new(sideways, 0.1, z) * CFrame.Angles(0, rng:NextNumber(-0.35, 0.35), 0)
+			crack.Anchored = true
+			crack.CanCollide = false
+			crack.CanQuery = false
+			crack.CanTouch = false
+			crack.CastShadow = false
+			crack.Material = Enum.Material.Neon
+			crack.Color = FISSURE_COLOR
+			crack.Parent = workspace
+			local fade =
+				TweenInfo.new(FISSURE_LIFE * 0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.4)
+			TweenService:Create(crack, fade, { Transparency = 1, Size = crack.Size * Vector3.new(0.3, 1, 1) }):Play()
+			Debris:AddItem(crack, FISSURE_LIFE)
+			-- lasca de rocha saltando da rachadura
+			if i % 2 == 0 then
+				local chunk = Instance.new("Part")
+				chunk.Name = "LascaDeRocha"
+				chunk.Size = Vector3.one * rng:NextNumber(0.6, 1.1)
+				chunk.CFrame = crack.CFrame * CFrame.Angles(rng:NextNumber(0, 3), rng:NextNumber(0, 3), 0)
+				chunk.Anchored = true
+				chunk.CanCollide = false
+				chunk.CanQuery = false
+				chunk.CanTouch = false
+				chunk.Material = Enum.Material.Slate
+				chunk.Color = ROCK_COLOR
+				chunk.Parent = workspace
+				local up = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true)
+				TweenService:Create(chunk, up, { CFrame = chunk.CFrame + Vector3.new(0, rng:NextNumber(1.5, 3), 0) })
+					:Play()
+				Debris:AddItem(chunk, 0.9)
+			end
+		end)
+	end
+end
+
 local function aliveCharacters(): { Model }
 	local result: { Model } = {}
 	for _, player in Players:GetPlayers() do

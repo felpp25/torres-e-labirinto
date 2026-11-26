@@ -53,7 +53,7 @@ local CRYSTAL_PATH: MissionDef = {
 	steps = {
 		{ kind = "Chapter", target = 1, npc = "Observer", chapter = 1, objective = "Fale com o Observador" },
 		{ kind = "Talk", target = 1, npc = "Ariadne", dialogue = "CrystalPath_Intro", objective = "Fale com Ariadne" },
-		{ kind = "BossWins", target = 4, towerId = 1, objective = "Derrote o Guardião da Torre" },
+		{ kind = "BossWins", target = 4, towerId = 1, objective = "Derrote o Golem de Obsidiana e Magma" },
 		{ kind = "Talk", target = 1, npc = "Ariadne", dialogue = "CrystalPath_Mobs", objective = "Fale com Ariadne" },
 		{ kind = "MobKills", target = 200, towerId = 1, objective = "Derrote mobs na Torre 1" },
 		{ kind = "Talk", target = 1, npc = "Tanu", dialogue = "CrystalPath_Sell", objective = "Fale com Tanu" },

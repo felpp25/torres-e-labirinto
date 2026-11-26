@@ -96,6 +96,28 @@
   comprimento, na borda do labirinto) com o boss. Vencer o boss conclui a torre.
 - **Cada boss é único** (tema, habilidades e moveset próprios). Os ataques são dados (Balance/Bosses): a IA é
   genérica e executa a lista de cada boss.
+- **Chefões com modelo do Tripo (decisão do designer, 26/11/2026):** Torre 1 = **Golem de Obsidiana e Magma** (no
+  lugar do Guardião da Torre; combina com os Poços de Calor da Caverna das Profundezas); Torre 2 = **Kokuryū**, o
+  dragão do design do lobby (no lugar do Geomante das Rochas). Os golpes continuam os de antes por enquanto (o Golem
+  usa os do Guardião; o Kokuryū, os do Geomante); golpes de dragão ficam para depois. Os modelos vieram sem esqueleto:
+  o movimento é por código (respira parado, balança ao andar, recua no aviso e dá um tranco no golpe) e o aviso deixa o
+  modelo vermelho. Descartado por enquanto: esqueleto e animações do Tripo (mais trabalho; difícil no dragão-serpente).
+  - **Golem em pedaços (decisão do designer, 26/11/2026):** com o modelo inteiro ele parecia "uma estátua batendo". Foi
+    cortado em 10 pedaços de pedra (tronco, cabeça, braço e antebraço, coxa e canela de cada lado) com bolas de lava
+    nas juntas, e cada pedaço é animado por código: parado respira; andando alterna as pernas e balança os braços; no
+    aviso do golpe pesado ergue os dois braços acima da cabeça e no golpe bate no chão; no aviso do pisão levanta a
+    perna direita e abre os braços, e no golpe pisa. O Kokuryū continua inteiro (vale pensar em gomos depois).
+  - **Golem com esqueleto (decisão do designer, 26/11/2026):** o designer gerou o Golem de novo no Tripo com rig
+    humanoide (predefinição Mixamo) e ele substituiu a versão em pedaços: as mesmas poses agora giram os ossos, e o
+    corpo dobra sem cortes e sem as bolas de lava. A versão em pedaços fica guardada como reserva. Para os próximos
+    chefões e NPCs humanoides do Tripo: gerar com rig Mixamo, pose em T ou A, de frente e sem pedestal.
+  - **Terceiro golpe do Golem: Fissura de Magma (decisão do designer, 26/11/2026).** Com só os dois golpes de perto
+    (golpe pesado até 12 studs, pisão até 9), quem se afastava nunca era atacado: o Golem anda a 9 studs/s e o jogador
+    a 16. A Fissura é o golpe de longe: só sai com o alvo entre 10 e 28 studs; ele ergue o braço direito, soca o chão e
+    uma rachadura de lava corre em linha reta (faixa de 26 × 5 à frente dele). Aviso de 1,3 s, 24 de dano (entre o
+    pisão, 22, e o golpe pesado, 30) e 1,4 s de pausa. De perto nada mudou. Descartados: a Investida (movimento novo,
+    risco de prender o jogador no canto) e o Arremesso de Pedra, guardado para o próximo chefão.
+  Os ids internos continuam "TowerGuardian" e "Geomancer". A missão e as falas passaram a citar os nomes novos.
 - *Protótipo:* boss "Guardião da Torre": golpe pesado à frente + pisão em círculo, ambos com aviso no chão;
   1200 de vida (+50% por jogador extra), Defesa 10, imune a empurrão; dá 1500 XP e 300 Gold a cada jogador.
 - **Torre concluída:** aviso "TORRE CONCLUÍDA" e uma run nova começa no andar 1. *Futuro:* voltar a um **lobby**

@@ -29,6 +29,7 @@ local CONTROLLERS: { [string]: Controller } = {
 	DialogueController = require(Controllers:WaitForChild("DialogueController")),
 	MissionController = require(Controllers:WaitForChild("MissionController")),
 	LightingController = require(Controllers:WaitForChild("LightingController")),
+	BossVisualController = require(Controllers:WaitForChild("BossVisualController")),
 }
 local CONTROLLER_ORDER: { string } = {
 	"LightingController",
@@ -42,6 +43,7 @@ local CONTROLLER_ORDER: { string } = {
 	"CombatFeedbackController",
 	"InputController",
 	"SpectateController",
+	"BossVisualController",
 }
 
 for _, name in CONTROLLER_ORDER do

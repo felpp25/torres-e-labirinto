@@ -173,6 +173,21 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
     cópias soltas do Workspace e o jogo clona o modelo. Textura chega em 1024 (limite do Roblox: 2K não ganha nada).
     Primeiro: o Observador (`scripts/lobby1-observador.luau` → `ServerStorage.Lobby1Modelos.Observador`, 7,6 studs,
     "Head" invisível no capuz para a câmera da conversa e o "!"; o NpcService usa o greybox se o modelo faltar).
+  - **Chefões do Tripo** (`lobby1-claude-code/Tripo/Bosses/`): `scripts/blender/chefoes_tripo.py` limpa (o Golem veio
+    com um golem pequeno, pedestal, placas e cacos voando: sai por pedaço solto da malha), põe na escala e exporta;
+    `scripts/chefoes-modelos.luau` monta `ServerStorage.ChefoesModelos.<bossId>` (assets `106231545121719` Golem e
+    `119906539899630` Kokuryū). O BossService veste o corpo do código (caixa invisível = colisão e alvo) com o modelo:
+    cada peça presa por Motor6D na peça "Pai" dela, girando na "Junta" (Attributes do modelo). O
+    `client/Controllers/BossVisualController` anima: o Golem tem **esqueleto Mixamo do Tripo** (`GolemRig.glb`, asset
+    `93271892979410`, `chefoes_tripo.preparar_golem_rig`; o Open Cloud aceita GLB com esqueleto: a MeshPart chega com
+    os Bones dentro) e o controller gira os ossos (`BONE_MAP`: giro no espaço do chefão -> repouso⁻¹ * giro * repouso)
+    com poses por golpe (o servidor manda o id no Attribute `TelegraphAttack`). Reserva: o Golem em pedaços
+    (`segmentar_golem`, `TowerGuardian_Pedacos`), animado pelo `Transform` dos Motor6D. Peça única (Kokuryū) só
+    respira, balança, recua e dá o tranco. O importador de glTF do Blender cria uma "Esfera icosaédrica" para desenhar
+    os ossos: não confundir com a malha (pegue a malha filha do esqueleto, com grupos de vértices). Malha do Tripo vem como
+    triângulos soltos: soldar as costuras (`remove_doubles`) antes de separar por pedaço. Gravar a luta para avaliar:
+    `video_capture` + folha de contato com OpenCV (`cv2`, instalado); tire os mobs do andar e esconda as paredes da
+    arena só no cliente (`LocalTransparencyModifier`), senão a câmera fica atrás delas.
   - Capturas de áreas ainda sem luz (Fase 6): clareie `Lighting.Ambient`/`ExposureCompensation` só para a foto e
     devolva os valores do `LightingPresets.Lobby1` (no Edit o Lighting do place espelha o preset).
 - `screen_capture`: uma por vez (duas em paralelo: uma deu timeout e a outra veio em branco). BillboardGui não aparece

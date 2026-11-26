@@ -146,7 +146,9 @@ export type BossAttackDef = {
 	width: number, -- Front: largura da área (os outros ignoram)
 	waves: number?, -- AtPlayers: quantas ondas seguidas (padrão 1); a pausa `recovery` vem depois da última
 	triggerRange: number, -- o boss escolhe este ataque se o alvo estiver até esta distância
+	minRange: number?, -- ... e a pelo menos esta (golpe de longe: de perto ficam os outros); padrão 0
 	recovery: number, -- s parado depois do golpe (janela para o jogador revidar)
+	effect: string?, -- efeito visual no golpe (Telegraph), ex.: "MagmaFissure" (rachadura de lava pela faixa)
 }
 
 export type BossDef = {

@@ -13,6 +13,9 @@ local HOVER_HEIGHT = 1.2 -- studs entre a base do corpo e o chão (= maior degra
 
 local EnemyFactory = {}
 
+-- Distância do centro do corpo até o chão = size.Y / 2 + HOVER_HEIGHT (o BossService veste o chefão a partir dela).
+EnemyFactory.HOVER_HEIGHT = HOVER_HEIGHT
+
 local function weld(root: BasePart, part: BasePart)
 	local constraint = Instance.new("WeldConstraint")
 	constraint.Part0 = root

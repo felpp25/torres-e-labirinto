@@ -5,7 +5,8 @@
 
 local Types = require(script.Parent.Parent.Types)
 
--- Guardião da Torre: grande e lento; dois ataques com aviso no chão.
+-- Golem de Obsidiana e Magma (chefão da Torre 1; id antigo "TowerGuardian", quando era o Guardião da Torre): grande e
+-- lento; dois ataques com aviso no chão. A aparência é o modelo do Tripo (ServerStorage.ChefoesModelos, BossService).
 local GUARDIAN_ATTACKS: { Types.BossAttackDef } = {
 	{
 		id = "HeavySlam", -- golpe pesado à frente
@@ -27,11 +28,26 @@ local GUARDIAN_ATTACKS: { Types.BossAttackDef } = {
 		triggerRange = 9,
 		recovery = 1.0,
 	},
+	{
+		-- Fissura de Magma (decisão do designer, 26/11/2026): soca o chão e uma rachadura de lava corre em linha reta
+		-- até longe. É o golpe de longe do Golem (sem ele, quem se afastava nunca era atacado): só sai com o alvo a
+		-- 10+ studs; de perto ficam o golpe pesado e o pisão. Faixa de 26 x 5 (até ~30 studs do centro dele).
+		id = "MagmaFissure",
+		shape = "Front",
+		telegraphTime = 1.3,
+		damage = 24,
+		range = 26,
+		width = 5,
+		triggerRange = 28,
+		minRange = 10,
+		recovery = 1.4,
+		effect = "MagmaFissure",
+	},
 }
 
 local GUARDIAN_BODY: Types.MobDef = {
 	id = "TowerGuardian",
-	displayName = "Guardião da Torre",
+	displayName = "Golem de Obsidiana e Magma",
 	health = 1200, -- vida base com 1 jogador
 	damage = 0, -- (os danos estão nos ataques)
 	defense = 10,
@@ -49,7 +65,8 @@ local GUARDIAN_BODY: Types.MobDef = {
 	color = Color3.fromRGB(90, 70, 130),
 }
 
--- Geomante das Rochas (chefão da Torre 2; GDD > Torre 2 > Conteúdo, decisões do designer): mago de pedra. Danos na
+-- Kokuryū, o dragão (chefão da Torre 2; id antigo "Geomancer": os golpes ainda são os do Geomante das Rochas, GDD >
+-- Torre 2 > Conteúdo; golpes de dragão ficam para depois). A aparência é o modelo do Tripo. Danos na
 -- escala da Torre 1 (com o ×2,25 da Torre 2: 51,75 / 49,5 / 58,5). Pausas escolhidas para a MESMA pressão do Guardião (8,7 de
 -- dano/s base se acertar tudo), o que mantém o índice de dificuldade do GDD; parado 35% do tempo (janelas para bater).
 local GEOMANCER_ATTACKS: { Types.BossAttackDef } = {
@@ -88,7 +105,7 @@ local GEOMANCER_ATTACKS: { Types.BossAttackDef } = {
 
 local GEOMANCER_BODY: Types.MobDef = {
 	id = "Geomancer",
-	displayName = "Geomante das Rochas",
+	displayName = "Kokuryū",
 	health = 1200, -- vida base com 1 jogador (igual ao Guardião; a Torre 2 multiplica: 2.700)
 	damage = 0, -- (os danos estão nos ataques)
 	defense = 10,
@@ -109,7 +126,7 @@ local GEOMANCER_BODY: Types.MobDef = {
 local Bosses: { [string]: Types.BossDef } = {
 	TowerGuardian = {
 		id = "TowerGuardian",
-		displayName = "Guardião da Torre",
+		displayName = "Golem de Obsidiana e Magma",
 		body = GUARDIAN_BODY,
 		healthPerExtraPlayer = 0.5, -- 2 jogadores: 1800 de vida; 4 jogadores: 3000
 		attacks = GUARDIAN_ATTACKS,
@@ -120,7 +137,7 @@ local Bosses: { [string]: Types.BossDef } = {
 	},
 	Geomancer = {
 		id = "Geomancer",
-		displayName = "Geomante das Rochas",
+		displayName = "Kokuryū",
 		body = GEOMANCER_BODY,
 		healthPerExtraPlayer = 0.5,
 		attacks = GEOMANCER_ATTACKS,

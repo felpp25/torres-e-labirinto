@@ -15,6 +15,7 @@
 
 local Debris: Debris = game:GetService("Debris")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage: ServerStorage = game:GetService("ServerStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
@@ -47,8 +48,12 @@ type Boss = {
 	groundY: number,
 	nextAttackAt: number,
 	originalColors: { [BasePart]: Color3 },
+	highlight: Highlight?, -- brilho do aviso no modelo vestido (a cor da peça não muda a textura)
 }
 
+local VISUAL_JOINT = Keys.BossVisual.Joint
+local VISUAL_TELEGRAPH = Keys.BossVisual.Telegraph
+local VISUAL_ATTACK = Keys.BossVisual.Attack
 local THINK_INTERVAL = 0.1
 local RAIN_ROCK_SIZE = 4 -- pedra da Chuva de Rochas (só visual)
 local HOME_TOLERANCE = 4 -- studs: perto o bastante do centro, para de andar
@@ -110,17 +115,89 @@ local function nearestTarget(boss: Boss): BasePart?
 	return best
 end
 
-local function setTelegraphColor(boss: Boss, active: boolean)
+-- `attackId`: o golpe do aviso (o cliente escolhe o movimento por ele: braços no golpe pesado, perna no pisão)
+local function setTelegraphColor(boss: Boss, active: boolean, attackId: string?)
 	for part, color in boss.originalColors do
 		part.Color = if active then Telegraph.COLOR else color
 	end
+	if boss.highlight then
+		boss.highlight.Enabled = active
+	end
+	-- o cliente (BossVisualController) arma o golpe no aviso e bate quando ele acaba
+	if active then
+		boss.model:SetAttribute(VISUAL_ATTACK, attackId)
+	end
+	boss.model:SetAttribute(VISUAL_TELEGRAPH, active)
+end
+
+-- Veste o chefão com o modelo dele (ServerStorage.ChefoesModelos.<bossId>, montado por scripts/chefoes-modelos.luau):
+-- as peças do modelo (só aparência, sem colisão nem consulta) ficam presas por Motor6D, cada uma na peça "Pai" dela
+-- (ou no corpo), girando em volta da "Junta" (Attributes do modelo). O corpo do código (a caixa) fica invisível, mas
+-- continua sendo a colisão e o alvo dos golpes. Sem modelo, fica o greybox.
+local function dress(model: Model, def: Types.BossDef): Highlight?
+	local folder = ServerStorage:FindFirstChild("ChefoesModelos")
+	local template = folder and folder:FindFirstChild(def.id)
+	local root = model.PrimaryPart
+	if not template or not template:IsA("Model") or not root then
+		return nil
+	end
+	local ground = root.CFrame * CFrame.new(0, -(def.body.size.Y / 2 + EnemyFactory.HOVER_HEIGHT), 0)
+	local pivot = template:GetPivot()
+	local pieces: { [string]: BasePart } = {}
+	for _, child in template:GetChildren() do
+		if child:IsA("BasePart") then
+			local part = child:Clone()
+			part.CFrame = ground * pivot:ToObjectSpace(child.CFrame)
+			part.Anchored = false
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.Massless = true
+			pieces[child.Name] = part
+		end
+	end
+	if next(pieces) == nil then
+		return nil
+	end
+	for _, part in pieces do
+		local parentName = part:GetAttribute("Pai")
+		local joint = part:GetAttribute("Junta")
+		local part0: BasePart = if type(parentName) == "string" and pieces[parentName] then pieces[parentName] else root
+		local jointWorld = ground
+			* CFrame.new(pivot:PointToObjectSpace(if typeof(joint) == "Vector3" then joint else pivot.Position))
+		local motor = Instance.new("Motor6D")
+		motor.Name = VISUAL_JOINT
+		motor.Part0 = part0
+		motor.Part1 = part
+		motor.C0 = part0.CFrame:ToObjectSpace(jointWorld)
+		motor.C1 = part.CFrame:ToObjectSpace(jointWorld)
+		motor.Parent = part
+	end
+	for _, part in model:GetChildren() do
+		if part:IsA("BasePart") then
+			part.Transparency = 1 -- caixa, cabeça, nariz e pernas do greybox
+		end
+	end
+	for _, part in pieces do
+		part.Parent = model
+	end
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = Telegraph.COLOR
+	highlight.FillTransparency = 0.55
+	highlight.OutlineColor = Telegraph.COLOR
+	highlight.OutlineTransparency = 0.2
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.Enabled = false
+	highlight.Adornee = model
+	highlight.Parent = model
+	return highlight
 end
 
 -- Escolhe, entre os ataques que alcançam o alvo, um ao acaso.
 local function chooseAttack(boss: Boss, distance: number): Types.BossAttackDef?
 	local options: { Types.BossAttackDef } = {}
 	for _, attack in boss.def.attacks do
-		if distance <= attack.triggerRange then
+		if distance <= attack.triggerRange and distance >= (attack.minRange or 0) then
 			table.insert(options, attack)
 		end
 	end
@@ -171,6 +248,7 @@ end
 local function performArea(boss: Boss, attack: Types.BossAttackDef): boolean
 	local indicator: Part
 	local hitPlayers: () -> { Player }
+	local effect: () -> () = function() end
 	if attack.shape == "Circle" then
 		local center = boss.root.Position
 		indicator = Telegraph.circle(center, attack.range, boss.groundY)
@@ -184,12 +262,18 @@ local function performArea(boss: Boss, attack: Types.BossAttackDef): boolean
 		hitPlayers = function()
 			return Telegraph.playersInBox(hitCFrame, size)
 		end
+		if attack.effect == "MagmaFissure" then
+			effect = function()
+				Telegraph.magmaFissure(hitCFrame, attack.range, attack.width, boss.groundY)
+			end
+		end
 	end
 	task.wait(attack.telegraphTime)
 	indicator:Destroy()
 	if boss.humanoid.Health <= 0 then
 		return false
 	end
+	effect()
 	for _, player in hitPlayers() do
 		CombatService.damagePlayer(player, attack.damage * boss.statMultiplier)
 	end
@@ -203,7 +287,7 @@ local function perform(boss: Boss, attack: Types.BossAttackDef, target: BasePart
 	local origin = boss.root.Position
 	boss.root.CFrame = CFrame.lookAt(origin, Vector3.new(target.Position.X, origin.Y, target.Position.Z))
 
-	setTelegraphColor(boss, true)
+	setTelegraphColor(boss, true, attack.id)
 	local alive = if attack.shape == "AtPlayers" then performAtPlayers(boss, attack) else performArea(boss, attack)
 	if not alive then
 		return
@@ -255,9 +339,15 @@ local function onDied(boss: Boss)
 		end
 	end
 	for part in boss.originalColors do
-		part.Transparency = 0.6
+		if part.Transparency < 1 then -- a caixa de um chefão vestido continua invisível
+			part.Transparency = 0.6
+		end
 		part.CanCollide = false
 	end
+	if boss.highlight then
+		boss.highlight.Enabled = false
+	end
+	boss.model:SetAttribute(VISUAL_TELEGRAPH, false)
 	Debris:AddItem(boss.model, Combat.corpseLifetime * 2)
 	if bosses[run] == boss then
 		bosses[run] = nil
@@ -282,6 +372,7 @@ function BossService.spawn(
 	local model = EnemyFactory.create(def.body, CFrame.new(spawnPosition), healthMultiplier)
 	model:SetAttribute("KnockbackImmune", true)
 	model:SetAttribute("BossId", def.id)
+	local highlight = dress(model, def)
 	model.Parent = parent
 	EnemyFactory.setServerOwned(model)
 
@@ -308,6 +399,7 @@ function BossService.spawn(
 		groundY = groundY,
 		nextAttackAt = os.clock() + 1.5, -- pequena folga ao primeiro contato
 		originalColors = originalColors,
+		highlight = highlight,
 	}
 	bosses[run] = boss
 	publishHealth(run, boss)

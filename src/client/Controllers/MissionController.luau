@@ -1,7 +1,7 @@
 --!strict
 -- Missão no HUD e o "!" dos NPCs (GDD > Missão e história). Só lê Attributes do jogador: o MissionService publica a
 -- etapa e o contador de cada missão; o StoryService, os capítulos liberados e ouvidos. O servidor conta tudo.
--- - Quadro no canto direito: o nome da missão e o objetivo atual ("Derrote o Guardião da Torre (2/4)", "Fale com
+-- - Quadro no canto direito: o nome da missão e o objetivo atual ("Derrote o Golem de Obsidiana e Magma (2/4)", "Fale com
 --   Tanu, na loja"); pisca em dourado quando a etapa muda; some sem missão ou com ela concluída.
 -- - "!" dourado em cima de quem tem algo novo: o Observador com capítulo liberado e não ouvido; o NPC da etapa atual.
 -- O jogo usa Streaming: as peças dos NPCs chegam (e saem) aos poucos. O "!" é criado quando a cabeça chega e de novo

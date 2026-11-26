@@ -21,13 +21,13 @@ local DIALOGUES: { [string]: Dialogue } = {
 			"Eu sou Ariadne. Já tirei muita gente de labirintos. Mas este é diferente: ele só sobe.",
 			"A Torre 2 está selada por cristal de Áuren. Só uma Chave de Cristal abre a passagem.",
 			"Eu sei forjar essa chave. Mas antes quero ver do que você é capaz.",
-			"Derrote o Guardião da Torre quatro vezes. Depois volte aqui.",
+			"Derrote o Golem de Obsidiana e Magma quatro vezes. Depois volte aqui.",
 		},
 	},
 	CrystalPath_Mobs = {
 		npc = "Ariadne",
 		lines = {
-			"Força você tem. O Guardião já conhece o seu rosto.",
+			"Força você tem. O Golem já conhece o seu rosto.",
 			"Agora limpe o caminho: as criaturas da Torre 1 estão inquietas. Derrote 200 delas.",
 			"Depois, procure Tanu na loja. Você vai precisar de Gold.",
 		},
@@ -60,7 +60,7 @@ local DIALOGUES: { [string]: Dialogue } = {
 		npc = "Ariadne",
 		lines = {
 			"Eu senti o cristal vibrar. Você está pronto para a última parte.",
-			"O Guardião guarda um Fragmento de Cristal a cada derrota. Traga cinco.",
+			"O Golem guarda um Fragmento de Cristal a cada derrota. Traga cinco.",
 		},
 	},
 	CrystalPath_Key = {
@@ -83,7 +83,7 @@ local DIALOGUES: { [string]: Dialogue } = {
 	Idle_Ariadne_Early = {
 		npc = "Ariadne",
 		lines = {
-			"Volte quando tiver vencido o Guardião da Torre. Aí a gente conversa.",
+			"Volte quando tiver vencido o Golem de Obsidiana e Magma. Aí a gente conversa.",
 		},
 	},
 	Idle_Ariadne_Busy = {
@@ -95,7 +95,7 @@ local DIALOGUES: { [string]: Dialogue } = {
 	Idle_Ariadne_Done = {
 		npc = "Ariadne",
 		lines = {
-			"A Torre 2 te espera. Cuidado com o Geomante das Rochas.",
+			"A Torre 2 te espera. Cuidado com Kokuryū.",
 		},
 	},
 	Idle_Tanu = {
