@@ -90,6 +90,15 @@ local function makePrompt(parent: BasePart, name: string, actionText: string, ob
 	prompt.Parent = parent
 end
 
+-- Peça do cenário do Lobby 1 (Workspace/Lobby1, montado no Studio), pelo caminho dos nomes; nil se não existir.
+local function lobbyArt(path: { string }): Instance?
+	local node: Instance? = workspace:FindFirstChild("Lobby1")
+	for _, name in path do
+		node = node and node:FindFirstChild(name)
+	end
+	return node
+end
+
 local function build()
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"
@@ -105,6 +114,11 @@ local function build()
 	)
 	makeSign(counter, "LOJA", Color3.fromRGB(255, 205, 70), 5)
 	makePrompt(counter, SHOP_PROMPT_NAME, "Abrir loja", "Loja", Shop.shopRange)
+	-- No Lobby 1 a Banca do Tanu (madeira e toldo, scripts/lobby1-mercado.luau) é montada em volta deste balcão: ele
+	-- fica invisível e continua com o prompt, a placa e a colisão.
+	if lobbyArt({ "Roleplay", "Mercado das Raízes", "Bancas", "Banca do Tanu" }) then
+		counter.Transparency = 1
+	end
 
 	-- Forja (greybox: bigorna escura com brasa)
 	local forge = makePart(
