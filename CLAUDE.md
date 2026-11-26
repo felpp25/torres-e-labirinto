@@ -150,7 +150,8 @@ g) **Anote o tipo dos serviços:** `local Players: Players = game:GetService("Pl
   - Ordem dos scripts do mundo: `lobby1-terreno` → `lobby1-formacoes` → `lobby1-pedras` → `lobby1-cristais` →
     `lobby1-entradas` (escava o Terrain: túnel da Fenda e corredor do Vigia; rodar de novo depois do terreno) →
     `lobby1-revestimento` (rochas e plantas do pacote; acha paredes por raio e evita qualquer peça montada).
-    v122 = passe visual; v129 = Coração do Abismo; v133 = entradas das torres (Vigia sem rosto).
+    v122 = passe visual; v129 = Coração do Abismo; v133 = entradas das torres (Vigia sem rosto);
+    v139 = Observador do Tripo.
   - **Peças no Blender** (`scripts/blender/`, rodam DENTRO do Blender pelo MCP): `lobby1_blender.py` (coordenadas do
     Roblox ↔ Blender, UV plano a cada 8 studs, `roughen` = rocha orgânica, booleano, junção, decimação, exportação
     GLB que devolve o centro de cada malha), `entradas.py` (a Fenda da Torre 1) e `vigia.py` (Portal do Vigia do Sol
